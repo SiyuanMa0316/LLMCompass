@@ -1,4 +1,4 @@
-name: llmcompass_ae
+name: llmcompass
 channels:
   - pytorch
   - defaults

@@ -42,6 +42,16 @@ class BatchedMatmul(Operator):
         _ = matmul(Tensor([self.M, self.K]), Tensor([self.K, self.N]))
         matmul_latency = matmul.roofline_model(pcb_module)
         self.roofline_latency = matmul_latency * self.bs
+        
+        self.roofline_latency = max (
+            self.flop_count / pcb_module.compute_module.total_systolic_array_flops,
+            self.io_count * self.data_type.word_size
+            / min(
+                pcb_module.io_module.bandwidth,
+                pcb_module.compute_module.l2_bandwidth_per_cycle * pcb_module.compute_module.clock_freq,
+            ),
+        )
+        
         return self.roofline_latency
 
     # def compile_and_simulate(self, pcb_module: Device, compile_mode: str):
@@ -1555,3 +1565,4 @@ class Matmul(Operator):
         print("GPU kernel launch overhead: ", avg_overhead * 1e3, "ms")
         print(latencies)
         return avg_overhead
+
