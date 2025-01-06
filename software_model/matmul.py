@@ -56,24 +56,26 @@ class BatchedMatmul(Operator):
 
     def compile_and_simulate(self, pcb_module: Device, compile_mode: str):
         matmul = Matmul(self.data_type)
-        _ = matmul(Tensor([self.M, self.K]), Tensor([self.K, self.N]))
+        _ = matmul(Tensor([self.M, self.K],self.data_type), Tensor([self.K, self.N],self.data_type))
         matmul_latency1 = (
             matmul.compile_and_simulate(pcb_module, compile_mode) * self.bs
         )
 
         matmul = Matmul(self.data_type)
         _ = matmul(
-            Tensor([self.M, self.K * self.bs]), Tensor([self.K * self.bs, self.N])
+            Tensor([self.M, self.K * self.bs],self.data_type), Tensor([self.K * self.bs, self.N],self.data_type)
         )
         matmul_latency2 = (
             matmul.compile_and_simulate(pcb_module, compile_mode)
-            + (self.bs - 1)
-            * self.M
-            * self.N
-            * self.data_type.word_size
-            / pcb_module.io_module.bandwidth
+            # Siyuan: I don't understand this overhead so commented out
+            # + (self.bs - 1)
+            # * self.M
+            # * self.N
+            # * self.data_type.word_size
+            # / pcb_module.io_module.bandwidth
         )
         self.latency = min(matmul_latency1, matmul_latency2)
+        print(f"BatchedMatmul latency: {self.latency}")
         return self.latency
 
     def run_on_gpu(
@@ -130,6 +132,8 @@ class Matmul(Operator):
 
     def __call__(self, input1: Tensor, input2: Tensor) -> Tensor:
         # [bs, M, K] * [K, N] = [bs, M, N]
+        # print(self.data_type.name)
+        # print(input1.data_type.name)
         assert self.data_type == input1.data_type
         assert self.data_type == input2.data_type
         self.input1_shape = input1.shape
@@ -154,13 +158,15 @@ class Matmul(Operator):
     def roofline_model(self, pcb_module: Device):
         self.roofline_latency = max(
             self.flop_count / pcb_module.compute_module.total_systolic_array_flops,
-            self.io_count
+            #Siyuan bug fix:
+            self.io_count * self.data_type.word_size
             / min(
                 pcb_module.io_module.bandwidth,
                 pcb_module.compute_module.l2_bandwidth_per_cycle
                 * pcb_module.compute_module.clock_freq,
             ),
         )
+        print(f"  flop_count:{self.flop_count}, compute_flops:{pcb_module.compute_module.total_systolic_array_flops},  io_count:{self.io_count}, io_bw:{pcb_module.io_module.bandwidth}, l2_bw:{pcb_module.compute_module.l2_bandwidth_per_cycle * pcb_module.compute_module.clock_freq}, latency: {self.roofline_latency}")
         return self.roofline_latency
 
     def print_latency(self):
@@ -728,6 +734,13 @@ class Matmul(Operator):
                         if cycle_count < min_cycle_count:
                             min_cycle_count = cycle_count
                             best_mapping = mapping
+        elif compile_mode == "heuristic-PIMSAB":
+            print(f"  matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
+            self.latency = self.roofline_model(pcb_module)
+            
+            return self.latency
+
+
         else:
             raise ValueError(f"compile_mode {compile_mode} not supported")
         self.best_mapping = best_mapping
@@ -737,6 +750,7 @@ class Matmul(Operator):
         self.best_latency = min_cycle_count / pcb_module.compute_module.clock_freq
         self.latency = self.best_latency
         # self.best_mapping.display()
+        
         return self.latency
 
     def simulate(

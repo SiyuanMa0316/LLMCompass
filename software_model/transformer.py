@@ -196,7 +196,7 @@ class TransformerBlockInitComputationTP(Operator):
         interconnect = system.interconnect
 
         # matmul
-        print("simulating qkv")
+        print(f"simulating qkv: ")
         qkv_latency = 3 * (
             self.Q_proj.compile_and_simulate(device, compile_mode)
             + device.compute_module.overhead.matmul
@@ -236,6 +236,10 @@ class TransformerBlockInitComputationTP(Operator):
             + h1_matmul1_latency
             + h2_matmul2_latency
         )
+
+        print(f"matmul total overhead: {8*device.compute_module.overhead.matmul}")
+        print(f"matmul total latency w/o overhead: {matmul_total_latency - 8*device.compute_module.overhead.matmul}")
+        print(f"matmul total latency: {matmul_total_latency}")
 
         # normalization
         softmax_latency = (
@@ -552,33 +556,34 @@ class TransformerBlockAutoRegressionTP(Operator):
         pcb = system.device
         interconnect = system.interconnect
 
+        
         # matmul
-        # print("simulating qkv")
+        print("simulating qkv")
         qkv_latency = 3 * (
             self.Q_proj.compile_and_simulate(pcb, compile_mode)
             + pcb.compute_module.overhead.matmul
         )
-        # print("simulating q_mul_k")
+        print("simulating q_mul_k")
         q_mul_k_latency = (
             self.Q_mul_K.compile_and_simulate(pcb, compile_mode)
             + pcb.compute_module.overhead.matmul
         )
-        # print("simulating a_mul_v")
+        print("simulating a_mul_v")
         a_mul_v_latency = (
             self.A_mul_V.compile_and_simulate(pcb, compile_mode)
             + pcb.compute_module.overhead.matmul
         )
-        # print("simulating h_matmul0")
+        print("simulating h_matmul0")
         h_matmul0_latency = (
             self.H_matmul0.compile_and_simulate(pcb, compile_mode)
             + pcb.compute_module.overhead.matmul
         )
-        # print("simulating h1_matmul1")
+        print("simulating h1_matmul1")
         h1_matmul1_latency = (
             self.H_matmul1.compile_and_simulate(pcb, compile_mode)
             + pcb.compute_module.overhead.matmul
         )
-        # print("simulating h2_matmul2")
+        print("simulating h2_matmul2")
         h2_matmul2_latency = (
             self.H_matmul2.compile_and_simulate(pcb, compile_mode)
             + pcb.compute_module.overhead.matmul
@@ -592,6 +597,9 @@ class TransformerBlockAutoRegressionTP(Operator):
             + h1_matmul1_latency
             + h2_matmul2_latency
         )
+        print(f"matmul total overhead: {8*pcb.compute_module.overhead.matmul}")
+        print(f"matmul total latency w/o overhead: {matmul_total_latency - 8*pcb.compute_module.overhead.matmul}")
+        print(f"matmul total latency: {matmul_total_latency}")
 
         # normalization
         softmax_latency = (

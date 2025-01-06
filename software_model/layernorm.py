@@ -73,6 +73,9 @@ class LayerNorm(Operator):
             )
 
     def compile_and_simulate(self, pcb_module: Device, compile_mode: str):
+        if compile_mode == "heuristic-PIMSAB":
+            #Siyuan: to be implemented
+            return 0
         self.computational_graph.data_type = (
             pcb_module.compute_module.core.vector_unit.data_type
         )
