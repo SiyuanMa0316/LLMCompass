@@ -312,12 +312,15 @@ class Matmul(Operator):
             return self.latency
         if compile_mode == "exhaustive":
             for l2_tile_M_log2 in range(5, ceil(log2(self.computational_graph.M)) + 1):
+                #partition M dimension by 32, 64, 128, ....
                 l2_tile_M = 2**l2_tile_M_log2
                 for l2_tile_N_log2 in range(
+                    # partition N dimension by 32, 64, 128, ...
                     5, ceil(log2(self.computational_graph.N)) + 1
                 ):
                     l2_tile_N = 2**l2_tile_N_log2
                     for l2_tile_K_log2 in range(
+                        # partition K dimension by 32, 64, 128 ...
                         5, ceil(log2(self.computational_graph.K)) + 1
                     ):
                         l2_tile_K = 2**l2_tile_K_log2
@@ -328,11 +331,13 @@ class Matmul(Operator):
                         )
                         if (
                             working_set_size
+                            # partition group does not fit into L2 cache, ignore current partition
                             > pcb_module.compute_module.l2_size
                             // self.data_type.word_size
                         ):
                             continue
                         elif (
+                            # partition group smaller than 1/2 size of L2 cache, double buffering 
                             working_set_size
                             <= pcb_module.compute_module.l2_size
                             // self.data_type.word_size
@@ -341,12 +346,15 @@ class Matmul(Operator):
                             is_l2_double_buffering = True
                         else:
                             is_l2_double_buffering = False
+                            
+                            #sub-partition workgroup into L1 cache, following same philosophy as previous,
                         for l1_tile_M_log2 in range(5, l2_tile_M_log2 + 1):
                             l1_tile_M = 2**l1_tile_M_log2
                             for l1_tile_N_log2 in range(5, l2_tile_N_log2 + 1):
                                 l1_tile_N = 2**l1_tile_N_log2
                                 for l1_tile_K_log2 in range(5, l2_tile_K_log2 + 1):
                                     l1_tile_K = 2**l1_tile_K_log2
+                                    # If worksize > 1/2 L1 cache size
                                     if (
                                         l1_tile_M * l1_tile_N
                                         + l1_tile_N * l1_tile_K
@@ -379,6 +387,7 @@ class Matmul(Operator):
                                             ) in self.find_permutations(
                                                 pcb_module.compute_module.core.systolic_array_count
                                             ):
+                                                # mapping tiling factor based on systolic array count.
                                                 mapping = self.Mapping(
                                                     l2_tile_M,
                                                     l2_tile_N,
@@ -1054,6 +1063,7 @@ class Matmul(Operator):
                 [ceil(M / l1_tile_M), ceil(N / l1_tile_N), ceil(K / l1_tile_K)],
                 dtype=Matmul.L1TileSimulator,
             )
+            # fill in the full tiles
             if M_l1_t * N_l1_t * K_l1_t != 0:
                 l1_tiles[:M_l1_t, :N_l1_t, :K_l1_t] = Matmul.L1TileSimulator(
                     l1_tile_M,
@@ -1064,6 +1074,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
+            # M dimension is remaining
             if M_remain != 0:
                 l1_tiles[-1, :N_l1_t, :K_l1_t] = Matmul.L1TileSimulator(
                     M_remain,
@@ -1074,6 +1085,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
+            # N dimension is remaining
             if N_remain != 0:
                 l1_tiles[:M_l1_t, -1, :K_l1_t] = Matmul.L1TileSimulator(
                     l1_tile_M,
@@ -1084,6 +1096,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
+            # K dimension is remaining
             if K_remain != 0:
                 l1_tiles[:M_l1_t, :N_l1_t, -1] = Matmul.L1TileSimulator(
                     l1_tile_M,
@@ -1134,7 +1147,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
-
+            # Fill in the actual M x K matrix dimensions, and handling edge cases
             M_K_tile_size = np.zeros(
                 [ceil(M / l1_tile_M), ceil(K / l1_tile_K)], dtype=int
             )
@@ -1145,7 +1158,7 @@ class Matmul(Operator):
                 M_K_tile_size[:M_l1_t, -1] = l1_tile_M * K_remain
             if M_remain > 0 and K_remain > 0:
                 M_K_tile_size[-1, -1] = M_remain * K_remain
-
+            # Fill in the actual K x N matrix dimensions, and handling edge cases
             K_N_tile_size = np.zeros(
                 [ceil(K / l1_tile_K), ceil(N / l1_tile_N)], dtype=int
             )
@@ -1156,7 +1169,7 @@ class Matmul(Operator):
                 K_N_tile_size[:K_l1_t, -1] = l1_tile_K * N_remain
             if K_remain > 0 and N_remain > 0:
                 K_N_tile_size[-1, -1] = K_remain * N_remain
-
+            # Fill in the actual M x N matrix dimensions, and handling edge cases
             M_N_tile_size = np.zeros(
                 [ceil(M / l1_tile_M), ceil(N / l1_tile_N)], dtype=int
             )
@@ -1189,7 +1202,9 @@ class Matmul(Operator):
                 ceil(K / l1_tile_K),
                 mapping.l1_loop_order,
             ):
+                # Map current work to an L1 tile, set as active
                 active_l1_tile_list.append((m, n, k, l1_tiles[m, n, k]))
+                # if current M x K x N is the last round of workgroup, no further check is required
                 if (
                     m == ceil(M / l1_tile_M) - 1
                     and n == ceil(N / l1_tile_N) - 1
@@ -1197,6 +1212,8 @@ class Matmul(Operator):
                 ):
                     pass
                 elif (
+                    # continue add workloads until L1 tiles are fulfilled.
+                    # before L1 tiles are saturated, no computation simulation is performed.
                     len(active_l1_tile_list) < chiplet_module.compute_module.core_count
                 ):
                     continue
@@ -1218,6 +1235,7 @@ class Matmul(Operator):
                 )
 
                 current_batch_compute_cycle_count = 0
+                # simulate computation for every L1 active tiles
                 for i in range(len(active_l1_tile_list)):
                     temp_m, temp_n, temp_k, temp_l1_tile = active_l1_tile_list[i]
                     current_batch_Read_M_K[temp_m, temp_k] = 1
@@ -1247,8 +1265,7 @@ class Matmul(Operator):
                     * K_N_tile_size
                 )
                 current_batch_M_N_read_count = np.sum(
-                    (
-                        current_batch_Read_M_N
+                    (current_batch_Read_M_N
                         * (~(previous_batch_Read_M_N + previous_batch_Write_M_N))
                     )
                     * M_N_tile_size
@@ -1374,10 +1391,12 @@ class Matmul(Operator):
         mac_per_clock,
         dataflow="os",
     ):
-        # print(f'start: {M} {N} {K} {array_height} {array_width} {mac_per_clock} {dataflow}')
+        print(f'start: {M} {N} {K} {array_height} {array_width} {mac_per_clock} {dataflow}')
         assert M * N * K * array_height * array_width * mac_per_clock != 0
+        # if matrix size is large enough to fully utilize the systolic array
         if M >= array_height and N >= array_width:
             if (
+                # SA utilization is larger than 128, the performance is close to theoretical performance
                 M * N * K / array_height / array_width / max(array_height, array_width)
                 >= 128
             ):
@@ -1385,18 +1404,22 @@ class Matmul(Operator):
                     M * N * K / array_height / array_width / mac_per_clock / 0.99
                 )
             elif (
+                # if between 64 - 128, still close with less efficiency factor
                 M * N * K / array_height / array_width / max(array_height, array_width)
                 >= 64
             ):
                 return ceil(
                     M * N * K / array_height / array_width / mac_per_clock / 0.98
                 )
+        # SA width is under utilized but height is full filled
+        # if threshold 64 is met, still modeled as theoretical performance
         elif M >= array_height and N < array_width:
             if K * M / array_height / max(array_height, array_width) >= 64:
                 util_rate = N / array_width / 0.98
                 return ceil(
                     M * N * K / array_height / array_width / mac_per_clock / util_rate
                 )
+        # similar as above, but height is under utilized
         elif M < array_height and N >= array_width:
             if K * N / array_width / max(array_height, array_width) >= 64:
                 util_rate = M / array_height / 0.98
@@ -1404,13 +1427,15 @@ class Matmul(Operator):
                     M * N * K / array_height / array_width / mac_per_clock / util_rate
                 )
         else:
+            # both height and width under utilized
             assert M < array_height and N < array_width
             if K / max(array_height, array_width) >= 64:
                 util_rate = M / array_height * N / array_width / 0.98
                 return ceil(
                     M * N * K / array_height / array_width / mac_per_clock / util_rate
                 )
-        # print('start look up table')
+            # if none of above fits, try the lookup table
+        print('start look up table')
         try:
             cycle_count = look_up_table.loc[
                 (M, N, K, array_height, array_width, dataflow), "cycle_count"
@@ -1421,7 +1446,7 @@ class Matmul(Operator):
                     (N, M, K, array_height, array_width, dataflow), "cycle_count"
                 ].item()
             except KeyError:
-                # print('not found in look up table')
+                print('not found in look up table')
                 config = f"./systolic_array_model/temp/systolic_array_{os.getpid()}.cfg"
                 with open(config, "w") as f:
                     f.writelines("[general]\n")
@@ -1471,6 +1496,8 @@ class Matmul(Operator):
                 ]
                 if len(look_up_table) % 10 == 0:
                     look_up_table.sort_index(inplace=True)
+                # look_up_table.to_csv(f"./systolic_array_model/look_up_table_{array_height}_{array_width}.csv")
+                print(f"Appended to file: look_up_table_{array_height}_{array_width}.csv")
         # if (
         #     dataflow == "os"
         # ):  # scalesim assumes collecting output is not on critical path in os
@@ -1549,6 +1576,6 @@ class Matmul(Operator):
             latencies.append(end - start)
         avg_overhead = statistics.median(latencies)
         print("GPU kernel launch overhead: ", avg_overhead * 1e3, "ms")
-        print(latencies)
+        # print(latencies)
         return avg_overhead
 
