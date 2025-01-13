@@ -12,6 +12,7 @@ import pandas as pd
 import os
 from scalesim.scale_sim import scalesim
 import copy
+from pimsab_exp.run_pimsab_gemm import run_gemm
 
 
 class BatchedMatmul(Operator):
@@ -746,10 +747,140 @@ class Matmul(Operator):
                             best_mapping = mapping
         elif compile_mode == "heuristic-PIMSAB":
             print(f"  matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
+            print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
             self.latency = self.roofline_model(pcb_module)
-            
+            return self.latency
+        
+        elif compile_mode == "heuristic-PIMSAB-sim":
+            print(f"  matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
+            print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
+            M_tile_base = 120
+            K_tile_base = 256 #nblocks
+            N_tile_base = 256
+            N_tile = N_tile_base
+            tile_capacity = (256-32-16)*256*256/8
+            K_multiple = min(ceil(self.K/float(K_tile_base)), floor((tile_capacity-256*256*self.data_type.word_size)/(K_tile_base*N_tile_base*self.data_type.word_size)))
+            K_tile = K_tile_base * K_multiple
+            M_multiple = min(ceil(self.M/float(M_tile_base)) , floor((tile_capacity-K_tile*N_tile*self.data_type.word_size)/256/256/self.data_type.word_size))
+            M_tile = M_multiple * M_tile_base
+            print(f"tile size: {M_tile}, {K_tile}, {N_tile}")
+            latency,_ = run_gemm(M_tile,K_tile,N_tile,debug=True)
+            iterations = ceil(self.M/M_tile)*ceil(self.N/N_tile)*ceil(self.K/K_tile)
+            self.latency = latency * iterations
+            print(f"iterations:{iterations}")
+            print(f"total latency:{self.latency}")
             return self.latency
 
+        elif compile_mode == "heuristic-PIMSAB-sim-v2":
+            print(f"  matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
+            print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
+            M_tile_base = 120
+            K_tile_base = 256 #nblocks
+            N_tile_base = 256
+            N_tile = N_tile_base
+            tile_capacity = (256-32-16)*256*256/8
+            K_multiple = min(ceil(self.K/float(K_tile_base)), floor((tile_capacity-256*256*self.data_type.word_size)/(K_tile_base*N_tile_base*self.data_type.word_size)))#leaving 256 rows, then use all for KN
+            K_tile = K_tile_base * K_multiple
+            M_multiple = min(ceil(self.M/float(M_tile_base)) , floor((tile_capacity-K_tile*N_tile*self.data_type.word_size)/(K_tile+N_tile)/self.data_type.word_size))#rest of capacity for MK and MN
+            M_tile = M_multiple * M_tile_base
+
+            M_tile = M_tile//2
+            K_tile = K_tile//2
+            
+            print(f"tile size: {M_tile}, {K_tile}, {N_tile}")
+            pimsab_loop_order = "nkm"
+            previous_m = 0
+            previous_n = 0
+            previous_k = 0
+            total_latency = 0
+            K_N_io_latency = (K_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
+                             + K_tile * N_tile * self.data_type.word_size / (1024*pcb_module.compute_module.clock_freq/8))
+            M_K_io_latency = M_tile * K_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
+            M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
+
+            tile_compute_latency ,_ = run_gemm(M_tile,K_tile,N_tile,compute_only=True, debug=False)
+            print(f"K_N_io_latency: {K_N_io_latency}, M_K_io_latency: {M_K_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency}")
+            for m, n, k in self.generate_tile_loops(
+                ceil(M / M_tile),
+                ceil(N / N_tile),
+                ceil(K / K_tile),    
+                pimsab_loop_order,
+            ):
+                if m == 0 and n == 0 and k == 0:
+                    continue
+
+                
+                #capacity per pimsab tile
+                tile_capacity = (256-32-16)*256*256/8
+                M_K_tile_size = M_tile/120*K_tile*self.data_type.word_size #assume blockwise-unbroadcasted (tight) data layout
+                K_N_tile_size = K_tile*N_tile*self.data_type.word_size
+                M_N_tile_size = M_tile/120*N_tile*self.data_type.word_size
+                assert M_K_tile_size + K_N_tile_size + M_N_tile_size <= tile_capacity
+
+                # determine possible double buffering
+                double_buffering = False
+                # current tile read latency
+                if m == previous_m and k == previous_k:
+                    current_tile_read_latency = K_N_io_latency
+                    if M_K_tile_size + 2*K_N_tile_size +2*M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                elif n == previous_n and k == previous_k:
+                    current_tile_read_latency = M_K_io_latency
+                    if 2*M_K_tile_size + K_N_tile_size + 2*M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                else:
+                    current_tile_read_latency = (
+                        M_K_io_latency + K_N_io_latency
+                    )
+                    if m==previous_m and n==previous_n and 2*M_K_tile_size + 2*K_N_tile_size + M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                    elif 2*M_K_tile_size + 2*K_N_tile_size + 2*M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                if k > 0 and not (m == previous_m and n == previous_n):
+                    current_tile_read_latency += M_N_io_latency
+                
+                # print(f"iter m{m} n{n} k{k}: double_buffering {double_buffering}")
+                # previous tile compute latency
+                previous_tile_compute_latency = tile_compute_latency
+                # if k > 0:
+                #     previous_tile_compute_cycle_count += (
+                #         previous_l2_tile.K_reduction_cycle_count
+                #     )
+                # previous tile write latency
+                if m == previous_m and n == previous_n:
+                    previous_tile_write_latency = 0
+                else:
+                    previous_tile_write_latency = M_N_io_latency
+
+                # read current tile, compute previous tile, write previous tile
+                if double_buffering:  # pipelined
+                    total_latency += (
+                        max(
+                            current_tile_read_latency, previous_tile_compute_latency
+                        )
+                        + previous_tile_write_latency
+                    )
+                else:  # non-pipelined
+                    total_latency += (
+                        current_tile_read_latency
+                        + previous_tile_compute_latency
+                        + previous_tile_write_latency
+                    )
+
+                previous_m = m
+                previous_n = n
+                previous_k = k
+
+            # compute and write last tile
+            total_latency += (
+                M_N_io_latency
+                + tile_compute_latency
+            )
+
+            # if previous_k > 0:
+            #     total_cycle_count += ceil(l2_tiles[-1, -1, -1].K_reduction_cycle_count)
+            print(f"gemm latency: {total_latency}")
+            return total_latency
 
         else:
             raise ValueError(f"compile_mode {compile_mode} not supported")
@@ -760,7 +891,6 @@ class Matmul(Operator):
         self.best_latency = min_cycle_count / pcb_module.compute_module.clock_freq
         self.latency = self.best_latency
         # self.best_mapping.display()
-        
         return self.latency
 
     def simulate(
@@ -1437,6 +1567,7 @@ class Matmul(Operator):
             except KeyError:
                 # print('not found in look up table')
                 config = f"./systolic_array_model/temp/systolic_array_{os.getpid()}.cfg"
+                os.makedirs(os.path.dirname(config), exist_ok=True)
                 with open(config, "w") as f:
                     f.writelines("[general]\n")
                     f.writelines("run_name = systolic_array\n\n")

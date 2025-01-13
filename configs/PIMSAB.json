@@ -15,7 +15,7 @@
         "topology": "FC"
     },
     "device": {
-        "frequency_Hz": 1000e6,
+        "frequency_Hz": 1500e6,
         "compute_chiplet_count": 1,
         "compute_chiplet": {
             "physical_core_count": 120,

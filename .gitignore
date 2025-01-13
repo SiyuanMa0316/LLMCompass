@@ -3,3 +3,4 @@ SlurmOutput/
 temp/
 .vscode/
 *.ncu-rep
+output*
