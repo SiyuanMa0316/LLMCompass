@@ -3,11 +3,17 @@ import pathlib
 import os
 from pathlib import Path
 import csv
+import json
 
 def run_gemm(M,K,N, compute_only=False, debug=False):
     d = os.path.dirname(os.path.abspath(__file__))
     path = Path(d)
-    PIMSAB_PATH = "/home/siyuan/pim-simulator"
+    #read path from json
+    with open(os.path.join(path, "config.json")) as f:
+        config = json.load(f)
+        PIMSAB_PATH = config["PIMSAB_PATH"]
+
+    # PIMSAB_PATH = "/home/siyuan/pim-simulator"
 
     CFG_PATH = f"{PIMSAB_PATH}/configs/DMesh12x10_TileSize256_CramSize256x256.cfg"
     EXEC_PATH = f"{PIMSAB_PATH}/build/PIM_simulator"
