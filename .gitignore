@@ -3,3 +3,6 @@ SlurmOutput/
 temp/
 .vscode/
 *.ncu-rep
+.git/
+supply_chain_model*
+cost_model/
