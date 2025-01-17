@@ -17,7 +17,7 @@ def run_gemm(M,K,N, compute_only=False, debug=False):
 
     CFG_PATH = f"{PIMSAB_PATH}/configs/DMesh12x10_TileSize256_CramSize256x256.cfg"
     EXEC_PATH = f"{PIMSAB_PATH}/build/PIM_simulator"
-
+    print(f"{CFG_PATH}, {EXEC_PATH}")
     if compute_only:
         OUTPUT_PATH = os.path.join(path, f"output_M{M}_K{K}_N{N}_compute_only")
     else:
@@ -68,5 +68,5 @@ def run_gemm(M,K,N, compute_only=False, debug=False):
     return cycle*1E-9/1.5, energy
 
 
-# time, energy = run_gemm(2048, 3072, 4096, debug=True)
-# print(f"Total time: {time}, Total energy: {energy}")
+time, energy = run_gemm(2048, 3072, 4096, debug=True)
+print(f"Total time: {time}, Total energy: {energy}")

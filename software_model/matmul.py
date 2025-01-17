@@ -776,7 +776,7 @@ class Matmul(Operator):
             print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
             M_tile_base = 120
             K_tile_base = 256 #nblocks
-            N_tile_base = 256
+            N_tile_base = 256 #crams
             N_tile = N_tile_base
             tile_capacity = (256-32-16)*256*256/8
             K_multiple = min(ceil(self.K/float(K_tile_base)), floor((tile_capacity-256*256*self.data_type.word_size)/(K_tile_base*N_tile_base*self.data_type.word_size)))#leaving 256 rows, then use all for KN
@@ -793,6 +793,7 @@ class Matmul(Operator):
             previous_n = 0
             previous_k = 0
             total_latency = 0
+            # memory latency + interconnect broadcast
             K_N_io_latency = (K_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
                              + K_tile * N_tile * self.data_type.word_size / (1024*pcb_module.compute_module.clock_freq/8))
             M_K_io_latency = M_tile * K_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
