@@ -2,7 +2,7 @@ from utils import size
 from typing import List, Tuple
 from hardware_model.device import Device
 from software_model.operators import Operator
-from software_model.utils import Tensor, DataType
+from software_model.utils import Tensor, DataType, simdram_op_latency_dict
 from math import ceil, log2, floor
 import torch
 import time
@@ -747,6 +747,61 @@ class Matmul(Operator):
                         if cycle_count < min_cycle_count:
                             min_cycle_count = cycle_count
                             best_mapping = mapping
+        elif compile_mode == "heuristic-SIMDRAM":
+            # channels, bank, row size
+            print(f"Heuristic-SIMDRAM Tiling Simulation: M {self.M}, K {self.K}, N {self.N}")
+            channel = 1
+            bank = 16
+            row_size = 256 # 256 wordlines per DRAM bank, assume square bank layout: wordlines = bitlines 
+            col_size = row_size
+            print(f"SIMDRAM Configuration {channel} channel x {bank} bank x {row_size}x{col_size} buffer")
+            # storage capacity in bytes
+            total_capacity = row_size * col_size * bank * channel /8 # storage capacity in bytes 
+            M_K_storage = M * K * self.data_type.word_size / 8
+            M_N_storage = M * N * self.data_type.word_size / 8
+            K_N_storage = K * N * self.data_type.word_size / 8
+
+            '''
+            Always map K dimension to rows, tile_k = K / row_size
+            Input1(M, K) --> (bank x tile_m, row_size x tile_k)
+            Input2(K, N) --> (row_size x tile_k, bank x tile_n)
+            '''
+            tile_M = ceil(M / bank)
+            tile_K = ceil(K / row_size)
+            tile_N = ceil(N / bank)
+            '''
+            row allocation
+            2 * word_size bits are reserved for multiplication, 
+            (2 * word_size * log2(col/ 2*word_size)) bits are reserved for accumulation
+            '''
+            col_allocated_bits = 2 * self.data_type.word_size + (2 * self.data_type.word_size + log2(col_size/ (2 * self.data_type.word_size))) 
+            col_capacity = col_size - col_allocated_bits # rest column bits store the input operands
+            '''
+            Continue to partition the input matrices A (tile_m x row_size) and B (row_size, tile_n)
+            Partition A into (tile_m_ x m , row_size) and B into (row_size, tile_n_ x n)
+            Using m = 1 as initial tryout, we can change it later. 
+            '''
+            m = 1
+            inner_tile_M_ = ceil(tile_M / m)
+            inner_tile_N_ = floor((col_capacity - self.data_type.word_size * m) / self.data_type.word_size)
+            n = ceil(tile_N / n)
+            '''
+            Input(M,K) --> (bank X tile_m_ X m, row_size X tile_k)
+            Input(K,N) --> (row_size X tile_k, inner_tile_n_ X n)
+            for loop(tile_k): for loop(inner_tile_m_)
+                1. Read (row_size * m + row_size * n) * word_size / 8 bytes of data
+                for loop(tile_n_):
+                1. perform m * n * row_size MAC operations
+                2. read row_size * n * word_size / 8 bytes of data
+            '''
+            for _ in range(inner_tile_M_):
+                for _ in range(tile_K):
+                    io_latency = (tile_K * m + tile_K *n) * self.data_type.word_size / pcb_module.io_module.bandwidth
+                    for _ in range(inner_tile_N_):
+                        compute_latency = m * n * row_size / simdram_op_latency_dict[self.data_type.name]
+                        self.latency = self.latency + compute_latency + io_latency
+            return self.latency
+            
         else:
             raise ValueError(f"compile_mode {compile_mode} not supported")
         self.best_mapping = best_mapping
