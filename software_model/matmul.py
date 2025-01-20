@@ -760,46 +760,92 @@ class Matmul(Operator):
             M_K_storage = M * K * self.data_type.word_size / 8
             M_N_storage = M * N * self.data_type.word_size / 8
             K_N_storage = K * N * self.data_type.word_size / 8
+            
+            '''
+            Partition Strategy:
+            
+            1. To fully utilize the row-size width SIMD parallelism in each buffer / bank, we partition the K dimension in the base of row-size
+            K = factor_K x tile_K
+            tile_K = row_size
+            factor_K = ceil( K / row_size)
+            
+            2. To fully utilize the bank parallelism, we first partition the M dimension into each bank
+            tile_M = bank
+            factor_M = ceil(M / tile_M )
+            
+            3. We assume the GEMM size a generally large and for each buffer (col-size x row-size), col-size is always < 256 as 
+            we have to allocate multiple bits for holding inputs and accumulations. So, we have to partition the M and N dimensions into 
+            even smaller tiles (inner_tiles)
+            
+            M = factor_M x tile_M 
+            tile_M = inner_tile_factor_M x inner_tile_M
+            
+            N = factor_N x tile_N
+            tile_N = inner_tile_factor_N x inner_tile_N
+            
+            The inner tile matrices in each buffer will be A(inner_tile_M, row_size) and B(row_size, inner_tile_N)
+            
+            4. As each input element store vertically in a DRAM buffer and 2*word_size bits are required to store the multiplication 
+            result, mac_bits = 2 * word_size. We also have to make space to store the accumulation results. for x bits, largest value = 2**x - 1, for p input with x bits,
+            the largest accumulation value will be p * (2 ** x -1), the bits required to store this result is accum_bits = ceil(log2(p * (2 ** x - 1)))
+            
+            Therefore we must satisfy following condition: col_bits >= mac_bits + accum_bits + (inner_tile_M + inner_tile_N) * size_bits
+            '''
+            tile_M = bank
+            factor_M = ceil(M / tile_M)
+            
+            tile_K = row_size
+            factor_K = ceil(K / row_size)
+            
+            # choose inner_tile_M = 1
+            inner_tile_M = 1
+            inner_tile_factor_M = ceil(tile_M / inner_tile_M)
+            mac_bits = 2 * self.data_type.word_size
+            # since the inner_tile_K = row_size, every time we have most 'row_size' multiplication results to accumulate 
+            accum_bits = ceil(log2(row_size * (2 ** self.data_type.word_size - 1)))  # 24 bits for accumulation
+            available_bits = col_size - mac_bits - accum_bits # remaining 200 bits storing inner_time_M and inner_tile_N
+            inner_tile_N = floor(available_bits / self.data_type.word_size) - inner_tile_M # 
+            
+            assert inner_tile_N >= 1, f'inner_tile_N = {inner_tile_N}'
+            assert col_size >= mac_bits + accum_bits + (inner_tile_M + inner_tile_N) * self.data_type.word_size, \
+                f'Column Bits allocation failed mac_bits {mac_bits} accum_bits {accum_bits} inner_tile_N {inner_tile_N}, inner_tile_M {inner_tile_M}'
+            
+            # N = factor_N * inner_tile_factor_N * inner_tile_N
+            # temp = inner_tile_factor_N * factor_N
+            temp = ceil(N / inner_tile_N)
+            inner_tile_factor_N = min(32, temp)
+            factor_N = ceil(temp / inner_tile_factor_N)
+            
+            # M ---> factor_M x inner_tile_factor_M x inner_tile_M
+            # K ---> factor_K x row_size
+            # N ---> factor_N x inner_tile_factor_N x inner_tile_N
+            # tile layout inside each buffer: inner_tile_M x row_size x inner_tile_N 
+            ops = inner_tile_M * row_size * inner_tile_N
+            # inner_tile_M x inner_tile_K matrix: load inner_tile_M x inner_tile_K elements after each computation
+            load_M_K_tile_bits = inner_tile_M * tile_K * self.data_type.word_size
+            # inner_tile_K x inner_tile_N matrix: load inner_tile_K x inner_tile_N elements after each computation
+            load_K_N_tile_bits = tile_K * inner_tile_N * self.data_type.word_size
+            total_load_bit = bank * (load_K_N_tile_bits + load_M_K_tile_bits)
+            
+            # write back inner_tile_M x inner_tile_N elements to host after each computation
+            total_store_bits = inner_tile_M * inner_tile_N * self.data_type.word_size
+            
+            
+            for _ in range(factor_M):
+                # on every partition of M -> 0, tile_M, 2 x tile_M, ... M
+                # we have to load the matrices tiles into the DRAM cells
+                load_latency = total_load_bit / pcb_module.io_module.bandwidth
+                self.latency = self.latency + load_latency
+                for _ in range(factor_N):
+                    for _ in range(factor_K):
+                        for _ in range(inner_tile_factor_M):
+                            for _ in range(inner_tile_factor_N):
+                                mul_latency = ops/ simdram_op_latency_dict[self.data_type.name]['mul']
+                                add_latency = ops / simdram_op_latency_dict[self.data_type.name]['add']
+                                self.latency = self.latency + mul_latency + add_latency
+                            store_latency = total_store_bits / pcb_module.io_module.bandwidth
+                            self.latency = self.latency + store_latency
 
-            '''
-            Always map K dimension to rows, tile_k = K / row_size
-            Input1(M, K) --> (bank x tile_m, row_size x tile_k)
-            Input2(K, N) --> (row_size x tile_k, bank x tile_n)
-            '''
-            tile_M = ceil(M / bank)
-            tile_K = ceil(K / row_size)
-            tile_N = ceil(N / bank)
-            '''
-            row allocation
-            2 * word_size bits are reserved for multiplication, 
-            (2 * word_size * log2(col/ 2*word_size)) bits are reserved for accumulation
-            '''
-            col_allocated_bits = 2 * self.data_type.word_size + (2 * self.data_type.word_size + log2(col_size/ (2 * self.data_type.word_size))) 
-            col_capacity = col_size - col_allocated_bits # rest column bits store the input operands
-            '''
-            Continue to partition the input matrices A (tile_m x row_size) and B (row_size, tile_n)
-            Partition A into (tile_m_ x m , row_size) and B into (row_size, tile_n_ x n)
-            Using m = 1 as initial tryout, we can change it later. 
-            '''
-            m = 1
-            inner_tile_M_ = ceil(tile_M / m)
-            inner_tile_N_ = floor((col_capacity - self.data_type.word_size * m) / self.data_type.word_size)
-            n = ceil(tile_N / n)
-            '''
-            Input(M,K) --> (bank X tile_m_ X m, row_size X tile_k)
-            Input(K,N) --> (row_size X tile_k, inner_tile_n_ X n)
-            for loop(tile_k): for loop(inner_tile_m_)
-                1. Read (row_size * m + row_size * n) * word_size / 8 bytes of data
-                for loop(tile_n_):
-                1. perform m * n * row_size MAC operations
-                2. read row_size * n * word_size / 8 bytes of data
-            '''
-            for _ in range(inner_tile_M_):
-                for _ in range(tile_K):
-                    io_latency = (tile_K * m + tile_K *n) * self.data_type.word_size / pcb_module.io_module.bandwidth
-                    for _ in range(inner_tile_N_):
-                        compute_latency = m * n * row_size / simdram_op_latency_dict[self.data_type.name]
-                        self.latency = self.latency + compute_latency + io_latency
             return self.latency
             
         else:

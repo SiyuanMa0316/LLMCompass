@@ -55,12 +55,12 @@
             "physical_global_buffer_MB": 48,
             "global_buffer_bandwidth_per_cycle_byte": 5120,
             "memory_channel_physical_count": 6,
-            "memory_channel_active_count": 5,
-            "pin_count_per_channel": 1024,
-            "bandwidth_per_pin_bit": 3.2e9
+            "memory_channel_active_count": 1,
+            "pin_count_per_channel": 1,
+            "bandwidth_per_pin_bit": 153.6e9
         },
         "memory": {
-            "total_capacity_GB": 80
+            "total_capacity_GB": 128
         }
     }
 }
