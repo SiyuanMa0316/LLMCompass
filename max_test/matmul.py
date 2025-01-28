@@ -17,7 +17,7 @@ K = 12288
 N = K
 
 print(f"Testing Matmul Workload with size {M} x {K} x {N}")
-print(f"System Specs: IO-Bandiwdth {simdram_sys.device.io_module.bandwidth} bps  Memory Capacity{simdram_sys.device.memory_module.memory_capacity} GB")
+print(f"System Specs: IO-Bandiwdth {simdram_sys.device.io_module.bandwidth} bps  Memory Capacity {simdram_sys.device.memory_module.memory_capacity} GB")
 
 # test_overhead = True
 matmul = Matmul(data_type=data_type_dict['fp16'])
