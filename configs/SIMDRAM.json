@@ -41,7 +41,7 @@
                 "SRAM_KB": 128
             }
         },
-        "memory_protocol": "HBM2e",
+        "memory_protocol": "DDR4",
         "_memory_protocol_list": [
             "HBM2e",
             "DDR4",
@@ -53,9 +53,9 @@
             "process_node": "7nm",
             "global_buffer_MB": 40,
             "physical_global_buffer_MB": 48,
-            "global_buffer_bandwidth_per_cycle_byte": 5120,
-            "memory_channel_physical_count": 6,
-            "memory_channel_active_count": 5,
+            "global_buffer_bandwidth_per_cycle_byte": 8,
+            "memory_channel_physical_count": 1,
+            "memory_channel_active_count": 1,
             "pin_count_per_channel": 1024,
             "bandwidth_per_pin_bit": 3.2e9
         },

@@ -14,17 +14,18 @@ simdram_sys = template_to_system(simdram_spec)
 #setup tensor size
 M = 1024
 K = 12288
-N = K
+N = 1024
 
-print(f"Testing Matmul Workload with size {M} x {K} x {N}")
-print(f"System Specs: IO-Bandiwdth {simdram_sys.device.io_module.bandwidth} bps  Memory Capacity {simdram_sys.device.memory_module.memory_capacity} GB")
+# print(f"Testing Matmul Workload with size {M} x {K} x {N}")
+# print(f"Total GEMM Storage Size: Input + Output {(M * K + K * N + M * N) * 16/1024/1024/1024/8}GB")
+# print(f"System Specs: IO-Bandiwdth {simdram_sys.device.io_module.bandwidth/1024/1024/1024} GBps  Memory Capacity {simdram_sys.device.memory_module.memory_capacity/1024/1024/1024} GB")
 
 # test_overhead = True
 matmul = Matmul(data_type=data_type_dict['fp16'])
 _ = matmul(Tensor([M, K]), Tensor([K, N]))
 
-simulate_latency = matmul.compile_and_simulate(simdram_sys.device, compile_mode="heuristic-SIMDRAM")
-print(f"SIMDRAM heuristic Matmul Latency {simulate_latency} ns")
+simulate_latency = matmul.compile_and_simulate(simdram_sys.device, compile_mode="heuristic-SIMDRAM-v2")
+# print(f"SIMDRAM heuristic Matmul Latency {simulate_latency} ns")
 
 
 
