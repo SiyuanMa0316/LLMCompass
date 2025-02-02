@@ -1041,7 +1041,7 @@ class Matmul(Operator):
             K_tile_base = num_block #nblocks
             N_tile_base = num_col
             
-            
+             #crams
             N_tile = N_tile_base
             precision_input = self.data_type.word_size
             precision_accumulate = precision_input + 16
@@ -1061,8 +1061,8 @@ class Matmul(Operator):
             previous_n = 0
             previous_k = 0
             total_latency = 0
-            K_N_io_latency = (K_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth #time to load K_N from dram
-                             + K_tile * N_tile * self.data_type.word_size / (pcb_module.compute_module.noc.bandwidth)) #time to shift and broadcast K_TilexN_tile data to each tile
+            K_N_io_latency = (K_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
+                             + K_tile * N_tile * self.data_type.word_size / (1024*pcb_module.compute_module.clock_freq/8))
             M_K_io_latency = M_tile * K_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
             M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
 

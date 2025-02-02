@@ -29,7 +29,7 @@ def run_gemm(device:Device, M,K,N, input_acc, accumulate_acc, compute_only=False
         
     
     EXEC_PATH = f"{PIMSAB_PATH}/build/PIM_simulator"
-
+    print(f"{CFG_PATH}, {EXEC_PATH}")
     if compute_only:
         OUTPUT_PATH = os.path.join(path, f"output_M{M}_K{K}_N{N}_i{input_acc}_a{accumulate_acc}_compute_only_{array_count}_{array_cols}_{array_rows}")
     else:
@@ -81,6 +81,6 @@ def run_gemm(device:Device, M,K,N, input_acc, accumulate_acc, compute_only=False
         print(f"latency: {latency}")
     return latency, energy
 
-
+# run gemm at ae/... instead of here
 # time, energy = run_gemm(2048, 3072, 4096, debug=True)
 # print(f"Total time: {time}, Total energy: {energy}")
