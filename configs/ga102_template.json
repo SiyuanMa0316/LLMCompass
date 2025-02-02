@@ -1,5 +1,6 @@
 {
     "name": "NVIDIA A100(80GB)x4",
+    "type": "systolic",
     "device_count": 4,
     "interconnect": {
         "link": {

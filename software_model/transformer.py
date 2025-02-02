@@ -15,6 +15,7 @@ from software_model.communication_primitives import AllReduceMultiPCB
 from math import ceil
 from typing import List
 from hardware_model.system import System
+import csv
 
 
 class TransformerBlockInitComputationTP(Operator):
@@ -237,6 +238,8 @@ class TransformerBlockInitComputationTP(Operator):
             + h2_matmul2_latency
         )
 
+       
+
         print(f"matmul total overhead: {8*device.compute_module.overhead.matmul}")
         print(f"matmul total latency w/o overhead: {matmul_total_latency - 8*device.compute_module.overhead.matmul}")
         print(f"matmul total latency: {matmul_total_latency}")
@@ -267,6 +270,21 @@ class TransformerBlockInitComputationTP(Operator):
             allreduce_latency = 0
             allreduce_total_latency = 0
 
+        #log latencies to a csv file
+        with open('transformer_latency_log.csv', mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([
+                'Q_K_V', 'Q_mul_k', 'A_mul_V', 
+                'Wo_proj', 'W1_proj', 'W2_proj', 
+                'Softmax', 'Layernorm', 
+                'GeLU', 'Allreduce'
+            ])
+            writer.writerow([
+                qkv_latency, q_mul_k_latency, a_mul_v_latency, 
+                h_matmul0_latency, h1_matmul1_latency, h2_matmul2_latency, 
+                softmax_latency, layernorm_latency,
+                gelu_latency, allreduce_latency
+            ])
         # others
 
         # print
@@ -357,11 +375,12 @@ class TransformerBlockInitComputationTP(Operator):
 
 
 class TransformerBlockAutoRegressionTP(Operator):
-    def __init__(self, d_model, n_heads, device_count, data_type: DataType):
+    def __init__(self, d_model, n_heads, device_count, data_type: DataType, core_count_per_block=1):
         super().__init__(0, 0, 0, 0, data_type)
         self.d_model = d_model
         self.n_heads = n_heads
         self.device_count = device_count
+        self.core_count_per_block=1
         # parameters per device
         d = d_model
         self.Wq = Tensor([d, d // device_count], data_type)
@@ -554,6 +573,7 @@ class TransformerBlockAutoRegressionTP(Operator):
 
     def compile_and_simulate(self, system: System, compile_mode: str):
         pcb = system.device
+        core_count_per_block = self.core_count_per_block
         interconnect = system.interconnect
 
         
@@ -715,7 +735,6 @@ class TransformerBlockAutoRegressionTP(Operator):
             + allreduce_total_latency
         )
         return self.latency_on_gpu
-
 
 class LLMInitComputationTP:
     def __init__(

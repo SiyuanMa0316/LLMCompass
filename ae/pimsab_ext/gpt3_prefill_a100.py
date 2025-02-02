@@ -5,7 +5,7 @@ from software_model.transformer import (
 )
 from software_model.utils import data_type_dict, Tensor
 
-specs = read_architecture_template("configs/GA100.json")
+specs = read_architecture_template("configs/GA100x1.json")
 system = template_to_system(specs)
 
 bs=1

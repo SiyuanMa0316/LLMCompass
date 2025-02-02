@@ -61,34 +61,40 @@ class GeLU(Operator):
             self.data_type = data_type
 
     def compile_and_simulate(self, pcb_module: Device, compile_mode: str):
-        self.computational_graph.data_type = (
-            pcb_module.compute_module.core.vector_unit.data_type
-        )
-        parallelism = (
-            pcb_module.compute_module.core_count
-            * pcb_module.compute_module.core.vector_unit.vector_width
-            * pcb_module.compute_module.core.vector_unit.vector_count
-        )
-        M = ceil(self.computational_graph.M / parallelism) * parallelism
-        data_type = self.computational_graph.data_type
-        total_io_count = M * 2 * data_type.word_size
-        io_latency = (
-            total_io_count / pcb_module.io_module.bandwidth
-            + total_io_count
-            / pcb_module.compute_module.l2_bandwidth_per_cycle
-            / pcb_module.compute_module.clock_freq
-        )
-        total_flop_count = M * (
-            10 + pcb_module.compute_module.core.vector_unit.flops_per_exp
-        )
-        compute_latency = (
-            total_flop_count
-            / pcb_module.compute_module.core.vector_unit.total_vector_flops_per_cycle
-            / pcb_module.compute_module.core_count
-            / pcb_module.compute_module.clock_freq
-        )
+        if pcb_module.type == 'systolic':
+            self.computational_graph.data_type = (
+                pcb_module.compute_module.core.vector_unit.data_type
+            )
+            parallelism = (
+                pcb_module.compute_module.core_count
+                * pcb_module.compute_module.core.vector_unit.vector_width
+                * pcb_module.compute_module.core.vector_unit.vector_count
+            )
+            M = ceil(self.computational_graph.M / parallelism) * parallelism
+            data_type = self.computational_graph.data_type
+            total_io_count = M * 2 * data_type.word_size
+            io_latency = (
+                total_io_count / pcb_module.io_module.bandwidth
+                + total_io_count
+                / pcb_module.compute_module.l2_bandwidth_per_cycle
+                / pcb_module.compute_module.clock_freq
+            )
+            total_flop_count = M * (
+                10 + pcb_module.compute_module.core.vector_unit.flops_per_exp
+            )
+            compute_latency = (
+                total_flop_count
+                / pcb_module.compute_module.core.vector_unit.total_vector_flops_per_cycle
+                / pcb_module.compute_module.core_count
+                / pcb_module.compute_module.clock_freq
+            )
 
-        return max(compute_latency, io_latency)
+            return max(compute_latency, io_latency)
+        elif pcb_module.type == 'pimsab':
+            # Siyuan TODO
+            return 0
+        else:
+            raise ValueError('Unsupported device type')
 
     def run_on_gpu(self):
         assert self.shape is not None

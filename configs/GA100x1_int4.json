@@ -1,7 +1,7 @@
 {
-    "name": "NVIDIA A100(80GB)x4",
+    "name": "NVIDIA A100(80GB)x1 int4",
     "type": "systolic",
-    "device_count": 4,
+    "device_count": 1,
     "interconnect": {
         "link": {
             "name": "NVLink3",
@@ -16,7 +16,7 @@
         "topology": "FC"
     },
     "device": {
-        "frequency_Hz": 1410e6,
+        "frequency_Hz": 5640e6,
         "compute_chiplet_count": 1,
         "compute_chiplet": {
             "physical_core_count": 128,
@@ -27,7 +27,7 @@
                 "systolic_array": {
                     "array_width": 16,
                     "array_height": 16,
-                    "data_type": "fp16",
+                    "data_type": "int4",
                     "mac_per_cycle": 1
                 },
                 "vector_unit": {

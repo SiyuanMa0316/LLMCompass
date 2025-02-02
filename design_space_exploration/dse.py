@@ -6,6 +6,11 @@ from hardware_model.compute_module import (
     ComputeModule,
     overhead_dict,
 )
+from hardware_model.compute_module_pimsab import (
+    Tile,
+    ComputeModulePIMSAB,
+    NoC,
+)
 from hardware_model.io_module import IOModule
 from hardware_model.memory_module import MemoryModule
 from hardware_model.device import Device
@@ -24,9 +29,74 @@ def read_architecture_template(file_path):
         arch_specs = json.load(f)
     return arch_specs
 
-
-def template_to_system(arch_specs):
+def template_to_system_pimsab(arch_specs):
+    type = arch_specs["type"]
     device_specs = arch_specs["device"]
+    compute_module_specs = device_specs["compute_module"]
+    tile_specs = compute_module_specs["tile"]
+    noc_specs = compute_module_specs["noc"]
+    
+    tile = Tile(
+        tile_specs["array_count"],
+        tile_specs["array_cols"],
+        tile_specs["array_rows"],
+    )
+    noc = NoC(
+        noc_specs["bit_width"],
+        noc_specs["frequency_Hz"],
+    )
+    compute_module = ComputeModulePIMSAB(
+        tile,
+        compute_module_specs["tile_count"],
+        noc,
+        device_specs["frequency_Hz"],
+        overhead_dict["PIMSAB"],
+    )
+
+    # io module
+    io_specs = device_specs["io"]
+    io_module = IOModule(
+        io_specs["memory_channel_active_count"]
+        * io_specs["pin_count_per_channel"]
+        * io_specs["bandwidth_per_pin_bit"]
+        // 8,
+        1e-6,
+    )
+    # memory module
+    memory_module = MemoryModule(
+        device_specs["memory"]["total_capacity_GB"] * 1024 * 1024 * 1024
+    )
+    # device
+    device = Device(type, compute_module, io_module, memory_module)
+    # interconnect
+    interconnect_specs = arch_specs["interconnect"]
+    link_specs = interconnect_specs["link"]
+    link_module = LinkModule(
+        link_specs["bandwidth_per_direction_byte"],
+        link_specs["bandwidth_both_directions_byte"],
+        link_specs["latency_second"],
+        link_specs["flit_size_byte"],
+        link_specs["max_payload_size_byte"],
+        link_specs["header_size_byte"],
+    )
+    interconnect_module = InterConnectModule(
+        arch_specs["device_count"],
+        TopologyType.FC
+        if interconnect_specs["topology"] == "FC"
+        else TopologyType.RING,
+        link_module,
+        interconnect_specs["link_count_per_device"],
+    )
+
+    # system
+    system = System(device, interconnect_module)
+
+    return system
+
+
+def template_to_system_systolic(arch_specs):
+    device_specs = arch_specs["device"]
+    type = arch_specs["type"]
     compute_chiplet_specs = device_specs["compute_chiplet"]
     io_specs = device_specs["io"]
     core_specs = compute_chiplet_specs["core"]
@@ -80,7 +150,7 @@ def template_to_system(arch_specs):
         device_specs["memory"]["total_capacity_GB"] * 1024 * 1024 * 1024
     )
     # device
-    device = Device(compute_module, io_module, memory_module)
+    device = Device(type, compute_module, io_module, memory_module)
     # interconnect
     interconnect_specs = arch_specs["interconnect"]
     link_specs = interconnect_specs["link"]
@@ -106,6 +176,13 @@ def template_to_system(arch_specs):
 
     return system
 
+def template_to_system(arch_specs):
+    if arch_specs["type"] == "systolic":
+        return template_to_system_systolic(arch_specs)
+    elif arch_specs["type"] == "pimsab":
+        return template_to_system_pimsab(arch_specs)
+    else:
+        raise ValueError("Unknown architecture type")
 
 def test_template_to_system():
     arch_specs = read_architecture_template("configs/template.json")

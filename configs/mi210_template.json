@@ -1,5 +1,6 @@
 {
     "name": "AMD MI210",
+    "type": "systolic",
     "device_count": 4,
     "interconnect": {
         "link": {

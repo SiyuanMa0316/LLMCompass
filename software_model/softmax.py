@@ -64,54 +64,58 @@ class Softmax(Operator):
         return self.roofline_latency
 
     def compile_and_simulate(self, pcb_module: Device, compile_mode=None):
-        self.computational_graph.data_type = pcb_module.compute_module.core.vector_unit.data_type
-        min_cycle_count = float("inf")
-        best_mapping = None
-        M = self.computational_graph.M
-        N = self.computational_graph.N
-        data_type = self.computational_graph.data_type
-        l2_tile_N = N
-        l2_tile_M = (
-            pcb_module.compute_module.l2_size // (l2_tile_N * data_type.word_size)
-        )
-        l2_tile_M = min(l2_tile_M, M)
-        is_l2_double_buffering = False
-        for l1_N_tiling_factor in [1, 2, 4, 8, 16, 32]:
-            l1_tile_N = ceil(l2_tile_N / l1_N_tiling_factor)
-            for l1_tile_M in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
-                for is_l1_double_buffering in [True, False]:
-                    if is_l1_double_buffering:
-                        if (
-                            l1_tile_M * l1_tile_N * data_type.word_size
-                            > pcb_module.compute_module.core.SRAM_size // 2
-                        ):
-                            continue
-                    else:
-                        if (
-                            l1_tile_M * l1_tile_N * data_type.word_size
-                            > pcb_module.compute_module.core.SRAM_size
-                        ):
-                            continue
-                    mapping = self.Mapping(
-                        l2_tile_M,
-                        l2_tile_N,
-                        is_l2_double_buffering,
-                        l1_tile_M,
-                        l1_tile_N,
-                        is_l1_double_buffering,
-                    )
-                    cycle_count = self.simulate(
-                        self.computational_graph, mapping, pcb_module
-                    )
-                    if cycle_count < min_cycle_count:
-                        min_cycle_count = cycle_count
-                        best_mapping = mapping
-        self.best_mapping = best_mapping
-        self.best_cycle_count = min_cycle_count
-        self.best_latency = min_cycle_count / pcb_module.compute_module.clock_freq
-        self.latency = self.best_latency
-        # self.best_mapping.display()
-        return self.latency
+        if pcb_module.type == 'systolic':
+            self.computational_graph.data_type = pcb_module.compute_module.core.vector_unit.data_type
+            min_cycle_count = float("inf")
+            best_mapping = None
+            M = self.computational_graph.M
+            N = self.computational_graph.N
+            data_type = self.computational_graph.data_type
+            l2_tile_N = N
+            l2_tile_M = (
+                pcb_module.compute_module.l2_size // (l2_tile_N * data_type.word_size)
+            )
+            l2_tile_M = min(l2_tile_M, M)
+            is_l2_double_buffering = False
+            for l1_N_tiling_factor in [1, 2, 4, 8, 16, 32]:
+                l1_tile_N = ceil(l2_tile_N / l1_N_tiling_factor)
+                for l1_tile_M in [1, 2, 4, 8, 16, 32, 64, 128, 256]:
+                    for is_l1_double_buffering in [True, False]:
+                        if is_l1_double_buffering:
+                            if (
+                                l1_tile_M * l1_tile_N * data_type.word_size
+                                > pcb_module.compute_module.core.SRAM_size // 2
+                            ):
+                                continue
+                        else:
+                            if (
+                                l1_tile_M * l1_tile_N * data_type.word_size
+                                > pcb_module.compute_module.core.SRAM_size
+                            ):
+                                continue
+                        mapping = self.Mapping(
+                            l2_tile_M,
+                            l2_tile_N,
+                            is_l2_double_buffering,
+                            l1_tile_M,
+                            l1_tile_N,
+                            is_l1_double_buffering,
+                        )
+                        cycle_count = self.simulate(
+                            self.computational_graph, mapping, pcb_module
+                        )
+                        if cycle_count < min_cycle_count:
+                            min_cycle_count = cycle_count
+                            best_mapping = mapping
+            self.best_mapping = best_mapping
+            self.best_cycle_count = min_cycle_count
+            self.best_latency = min_cycle_count / pcb_module.compute_module.clock_freq
+            self.latency = self.best_latency
+            # self.best_mapping.display()
+            return self.latency
+        elif pcb_module.type == 'pimsab':
+            # Siyuan to implement
+            return 0
 
     def simulate(
         self,
