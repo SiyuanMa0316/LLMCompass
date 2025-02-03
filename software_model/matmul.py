@@ -1,8 +1,10 @@
+from pyparsing import col
+from sympy import factor
 from utils import size
 from typing import List, Tuple
 from hardware_model.device import Device
 from software_model.operators import Operator
-from software_model.utils import Tensor, DataType
+from software_model.utils import Tensor, DataType, simdram_op_latency_dict
 from math import ceil, log2, floor
 import torch
 import time
@@ -301,6 +303,399 @@ class Matmul(Operator):
 
         return list(permutations)
 
+    # wrapper function for complete SIMDRAM heuristic tiling v1
+    def simdram_heuristic_tiling_v1(self, pcb_module: Device):
+        M = self.computational_graph.M
+        N = self.computational_graph.N
+        K = self.computational_graph.K
+        # channels, bank, row size
+        print(f"Heuristic-SIMDRAM Tiling Simulation: M {self.M}, K {self.K}, N {self.N}")
+        channel = 1
+        bank = 16
+        row_size = 256 # 256 wordlines per DRAM bank, assume square bank layout: wordlines = bitlines 
+        col_size = row_size
+        print(f"SIMDRAM Configuration {channel} channel x {bank} bank x {row_size}x{col_size} buffer")
+        # storage capacity in bytes
+        total_capacity = row_size * col_size * bank * channel /8 # storage capacity in bytes 
+        M_K_storage = M * K * self.data_type.word_size / 8
+        M_N_storage = M * N * self.data_type.word_size / 8
+        K_N_storage = K * N * self.data_type.word_size / 8
+        
+        '''
+        Partition Strategy:
+        
+        1. To fully utilize the row-size width SIMD parallelism in each buffer / bank, we partition the K dimension in the base of row-size
+        K = factor_K x tile_K
+        tile_K = row_size
+        factor_K = ceil( K / row_size)
+        
+        2. To fully utilize the bank parallelism, we first partition the M dimension into each bank
+        tile_M = bank
+        factor_M = ceil(M / tile_M )
+        
+        3. We assume the GEMM size a generally large and for each buffer (col-size x row-size), col-size is always < 256 as 
+        we have to allocate multiple bits for holding inputs and accumulations. So, we have to partition the M and N dimensions into 
+        even smaller tiles (inner_tiles)
+        
+        M = factor_M x tile_M 
+        tile_M = inner_tile_factor_M x inner_tile_M
+        
+        N = factor_N x tile_N
+        tile_N = inner_tile_factor_N x inner_tile_N
+        
+        The inner tile matrices in each buffer will be A(inner_tile_M, row_size) and B(row_size, inner_tile_N)
+        
+        4. As each input element store vertically in a DRAM buffer and 2*word_size bits are required to store the multiplication 
+        result, mac_bits = 2 * word_size. We also have to make space to store the accumulation results. for x bits, largest value = 2**x - 1, for p input with x bits,
+        the largest accumulation value will be p * (2 ** x -1), the bits required to store this result is accum_bits = ceil(log2(p * (2 ** x - 1)))
+        
+        Therefore we must satisfy following condition: col_bits >= mac_bits + accum_bits + (inner_tile_M + inner_tile_N) * size_bits
+        '''
+        tile_M = bank
+        factor_M = ceil(M / tile_M)
+        
+        tile_K = row_size
+        factor_K = ceil(K / row_size)
+        
+        # choose inner_tile_M = 1
+        inner_tile_M = 1
+        inner_tile_factor_M = ceil(tile_M / inner_tile_M)
+        mac_bits = 2 * self.data_type.word_size * 8
+        # since the inner_tile_K = row_size, every time we have most 'row_size' multiplication results to accumulate 
+        accum_bits = ceil(log2(row_size * (2 ** (2*self.data_type.word_size * 8) - 1)))  # 24 bits for accumulation
+        available_bits = col_size - mac_bits - accum_bits # remaining 200 bits storing inner_time_M and inner_tile_N
+        inner_tile_N = floor(available_bits / (self.data_type.word_size * 8)) - inner_tile_M # 
+        print(f'available_bits {available_bits} mac_bits {mac_bits} accum_bits {accum_bits} word_size {self.data_type.word_size * 8}')
+        
+        assert inner_tile_N >= 1, f'inner_tile_N = {inner_tile_N}'
+        assert col_size >= mac_bits + accum_bits + (inner_tile_M + inner_tile_N) * self.data_type.word_size * 8, \
+            f'Column Bits allocation failed mac_bits {mac_bits} accum_bits {accum_bits} inner_tile_N {inner_tile_N}, inner_tile_M {inner_tile_M}'
+        # N = factor_N * inner_tile_factor_N * inner_tile_N
+        # temp = inner_tile_factor_N * factor_N
+        temp = ceil(N / inner_tile_N)
+        inner_tile_factor_N = min(32, temp)
+        factor_N = ceil(N / inner_tile_factor_N / inner_tile_N)
+        
+        # M ---> factor_M x inner_tile_factor_M x inner_tile_M
+        # K ---> factor_K x row_size
+        # N ---> factor_N x inner_tile_factor_N x inner_tile_N
+        # tile layout inside each buffer: inner_tile_M x row_size x inner_tile_N 
+        ops = inner_tile_M * row_size * inner_tile_N
+        # inner_tile_M x inner_tile_K matrix: load inner_tile_M x inner_tile_K elements after each computation
+        load_M_K_tile_bits = inner_tile_M * tile_K * self.data_type.word_size * 8
+        # inner_tile_K x inner_tile_N matrix: load inner_tile_K x inner_tile_N elements after each computation
+        load_K_N_tile_bits = tile_K * inner_tile_N * self.data_type.word_size * 8
+        total_load_bit = bank * (load_K_N_tile_bits + load_M_K_tile_bits)
+        
+        # write back inner_tile_M x inner_tile_N elements to host after each computation
+        total_store_bits = inner_tile_M * inner_tile_N * self.data_type.word_size * 8
+        print(f" Matrices Layout\nM = factor_M {factor_M} x inner_tile_factor_M {inner_tile_factor_M} x inner_tile_M {inner_tile_M}\n\
+N = factor_N {factor_N} x inner_tile_factor_N {inner_tile_factor_N} x inner_tile_N {inner_tile_N}\n\
+K = factor_K {factor_K} x tile_K {tile_K}")
+
+        for _ in range(inner_tile_factor_M):
+            # load bank x (inner_tile_M x inner_tile_K + inner_tile_K x inner_tile_N) in total
+            # load_latency = total_load_bit / pcb_module.io_module.bandwidth
+            # self.latency = self.latency + load_latency
+            for _ in range(factor_K):
+                for _ in range(factor_N):
+                    for _ in range(inner_tile_factor_N):
+                        mul_latency = ops/ simdram_op_latency_dict[self.data_type.name]['mul'] / row_size
+                        add_latency = ops / simdram_op_latency_dict[self.data_type.name]['add'] / row_size
+                        self.latency = self.latency + mul_latency + add_latency
+                    store_latency = total_store_bits / pcb_module.io_module.bandwidth
+                    self.latency = self.latency + store_latency
+        return self.latency
+    
+
+
+
+    def simdram_heuristic_tiling_v2(self, pcb_module: Device):
+        
+        def find_tile_K(row_limits : int, grow : int = 32) -> int:
+            """_summary_
+            Helper method to find the tile_K satisfy
+            the per array storage
+            Args:
+                row_limits (int): row limits per array
+                grow (int): default grow factor we used to estimate tile_K
+
+            Returns:
+                int: maximum power of 2 tile_K value 
+            """
+            k = 32
+            # maximum tile_K without considering accumulation
+            element_limit = row_limits // 2 // (self.data_type.word_size * 8) 
+            # product_bits = 2 * self.data_type.word_size * 8
+            accum_bits = ceil(log2(k)) + 2 * self.data_type.word_size * 8
+            input_storage_bits = 2 * self.data_type.word_size * 8 * k
+            while input_storage_bits + accum_bits < row_limits:
+                k = k + grow
+                accum_bits = ceil(log2(k)) + 2 * self.data_type.word_size * 8
+                input_storage_bits = 2 * self.data_type.word_size * 8 * k
+            k = k - grow
+            print(f"K = {k}, accum_bits {accum_bits}, row_limits {row_limits}, element_limit {element_limit}")
+            return k, accum_bits
+        pcb_module.io_module.bandwidth = 19.6 * 8 # bandwidth in bits per ns
+        M = self.computational_graph.M
+        N = self.computational_graph.N
+        K = self.computational_graph.K
+        M_K_bits = M * K * self.data_type.word_size * 8
+        K_N_bits = K * N * self.data_type.word_size * 8
+        M_N_bits = M * N * self.data_type.word_size * 8
+        # channels, bank, row size
+        print(f"Heuristic-SIMDRAM Tiling Simulation: M {self.M}, K {self.K}, N {self.N}")
+        """
+        Hierarchy-Level: Rank -> device = bank -> array
+        """
+        col_per_array = 128
+        row = 131072
+        array_per_device_bank = 64
+        bank = 16
+        device = 8
+        rank = 1
+        capacity_per_array = col_per_array * row
+        capacity_per_bank = capacity_per_array * array_per_device_bank
+        capacity_per_device = capacity_per_bank * bank
+        capacity_per_rank = capacity_per_device * device
+        total_capacity = capacity_per_rank * rank
+
+        print(f"Input GEMM Storage Size: Input + Output {(M_K_bits + K_N_bits + M_N_bits)/1024/1024/1024/8}GB")
+        print(f"capacity_per_array:{capacity_per_array/1024/1024/8}MB\n"+ 
+            f"Capacity_per_bank:{capacity_per_bank/1024/1024/8}MB\n"+ 
+            f"Capacity_per_device:{capacity_per_device/1024/1024/1024/8}GB\n"+
+            f"Capacity_per_rank:{capacity_per_rank/1024/1024/1024/8}GB\n"+
+            f"Total_capacity:{total_capacity/1024/1024/1024/8}GB")
+        
+        
+        """
+        Data Layout in single array
+        A = tile_M x tile_K = [[1 2 3 4], [5 6 7 8], [9 10 11 12]]
+        B = tile_K x tile_N = [[A A'], [B B'], [C C'], [D D']]
+        C = tile_M x tile_N = [[C1 C2], [C3 C4], [C5 C6]]
+        A x B --->  1  2  3  4      A A'
+                    5  6  7  8      B B' 
+                    9  10 11 12     C C'
+                                    D D'
+        Layout in bit-serial operation format 
+        Input  A        A   A   A   A'  A'  A'  total tile_N * tile_M columns
+                        B   B   B   B'  B'  B'  requires tile_N * tile_M <= col_per_array 
+                        C   C   C   C'  C'  C'  
+                        D   D   D   D'  D'  D'  
+        Input B         1   5   9   1   5   9   
+                        2   6   10  2   6   10   
+                        3   7   11  3   7   11
+                        4   8   12  4   8   12
+        Result C       C1   C2  C3  C4  C5  C6  
+
+        We need K rows per input matrix, total 2 * K rows for input storage
+        We also need to reserve result for accumulation 
+        product bits = 2*self.data_type.word_size * 8, 
+        accumulation requires 2 * K product to be reduced at the same time
+        accum_bits =  ceil(log2(2 * K) + product_bits) = product_bits + 1 + ceil(log2(K))
+
+        Total row storage requires: 2 * self.data_type.word_size * 8 * 2 * K + accum_bits <= row
+        """
+        #find nearest power of 2 of tile_N, tile_M that satisfy the col_per_array limit
+        n = 1
+        col_per_array_pow = floor(log2(col_per_array))
+        while n < col_per_array_pow:
+            n = n + 1
+        tile_N = 2 ** (n // 2)
+        tile_M = 2 ** (n - n // 2)
+        factor_N = ceil(N / tile_N)
+        factor_M = ceil(M / tile_M)
+        # find nearest power of 2 of tile_K that satisfy the row limit
+        tile_K,accum_bits = find_tile_K(row)
+        factor_K = floor(K / tile_K)
+        remain_K = K - factor_K * tile_K
+        """
+        A = M x K = factor_M x factor_K x (tile_M x tile_K)
+        B = K x N = factor_K x factor_N x (tile_K x tile_N)
+        #multiplications per column = #additions per column 
+        Since all columns are operated in parallel, and each column
+        can only perform computation at 1 time. 
+        total #Mul = K, #Add = K
+        """
+        product_bits = self.data_type.word_size * 8 * 2
+        input_storage_bits = 2 * tile_K * self.data_type.word_size * 8
+        col_fragmentation_per_array = tile_N * tile_M / col_per_array
+        row_fragmentation_per_array = (input_storage_bits + product_bits + accum_bits) / row
+
+        assert tile_N * tile_M <= col_per_array, "column storage allocation exceed the array limit"
+        assert input_storage_bits + product_bits + accum_bits < row, f"row storage allocation exceed the array limit: tile_K {tile_K} remain_K {remain_K}"
+
+        print(f"A = {M} x {K} = {factor_M} x {factor_K} x ({tile_M} x {tile_K})")
+        print(f"B = {K} x {N} = {factor_K} x {factor_N} x ({tile_K} x {tile_N})")
+        print(f"Remain workloads {tile_M} x {remain_K} x {tile_N}")
+
+        print(f"column utilization per array:{col_fragmentation_per_array * 100:.2f}%")
+        print(f"row utilization per array:{row_fragmentation_per_array * 100:.2f}%")
+
+        #per array latency
+        add_latency_per_array = tile_K * simdram_op_latency_dict[self.data_type.name]['add']
+        mul_latency_per_array = tile_K * simdram_op_latency_dict[self.data_type.name]['mul']
+        compute_latency_per_array = add_latency_per_array + mul_latency_per_array
+
+        """
+        Bigger-tile view of matrix A and B
+        A = factor_M x factor_K x (tile_M, tile_K), 
+        B = factor_K x factor_N x (tile_K, tile_N)
+        For A: (tile_M, tile_K) is the smallest unit of workload
+        For B: (tile_K, tile_N) is the smallest unit of workload
+
+        A = A(1,1)          A(1,2)          A(1,3)          ...     A(1,factor_K)
+            A(2,1)          A(2,2)          A(2,3)          ...     A(2,factor_K)
+            ...
+            A(factor_M,1)   A(factor_M,2)   A(factor_M,3)   ...     A(factor_M, factor_K)
+
+        B = B(1,1)          B(1,2)          B(1,3)          ...     B(1,factor_N)
+            B(2,1)          B(2,2)          B(2,3)          ...     B(2,factor_N)
+            ...
+            B(factor_K,1)   B(factor_K,2)   B(factor_K,3)   ...     B(factor_K,factor_N)
+
+        Vectorization GEMM in bigger-tile view
+            A(1,1)          A(1,2)          ...          A(1,factor_K)         
+        [   A(2,1)          A(2,2)          ...          A(2,factor_K)          ]   *     [B(1,1) B(2,1) ... B(factor_K,1)].T 
+            ...
+            A(factor_M,1)   A(factor_M,2)   ...         A(factor_M,factor_K)
+
+        is equivalent to following Vector-Tile operations
+            
+            A(1,1)                                     A(1,2)                                   A(1,factor_K)
+        [   A(2,1)          ] * [B(1,1)]   +    [      A(2,2)      ]  * [B(2,1)] + ... +    [   A(2,factor_K)   ] * [B(factor_K, 1)]
+            ...                                        ...                                      ...
+            A(factor_M,1)                              A(factor_M,2)                            A(factor_M,factor_K)
+
+        For every smallest-unit workload of A and B, they have to take a full array for computation as calculated in previous stage determining the 
+        tile size of M, K and N. 
+        Re-call the SIMDRAM arch-specs, Rank -> device = bank -> array, 
+        
+        _summary_array_level__: 
+            Every array will have same bigger-tile B within same device,
+            partition complete A into each array at batch size of 'array' along the M-dimension (downwards from A(1,1) to A(factor_M,1)).
+            iterations in each array is determined by: factor_array = ceil(factor_M / array).
+            
+            __computations__: #adds = #muls = tile_k
+            
+            __output_bit_width__: output_bits_per_array = tile_M * tile_N * accum_bits
+        
+            __latency__: Each iteration within whole array has overlapped latency = 'compute_latency_per_array', 
+
+        """
+        factor_array = ceil(factor_M / array_per_device_bank)
+        output_bits_per_array = col_per_array * accum_bits
+        """
+        __summary_device_level__: 
+            Every device will have different bigger-tile B from assigned column vector,
+            partition column vector of B into each device at batch size of 'device' along the K-dimension (downwards from B(1,1) to B(factor_K,1)). 
+            iteration of each bank is determined by: factor_device = ceil(factor_K / device).
+ 
+            __computations__: #adds = #muls = tile_K * factor_array
+            
+            __output_bit_width__: output_bits_per_device = output_bits_per_array * array
+
+            __latency__: Each iteration within one device has the exactly overlapped same latency = 'compute_latency_per_array * factor_array'
+ 
+        """
+        factor_device = ceil(factor_K / device)
+        computation_per_device = tile_K * factor_array
+        output_bits_per_device = output_bits_per_array * array_per_device_bank
+        """
+        __summary__bank_level__: 
+            Every bank will have different column vector of bigger-tile B,
+            partition complete B into column vector at batch size of 'bank' along the N-dimension (rightwards from B(1,1) to B(1, factor_N)).
+            iteration in each rank is determined by: factor_bank = ceil(factor_N / bank).
+            
+            __computations__: #adds = #muls = tile_k * factor_array * factor_device * factor_bank
+            
+            __output_bit_width__: output_bits_per_bank = output_bits_per_device * device   
+
+            __latency__: Each iteration within one bank has the exactly overlapped same latency = 'compute_latency_per_array',
+            Here, bank is the highest-level of micro-architecture in workload scheduling, the total latency is determined by the #iterations of array computes.
+            total_compute_latency = 'computer_latency_per_array' * 'factor_array'
+            bank bandwidth = 8bits / cycle
+            data_write_back_latency =   output_bits_per_bank /bank bandwidth 
+
+        """
+        factor_bank = ceil(factor_N / bank)
+        output_bits_per_bank = output_bits_per_device * device
+        computation_per_bank = computation_per_device * device
+        """    
+            __summary_rank_level__:
+            We assume only 1 rank for now, no parallelism across rank. However, we do have to consider the total data transfer latency
+            and also if it is possible to schedule pipeline computation.
+
+            __computations__: #adds = #muls = M * N * K
+            __output_bit_width: output_bits_per_rank = output_bits_per_bank * bank * bank_factor
+            __latency__: 
+            Compute latency is all overlapped within each bank. But we have multiple iterations of bank scheduling
+            total_compute_latency = compute_latency_per_array * factor_bank
+            rank bandwidth = bank_bandwidth * bank /cycle
+            total_data_write_back_latency = output_bits_per_rank / rank bandwidth
+            
+            total_latency = total_data_write_back_latency + total_compute_latency
+        """
+        total_computations = computation_per_device * computation_per_bank * bank
+        total_output_bits = output_bits_per_bank * bank * factor_bank
+        write_back_latency =  total_output_bits / pcb_module.io_module.bandwidth
+        compute_latency = compute_latency_per_array * factor_array
+
+        total_latency = compute_latency + write_back_latency
+        # data amplification due to the vectorization of GEMM
+        # each tile of B is duplicated factor_M x factor_N x factor_K times
+        amplification_bits = factor_M * factor_N * factor_K * (tile_K * tile_N) * self.data_type.word_size * 8
+
+        """
+        We need to process the remaining workloads
+        remain_A = factor_M x tile_M x remain_K , 
+        remain_B = remain_K x tile_N x factor_N
+        
+        We still follow the same procedure to schedule the workload across the device and bank
+        
+        Based on previous calculation, the remaining smallest workload size (tile_M x remain_K, remain_K x tile_N)
+        is guaranteed to fit within single array. 
+
+        Since we only have 1 col/row vector left, no partition across bank device needed. 
+        
+        1. Scatter each remaining B tiles into arrays across the device: every array has same tile B but different tile A.
+        remain_factor_array = ceil(factor_M / array)
+        each array have overlapped latency and same total ops #adds = #muls = remain_K
+        
+        2. B tiles are partitioned across banks (following same procedure as before: partition N along bank)
+        remain_factor_bank = ceil(factor_N / bank)
+        each bank have overlapped latency and same total ops #adds = #muls = remain_K * array
+        
+        __remain_compute_latency__: remain_factor_array * remain_compute_latency_per_array
+        __remain_bit_width__: same output bitwidth each array as normal schedule. 
+        Total bitwidths output for every bank = (remain_array_factor * remain_bank_factor) * output_bits_per_array * array
+
+        __remain_write_back_latency__: remain_factor_bank * remain_data_width /(bank_bandwidth)
+        """
+        remain_factor_array = ceil(factor_M / array_per_device_bank)
+        remain_factor_bank = ceil(factor_N / bank)
+        
+        remain_add_latency_per_array = remain_K * simdram_op_latency_dict[self.data_type.name]['add']
+        remain_mul_latency_per_array= remain_K * simdram_op_latency_dict[self.data_type.name]['mul']
+        
+        remain_compute_latency_per_array = (remain_add_latency_per_array  + remain_mul_latency_per_array)
+
+        remain_compute_latency = remain_factor_array * remain_compute_latency_per_array
+        remain_output_bits_per_bank = (remain_factor_array * remain_factor_bank) * output_bits_per_array * array_per_device_bank
+        remain_write_back_latency = remain_output_bits_per_bank * bank / pcb_module.io_module.bandwidth
+
+        remain_latency = remain_write_back_latency + remain_compute_latency
+
+        amplification_bits = amplification_bits + self.data_type.word_size * 8 * (tile_N * remain_K) * factor_N * factor_M
+
+        total_compute_latency = remain_compute_latency + compute_latency
+        total_write_back_latency = remain_write_back_latency + write_back_latency
+
+        total_latency = remain_latency + total_latency
+
+        print(f"SIMDRAM Heuristic Tiling V2: total latency {total_latency} ns, compute_latency {compute_latency} ns, total_write_back_latency {total_write_back_latency} ns")
+        return total_latency
+
     def compile_and_simulate_systolic(
         self,
         pcb_module: Device,
@@ -332,12 +727,15 @@ class Matmul(Operator):
             return self.latency
         if compile_mode == "exhaustive":
             for l2_tile_M_log2 in range(5, ceil(log2(self.computational_graph.M)) + 1):
+                #partition M dimension by 32, 64, 128, ....
                 l2_tile_M = 2**l2_tile_M_log2
                 for l2_tile_N_log2 in range(
+                    # partition N dimension by 32, 64, 128, ...
                     5, ceil(log2(self.computational_graph.N)) + 1
                 ):
                     l2_tile_N = 2**l2_tile_N_log2
                     for l2_tile_K_log2 in range(
+                        # partition K dimension by 32, 64, 128 ...
                         5, ceil(log2(self.computational_graph.K)) + 1
                     ):
                         l2_tile_K = 2**l2_tile_K_log2
@@ -348,11 +746,13 @@ class Matmul(Operator):
                         )
                         if (
                             working_set_size
+                            # partition group does not fit into L2 cache, ignore current partition
                             > pcb_module.compute_module.l2_size
                             // self.data_type.word_size
                         ):
                             continue
                         elif (
+                            # partition group smaller than 1/2 size of L2 cache, double buffering 
                             working_set_size
                             <= pcb_module.compute_module.l2_size
                             // self.data_type.word_size
@@ -361,12 +761,15 @@ class Matmul(Operator):
                             is_l2_double_buffering = True
                         else:
                             is_l2_double_buffering = False
+                            
+                            #sub-partition workgroup into L1 cache, following same philosophy as previous,
                         for l1_tile_M_log2 in range(5, l2_tile_M_log2 + 1):
                             l1_tile_M = 2**l1_tile_M_log2
                             for l1_tile_N_log2 in range(5, l2_tile_N_log2 + 1):
                                 l1_tile_N = 2**l1_tile_N_log2
                                 for l1_tile_K_log2 in range(5, l2_tile_K_log2 + 1):
                                     l1_tile_K = 2**l1_tile_K_log2
+                                    # If worksize > 1/2 L1 cache size
                                     if (
                                         l1_tile_M * l1_tile_N
                                         + l1_tile_N * l1_tile_K
@@ -399,6 +802,7 @@ class Matmul(Operator):
                                             ) in self.find_permutations(
                                                 pcb_module.compute_module.core.systolic_array_count
                                             ):
+                                                # mapping tiling factor based on systolic array count.
                                                 mapping = self.Mapping(
                                                     l2_tile_M,
                                                     l2_tile_N,
@@ -758,6 +1162,10 @@ class Matmul(Operator):
                         if cycle_count < min_cycle_count:
                             min_cycle_count = cycle_count
                             best_mapping = mapping
+        elif compile_mode == "heuristic-SIMDRAM":
+            self.latency = self.simdram_heuristic_tiling_v1(pcb_module)
+        elif compile_mode == "heuristic-SIMDRAM-v2":
+            self.latency = self.simdram_heuristic_tiling_v2(pcb_module)
         else:
             raise ValueError(f"compile_mode {compile_mode} not supported")
         self.best_mapping = best_mapping
@@ -1512,6 +1920,7 @@ class Matmul(Operator):
                 [ceil(M / l1_tile_M), ceil(N / l1_tile_N), ceil(K / l1_tile_K)],
                 dtype=Matmul.L1TileSimulator,
             )
+            # fill in the full tiles
             if M_l1_t * N_l1_t * K_l1_t != 0:
                 l1_tiles[:M_l1_t, :N_l1_t, :K_l1_t] = Matmul.L1TileSimulator(
                     l1_tile_M,
@@ -1522,6 +1931,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
+            # M dimension is remaining
             if M_remain != 0:
                 l1_tiles[-1, :N_l1_t, :K_l1_t] = Matmul.L1TileSimulator(
                     M_remain,
@@ -1532,6 +1942,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
+            # N dimension is remaining
             if N_remain != 0:
                 l1_tiles[:M_l1_t, -1, :K_l1_t] = Matmul.L1TileSimulator(
                     l1_tile_M,
@@ -1542,6 +1953,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
+            # K dimension is remaining
             if K_remain != 0:
                 l1_tiles[:M_l1_t, :N_l1_t, -1] = Matmul.L1TileSimulator(
                     l1_tile_M,
@@ -1592,7 +2004,7 @@ class Matmul(Operator):
                     chiplet_module,
                     look_up_table,
                 )
-
+            # Fill in the actual M x K matrix dimensions, and handling edge cases
             M_K_tile_size = np.zeros(
                 [ceil(M / l1_tile_M), ceil(K / l1_tile_K)], dtype=int
             )
@@ -1603,7 +2015,7 @@ class Matmul(Operator):
                 M_K_tile_size[:M_l1_t, -1] = l1_tile_M * K_remain
             if M_remain > 0 and K_remain > 0:
                 M_K_tile_size[-1, -1] = M_remain * K_remain
-
+            # Fill in the actual K x N matrix dimensions, and handling edge cases
             K_N_tile_size = np.zeros(
                 [ceil(K / l1_tile_K), ceil(N / l1_tile_N)], dtype=int
             )
@@ -1614,7 +2026,7 @@ class Matmul(Operator):
                 K_N_tile_size[:K_l1_t, -1] = l1_tile_K * N_remain
             if K_remain > 0 and N_remain > 0:
                 K_N_tile_size[-1, -1] = K_remain * N_remain
-
+            # Fill in the actual M x N matrix dimensions, and handling edge cases
             M_N_tile_size = np.zeros(
                 [ceil(M / l1_tile_M), ceil(N / l1_tile_N)], dtype=int
             )
@@ -1647,7 +2059,9 @@ class Matmul(Operator):
                 ceil(K / l1_tile_K),
                 mapping.l1_loop_order,
             ):
+                # Map current work to an L1 tile, set as active
                 active_l1_tile_list.append((m, n, k, l1_tiles[m, n, k]))
+                # if current M x K x N is the last round of workgroup, no further check is required
                 if (
                     m == ceil(M / l1_tile_M) - 1
                     and n == ceil(N / l1_tile_N) - 1
@@ -1655,6 +2069,8 @@ class Matmul(Operator):
                 ):
                     pass
                 elif (
+                    # continue add workloads until L1 tiles are fulfilled.
+                    # before L1 tiles are saturated, no computation simulation is performed.
                     len(active_l1_tile_list) < chiplet_module.compute_module.core_count
                 ):
                     continue
@@ -1676,6 +2092,7 @@ class Matmul(Operator):
                 )
 
                 current_batch_compute_cycle_count = 0
+                # simulate computation for every L1 active tiles
                 for i in range(len(active_l1_tile_list)):
                     temp_m, temp_n, temp_k, temp_l1_tile = active_l1_tile_list[i]
                     current_batch_Read_M_K[temp_m, temp_k] = 1
@@ -1705,8 +2122,7 @@ class Matmul(Operator):
                     * K_N_tile_size
                 )
                 current_batch_M_N_read_count = np.sum(
-                    (
-                        current_batch_Read_M_N
+                    (current_batch_Read_M_N
                         * (~(previous_batch_Read_M_N + previous_batch_Write_M_N))
                     )
                     * M_N_tile_size
@@ -1832,10 +2248,12 @@ class Matmul(Operator):
         mac_per_clock,
         dataflow="os",
     ):
-        # print(f'start: {M} {N} {K} {array_height} {array_width} {mac_per_clock} {dataflow}')
+        print(f'start: {M} {N} {K} {array_height} {array_width} {mac_per_clock} {dataflow}')
         assert M * N * K * array_height * array_width * mac_per_clock != 0
+        # if matrix size is large enough to fully utilize the systolic array
         if M >= array_height and N >= array_width:
             if (
+                # SA utilization is larger than 128, the performance is close to theoretical performance
                 M * N * K / array_height / array_width / max(array_height, array_width)
                 >= 128
             ):
@@ -1843,18 +2261,22 @@ class Matmul(Operator):
                     M * N * K / array_height / array_width / mac_per_clock / 0.99
                 )
             elif (
+                # if between 64 - 128, still close with less efficiency factor
                 M * N * K / array_height / array_width / max(array_height, array_width)
                 >= 64
             ):
                 return ceil(
                     M * N * K / array_height / array_width / mac_per_clock / 0.98
                 )
+        # SA width is under utilized but height is full filled
+        # if threshold 64 is met, still modeled as theoretical performance
         elif M >= array_height and N < array_width:
             if K * M / array_height / max(array_height, array_width) >= 64:
                 util_rate = N / array_width / 0.98
                 return ceil(
                     M * N * K / array_height / array_width / mac_per_clock / util_rate
                 )
+        # similar as above, but height is under utilized
         elif M < array_height and N >= array_width:
             if K * N / array_width / max(array_height, array_width) >= 64:
                 util_rate = M / array_height / 0.98
@@ -1862,13 +2284,15 @@ class Matmul(Operator):
                     M * N * K / array_height / array_width / mac_per_clock / util_rate
                 )
         else:
+            # both height and width under utilized
             assert M < array_height and N < array_width
             if K / max(array_height, array_width) >= 64:
                 util_rate = M / array_height * N / array_width / 0.98
                 return ceil(
                     M * N * K / array_height / array_width / mac_per_clock / util_rate
                 )
-        # print('start look up table')
+            # if none of above fits, try the lookup table
+        print('start look up table')
         try:
             cycle_count = look_up_table.loc[
                 (M, N, K, array_height, array_width, dataflow), "cycle_count"
@@ -1879,7 +2303,7 @@ class Matmul(Operator):
                     (N, M, K, array_height, array_width, dataflow), "cycle_count"
                 ].item()
             except KeyError:
-                # print('not found in look up table')
+                print('not found in look up table')
                 config = f"./systolic_array_model/temp/systolic_array_{os.getpid()}.cfg"
                 os.makedirs(os.path.dirname(config), exist_ok=True)
                 with open(config, "w") as f:
@@ -1930,6 +2354,8 @@ class Matmul(Operator):
                 ]
                 if len(look_up_table) % 10 == 0:
                     look_up_table.sort_index(inplace=True)
+                # look_up_table.to_csv(f"./systolic_array_model/look_up_table_{array_height}_{array_width}.csv")
+                print(f"Appended to file: look_up_table_{array_height}_{array_width}.csv")
         # if (
         #     dataflow == "os"
         # ):  # scalesim assumes collecting output is not on critical path in os
@@ -2008,6 +2434,6 @@ class Matmul(Operator):
             latencies.append(end - start)
         avg_overhead = statistics.median(latencies)
         print("GPU kernel launch overhead: ", avg_overhead * 1e3, "ms")
-        print(latencies)
+        # print(latencies)
         return avg_overhead
 

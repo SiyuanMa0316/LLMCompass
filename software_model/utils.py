@@ -10,6 +10,11 @@ class DataType:
         self.word_size = word_size
 
 data_type_dict = {"int4": DataType("int4", 0.5), "int8": DataType("int8", 1), "fp16": DataType("fp16", 2), "fp32": DataType("fp32", 4)}
+simdram_op_latency_dict = {
+    DataType("int8", 1).name: {"add": 3121, "mul": 31815},
+    DataType("fp16", 1).name: {"add": 6193, "mul": 131135},
+    DataType("fp32", 1).name: {"add": 12337, "mul": 532143}
+}
 
 class Tensor:
     def __init__(

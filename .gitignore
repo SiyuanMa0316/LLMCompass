@@ -5,3 +5,6 @@ temp/
 *.ncu-rep
 output*
 transformer_latency_log.csv
+.git/
+supply_chain_model*
+cost_model/

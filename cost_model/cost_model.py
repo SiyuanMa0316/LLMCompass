@@ -198,7 +198,7 @@ def find_logic_sram_transistor_density(process_node):
 
 # a compute core consists of a fixed control overhead
 # a specified width fp32 vector engine
-# a specified dimmension fp16 systolic array
+# a specified dimension fp16 systolic array
 # a specified L1 cache
 # at a specified process node
 # NB: you can fit multiple cores onto a single die for chiplet systems
