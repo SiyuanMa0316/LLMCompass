@@ -4,3 +4,4 @@ temp/
 .vscode/
 *.ncu-rep
 output*
+transformer_latency_log.csv
