@@ -5,7 +5,7 @@ from software_model.transformer import (
 )
 from software_model.utils import data_type_dict, Tensor
 
-specs = read_architecture_template("configs/GA100.json")
+specs = read_architecture_template("configs/GA100x1_int8.json")
 system = template_to_system(specs)
 layers = 96
 bs=1
@@ -14,10 +14,10 @@ model_prefill = TransformerBlockInitComputationTP(
         d_model=12288,
         n_heads=96,
         device_count=1,
-        data_type=data_type_dict["fp16"],
+        data_type=data_type_dict["int8"],
     )
 _ = model_prefill(
-	Tensor([bs, seq_len, 12288], data_type_dict["fp16"])
+	Tensor([bs, seq_len, 12288], data_type_dict["int8"])
 )
 prefill_latency_simulated = model_prefill.compile_and_simulate(
 	system, "heuristic-GPU"
@@ -31,10 +31,10 @@ model_decode = TransformerBlockAutoRegressionTP(
         d_model=12288,
         n_heads=96,
         device_count=1,
-        data_type=data_type_dict["fp16"],
+        data_type=data_type_dict["int8"],
     )
 _ = model_decode(
-    Tensor([bs, 1, 12288], data_type_dict["fp16"]), seq_len
+    Tensor([bs, 1, 12288], data_type_dict["int8"]), seq_len
 )
 decode_latency_simulated = model_decode.compile_and_simulate(
     system, "heuristic-GPU"

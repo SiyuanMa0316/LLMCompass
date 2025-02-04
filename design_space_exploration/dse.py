@@ -11,6 +11,10 @@ from hardware_model.compute_module_pimsab import (
     ComputeModulePIMSAB,
     NoC,
 )
+from hardware_model.compute_module_simdram import (
+    Bank,
+    ComputeModuleSIMDRAM
+)
 from hardware_model.io_module import IOModule
 from hardware_model.memory_module import MemoryModule
 from hardware_model.device import Device
@@ -91,6 +95,30 @@ def template_to_system_pimsab(arch_specs):
     # system
     system = System(device, interconnect_module)
 
+    return system
+
+def template_to_system_simdram(arch_specs):
+    type = arch_specs["type"]
+    compute_module = arch_specs["compute_module"]
+    bank_specs = compute_module["bank"]
+    bank_count = compute_module["bank_count"]
+    bank = Bank(device_count=bank_specs["device_count"] , arr_count=bank_specs["array_count"], arr_cols=bank_specs["array_cols"], arr_rows=bank_specs["array_rows"], device_data_width=bank_specs["device_data_width"], effective_freq=bank_specs["device_frequency_Hz"])
+    compute_module_simdram = ComputeModuleSIMDRAM(bank, bank_count, overhead_dict["SIMDRAM"])
+    # io module (bandwidth of normal memory)
+    io_specs = arch_specs["io"]
+    io_module = IOModule(
+        io_specs["memory_channel_active_count"]
+        * io_specs["pin_count_per_channel"]
+        * io_specs["bandwidth_per_pin_bit"]
+        // 8,
+        1e-6,
+    )
+    # memory module (normal memory)
+    memory_module = MemoryModule(
+        arch_specs["memory"]["total_capacity_GB"] * 1024 * 1024 * 1024
+    )
+    device = Device(type, compute_module_simdram, io_module, memory_module)
+    system = System(device, None)
     return system
 
 
@@ -181,6 +209,8 @@ def template_to_system(arch_specs):
         return template_to_system_systolic(arch_specs)
     elif arch_specs["type"] == "pimsab":
         return template_to_system_pimsab(arch_specs)
+    elif arch_specs["type"] == "simdram":
+        return template_to_system_simdram(arch_specs)
     else:
         raise ValueError("Unknown architecture type")
 

@@ -18,10 +18,10 @@ model_prefill = TransformerBlockInitComputationTP(
         d_model=12288,
         n_heads=96,
         device_count=1,
-        data_type=data_type_dict["int4"],
+        data_type=data_type_dict["int8"],
     )
 _ = model_prefill(
-	Tensor([bs, seq_len, 12288], data_type_dict["int4"])
+	Tensor([bs, seq_len, 12288], data_type_dict["int8"])
 )
 prefill_latency_simulated = model_prefill.compile_and_simulate(
 	system, "heuristic-PIMSAB-sim-v2"
@@ -45,11 +45,11 @@ decode_latency_simulated = model_decode.compile_and_simulate(
 )
 print(f"GPT-3 decode latency per token (1 layer mapped to 1 tile): {decode_latency_simulated}")
 
-latency_to_first_token = prefill_latency_simulated + decode_latency_simulated * layers
+latency_to_first_token = E2E_prefill_latency + decode_latency_simulated * layers
 decode_tokps = 1 / decode_latency_simulated
-total_latency = prefill_latency_simulated +  decode_latency_simulated * output_len
+total_latency = E2E_prefill_latency +  decode_latency_simulated * output_len
 print(f"Summary: ")
-print(f"GPT-3 prefill latency ({seq_len} tokens): {prefill_latency_simulated}")
+print(f"GPT-3 prefill latency ({seq_len} tokens): {E2E_prefill_latency}")
 print(f"GPT-3 decode latency per token: {decode_latency_simulated}")
 print(f"GPT-3 latency to first token: {latency_to_first_token}")
 print(f"GPT-3 tok/s: {decode_tokps}")

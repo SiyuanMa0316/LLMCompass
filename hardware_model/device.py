@@ -1,5 +1,6 @@
 from hardware_model.compute_module import ComputeModule, compute_module_dict
 from hardware_model.compute_module_pimsab import ComputeModulePIMSAB, compute_module_pimsab_dict
+from hardware_model.compute_module_simdram import ComputeModuleSIMDRAM, compute_module_simdram_dict
 from hardware_model.io_module import IOModule, IO_module_dict
 from hardware_model.memory_module import MemoryModule, memory_module_dict
 from typing import Union
@@ -8,7 +9,7 @@ class Device:
     def __init__(
         self,
         type: str,
-        compute_module: Union[ComputeModule,ComputeModulePIMSAB],
+        compute_module: Union[ComputeModule, ComputeModulePIMSAB, ComputeModuleSIMDRAM],
         io_module: IOModule,
         memory_module: MemoryModule,
     ) -> None:
@@ -60,5 +61,11 @@ device_dict = {
         compute_module_pimsab_dict["PIMSAB_12x10_512x256x128"],
         IO_module_dict["PIMSAB"],
         memory_module_dict["PIMSAB"],
+    ),
+    "SIMDRAM_STD": Device(
+        "simdram",
+        compute_module_simdram_dict["simdram_standard"],
+        IO_module_dict["SIMDRAM"],
+        memory_module_dict["SIMDRAM"],
     ),
 }
