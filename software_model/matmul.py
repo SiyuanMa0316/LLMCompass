@@ -303,112 +303,6 @@ class Matmul(Operator):
 
         return list(permutations)
 
-    # wrapper function for complete SIMDRAM heuristic tiling v1
-    def simdram_heuristic_tiling_v1(self, pcb_module: Device):
-        M = self.computational_graph.M
-        N = self.computational_graph.N
-        K = self.computational_graph.K
-        # channels, bank, row size
-        print(f"Heuristic-SIMDRAM Tiling Simulation: M {self.M}, K {self.K}, N {self.N}")
-        channel = 1
-        bank = 16
-        row_size = 256 # 256 wordlines per DRAM bank, assume square bank layout: wordlines = bitlines 
-        col_size = row_size
-        print(f"SIMDRAM Configuration {channel} channel x {bank} bank x {row_size}x{col_size} buffer")
-        # storage capacity in bytes
-        total_capacity = row_size * col_size * bank * channel /8 # storage capacity in bytes 
-        M_K_storage = M * K * self.data_type.word_size / 8
-        M_N_storage = M * N * self.data_type.word_size / 8
-        K_N_storage = K * N * self.data_type.word_size / 8
-        
-        '''
-        Partition Strategy:
-        
-        1. To fully utilize the row-size width SIMD parallelism in each buffer / bank, we partition the K dimension in the base of row-size
-        K = factor_K x tile_K
-        tile_K = row_size
-        factor_K = ceil( K / row_size)
-        
-        2. To fully utilize the bank parallelism, we first partition the M dimension into each bank
-        tile_M = bank
-        factor_M = ceil(M / tile_M )
-        
-        3. We assume the GEMM size a generally large and for each buffer (col-size x row-size), col-size is always < 256 as 
-        we have to allocate multiple bits for holding inputs and accumulations. So, we have to partition the M and N dimensions into 
-        even smaller tiles (inner_tiles)
-        
-        M = factor_M x tile_M 
-        tile_M = inner_tile_factor_M x inner_tile_M
-        
-        N = factor_N x tile_N
-        tile_N = inner_tile_factor_N x inner_tile_N
-        
-        The inner tile matrices in each buffer will be A(inner_tile_M, row_size) and B(row_size, inner_tile_N)
-        
-        4. As each input element store vertically in a DRAM buffer and 2*word_size bits are required to store the multiplication 
-        result, mac_bits = 2 * word_size. We also have to make space to store the accumulation results. for x bits, largest value = 2**x - 1, for p input with x bits,
-        the largest accumulation value will be p * (2 ** x -1), the bits required to store this result is accum_bits = ceil(log2(p * (2 ** x - 1)))
-        
-        Therefore we must satisfy following condition: col_bits >= mac_bits + accum_bits + (inner_tile_M + inner_tile_N) * size_bits
-        '''
-        tile_M = bank
-        factor_M = ceil(M / tile_M)
-        
-        tile_K = row_size
-        factor_K = ceil(K / row_size)
-        
-        # choose inner_tile_M = 1
-        inner_tile_M = 1
-        inner_tile_factor_M = ceil(tile_M / inner_tile_M)
-        mac_bits = 2 * self.data_type.word_size * 8
-        # since the inner_tile_K = row_size, every time we have most 'row_size' multiplication results to accumulate 
-        accum_bits = ceil(log2(row_size * (2 ** (2*self.data_type.word_size * 8) - 1)))  # 24 bits for accumulation
-        available_bits = col_size - mac_bits - accum_bits # remaining 200 bits storing inner_time_M and inner_tile_N
-        inner_tile_N = floor(available_bits / (self.data_type.word_size * 8)) - inner_tile_M # 
-        print(f'available_bits {available_bits} mac_bits {mac_bits} accum_bits {accum_bits} word_size {self.data_type.word_size * 8}')
-        
-        assert inner_tile_N >= 1, f'inner_tile_N = {inner_tile_N}'
-        assert col_size >= mac_bits + accum_bits + (inner_tile_M + inner_tile_N) * self.data_type.word_size * 8, \
-            f'Column Bits allocation failed mac_bits {mac_bits} accum_bits {accum_bits} inner_tile_N {inner_tile_N}, inner_tile_M {inner_tile_M}'
-        # N = factor_N * inner_tile_factor_N * inner_tile_N
-        # temp = inner_tile_factor_N * factor_N
-        temp = ceil(N / inner_tile_N)
-        inner_tile_factor_N = min(32, temp)
-        factor_N = ceil(N / inner_tile_factor_N / inner_tile_N)
-        
-        # M ---> factor_M x inner_tile_factor_M x inner_tile_M
-        # K ---> factor_K x row_size
-        # N ---> factor_N x inner_tile_factor_N x inner_tile_N
-        # tile layout inside each buffer: inner_tile_M x row_size x inner_tile_N 
-        ops = inner_tile_M * row_size * inner_tile_N
-        # inner_tile_M x inner_tile_K matrix: load inner_tile_M x inner_tile_K elements after each computation
-        load_M_K_tile_bits = inner_tile_M * tile_K * self.data_type.word_size * 8
-        # inner_tile_K x inner_tile_N matrix: load inner_tile_K x inner_tile_N elements after each computation
-        load_K_N_tile_bits = tile_K * inner_tile_N * self.data_type.word_size * 8
-        total_load_bit = bank * (load_K_N_tile_bits + load_M_K_tile_bits)
-        
-        # write back inner_tile_M x inner_tile_N elements to host after each computation
-        total_store_bits = inner_tile_M * inner_tile_N * self.data_type.word_size * 8
-        print(f" Matrices Layout\nM = factor_M {factor_M} x inner_tile_factor_M {inner_tile_factor_M} x inner_tile_M {inner_tile_M}\n\
-N = factor_N {factor_N} x inner_tile_factor_N {inner_tile_factor_N} x inner_tile_N {inner_tile_N}\n\
-K = factor_K {factor_K} x tile_K {tile_K}")
-
-        for _ in range(inner_tile_factor_M):
-            # load bank x (inner_tile_M x inner_tile_K + inner_tile_K x inner_tile_N) in total
-            # load_latency = total_load_bit / pcb_module.io_module.bandwidth
-            # self.latency = self.latency + load_latency
-            for _ in range(factor_K):
-                for _ in range(factor_N):
-                    for _ in range(inner_tile_factor_N):
-                        mul_latency = ops/ simdram_op_latency_dict[self.data_type.name]['mul'] / row_size
-                        add_latency = ops / simdram_op_latency_dict[self.data_type.name]['add'] / row_size
-                        self.latency = self.latency + mul_latency + add_latency
-                    store_latency = total_store_bits / pcb_module.io_module.bandwidth
-                    self.latency = self.latency + store_latency
-        return self.latency
-    
-
-
 
     def simdram_heuristic_tiling_v2(self, pcb_module: Device):
         
@@ -1163,8 +1057,6 @@ K = factor_K {factor_K} x tile_K {tile_K}")
                             min_cycle_count = cycle_count
                             best_mapping = mapping
         elif compile_mode == "heuristic-SIMDRAM":
-            self.latency = self.simdram_heuristic_tiling_v1(pcb_module)
-        elif compile_mode == "heuristic-SIMDRAM-v2":
             self.latency = self.simdram_heuristic_tiling_v2(pcb_module)
         else:
             raise ValueError(f"compile_mode {compile_mode} not supported")
@@ -1612,6 +1504,8 @@ K = factor_K {factor_K} x tile_K {tile_K}")
             return self.compile_and_simulate_systolic(pcb_module, compile_mode)
         elif pcb_module.type=="pimsab":
             return self.compile_and_simulate_pimsab(pcb_module, compile_mode)
+        elif pcb_module.type == "simdram":
+            return self.simdram_heuristic_tiling_v2(pcb_module)
         else:
             raise ValueError("Unsupported device type!")
         

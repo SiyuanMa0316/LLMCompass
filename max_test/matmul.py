@@ -8,7 +8,7 @@ import os
 import pandas as pd
 
 
-simdram_spec = read_architecture_template("configs/SIMDRAM.json")
+simdram_spec = read_architecture_template("configs/SIMDRAM_STD.json")
 simdram_sys = template_to_system(simdram_spec)
 
 #setup tensor size
@@ -23,7 +23,7 @@ N = 1024
 # test_overhead = True
 matmul = Matmul(data_type=data_type_dict['fp16'])
 _ = matmul(Tensor([M, K]), Tensor([K, N]))
-
+print(simdram_sys.device.type)
 simulate_latency = matmul.compile_and_simulate(simdram_sys.device, compile_mode="heuristic-SIMDRAM-v2")
 # print(f"SIMDRAM heuristic Matmul Latency {simulate_latency} ns")
 
