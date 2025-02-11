@@ -14,7 +14,7 @@ simdram_spec = read_architecture_template("configs/SIMDRAM_STD.json")
 simdram_sys = template_to_system(simdram_spec)
 
 #setup tensor size
-M = 1024
+M = 1
 K = 12288
 pow = 20
 

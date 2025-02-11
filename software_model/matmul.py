@@ -367,7 +367,7 @@ class Matmul(Operator):
         return np.sort([tile_M, tile_N])
 
 
-    def simdram_gemv(self, pcb_module: Device) -> float:
+    def simdram_gemv(self, pcb_module: Device, debug = False) -> float:
         
         """Wrapper function to tiling and estimate GEMV workload latency
 
@@ -387,27 +387,49 @@ class Matmul(Operator):
         bank = 16
         device = 8
         rank = 1
-        capacity_per_array = col_per_array * row
-        capacity_per_bank = capacity_per_array * array_per_device_bank
-        capacity_per_device = capacity_per_bank * bank
-        capacity_per_rank = capacity_per_device * device
-        total_capacity = capacity_per_rank * rank
         pcb_module.io_module.bandwidth = 19.2 * 8 * (1024/1000) ** 3 # bandwidth in bits per ns
-        tile_K, _ = self.find_tile_K(row)
-        tile_N =  col_per_array
-        factor_N = ceil(N / tile_N) 
-        factor_K = ceil(K / tile_K) 
-        # map factor_N to all device, each device will have same column vector of B but different tile
-        bank_iteration = ceil(factor_N / bank) 
-        # map each assigned column vector of B to each array
-        array_iteration = ceil(factor_K / array_per_device_bank)
+        """
+        In GEMV, usually it is compute bound, the targe is to further utilize the parallelism across the whole SIMDRMA .
+        The 'tile_K' in each array determies the compute latency, we want to minimize it as small as possible while maintain
+        the whole SIMDRAM fully operated.
+        Since M or N is 1, and the tile_N * tile_M = col for each array, either tile_M = col, when N = 1 or tile_N = col when M = 1.
+        Each array has 'row * col' MACs for total 'array * bank * device' arrays. Total MACs we need for output vector
+        is M * N * K = (factor_M * factor_N) * (tile_M * tile_N) * tile_K * factor_K
+        so we have iterations = (factor_M * factor_N) * col * tile_K * factor_K / 'array * device * bank * col * tile_K' 
+                              = factor_M * factor_N * factor_K / 'array * device * bank'
+                              = M * N * ceil(K / tile_K) / 'array * device * bank * tile_M * tile_N'
+                              = ceil(K / tile_K) * CONSTANT
+        theoretical least latency is 'iteration * tile_K' = max(tile_K * ceil(K / tile_K) * CONSTANT, tile_K)
+        we are looking for tile_K that as minimum value of 'tile_K * ceil(K / tile_K)'
+        """
+        const_factor = M * N /(array_per_device_bank * bank * device)
+        accum_bits = 32
+        row_capacity = (row - 32) / (self.data_type.word_size * 8) // 2
+        tile_Ks = np.arange(1, row_capacity)
+        factor_Ks = np.ceil(K / tile_Ks)
+        latency = factor_Ks * tile_Ks * const_factor * (simdram_op_latency_dict[self.data_type.name]['mul'] + simdram_op_latency_dict[self.data_type.name]['add'])
+        min_latency_idx = np.argmin(latency)
 
-        compute_latency_per_array =  (tile_K * simdram_op_latency_dict[self.data_type.name]['add'] + simdram_op_latency_dict[self.data_type.name]['mul']) + simdram_op_latency_dict['fp32']['add']
-        total_latency = compute_latency_per_array * bank_iteration * array_iteration
+        tile_K = int(tile_Ks[min_latency_idx])
+        factor_K = int(factor_Ks[min_latency_idx])
+        final_latency = max(latency[min_latency_idx], tile_K *  (simdram_op_latency_dict[self.data_type.name]['mul'] + simdram_op_latency_dict[self.data_type.name]['add']))
+        if M == 1:
+            tile_M = 1
+            tile_N = col_per_array
+            
+            factor_M = 1
+            factor_N = ceil(N / tile_N)
+        if N == 1:
+            tile_M = col_per_array
+            tile_N = 1
 
-
-
-        return total_latency
+            factor_M = ceil(M / tile_M)
+            factor_N = 1
+        
+        if debug:
+            print(f"SIMDRAM - GEMV: tile_M {tile_M} tile_N {tile_N} tile_K {tile_K}, factor_M {factor_M}, factor_N {factor_N}, factor_K {factor_K}")
+            print(f"total latency {final_latency} ns")
+        return final_latency 
 
     def simdram_heuristic_tiling_v2(self, pcb_module: Device, debug = False) -> float:
 
@@ -416,8 +438,8 @@ class Matmul(Operator):
         N = self.computational_graph.N
         K = self.computational_graph.K
 
-        if M == 1:
-            return self.simdram_gemv(pcb_module)
+        if M == 1 or N == 1:
+            return self.simdram_gemv(pcb_module, debug)
 
         M_K_bits = M * K * self.data_type.word_size * 8
         K_N_bits = K * N * self.data_type.word_size * 8
