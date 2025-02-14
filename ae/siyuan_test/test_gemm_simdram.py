@@ -2,9 +2,9 @@ from software_model.matmul import Matmul
 from software_model.utils import data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
-M=1200
-K=25600
-N=25600
+M=1024
+K=12288
+N=12288
 model = Matmul(data_type=data_type_dict["int8"])
 _ = model(
     Tensor([M, K], data_type_dict["int8"]),
@@ -19,5 +19,10 @@ print (f"simdram config: {simdram.compute_module.bank_count}banks, {simdram.comp
 print (f"simdram external bw: {simdram.compute_module.bandwidth}B/s")
 print (f"memory capacity: {simdram.memory_module.memory_capacity}B")
 print (f"memory bandwidth: {simdram.io_module.bandwidth}B/s")
-# latency = model.compile_and_simulate(pcb, "heuristic-PIMSAB-sim-v2")
-# print(latency)
+
+
+latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM")
+print(f"Siyuan's GEMM latency: {latency}s")
+
+latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
+print(f"Max's GEMM latency: {latency*1e-9}s")
