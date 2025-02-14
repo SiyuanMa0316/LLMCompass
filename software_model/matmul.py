@@ -380,7 +380,7 @@ class Matmul(Operator):
         M = self.computational_graph.M
         N = self.computational_graph.N
         K = self.computational_graph.K
-        assert M == 1, f"SIMDRAM-Heuristic-GEMV only supports M = 1"
+        assert N == 1 or M == 1, f"SIMDRAM_GEMV require input M = 1 or N = 1"
         col_per_array = 128
         row = 131072
         array_per_device_bank = 64
