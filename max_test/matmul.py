@@ -14,11 +14,12 @@ simdram_spec = read_architecture_template("configs/SIMDRAM_STD.json")
 simdram_sys = template_to_system(simdram_spec)
 M = 1
 K = 12288
-N = 1024
-matmul = Matmul(data_type_dict['fp16'])
-_ = matmul(Tensor([M, K]), Tensor([K, N]))
+N = 12288
+matmul = Matmul(data_type_dict['int8'])
+_ = matmul(Tensor([M, K], data_type_dict["int8"]), 
+           Tensor([K, N], data_type_dict["int8"]))
 simulate_latency = matmul.compile_and_simulate(simdram_sys.device, 
-                        compile_mode="heuristic-SIMDRAM-v2", debug = True)
+                        compile_mode="heuristic-SIMDRAM-Max", debug = True)
 
 
 
