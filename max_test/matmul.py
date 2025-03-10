@@ -12,21 +12,26 @@ import matplotlib.pyplot as plt
 
 simdram_spec = read_architecture_template("configs/SIMDRAM_STD.json")
 simdram_sys = template_to_system(simdram_spec)
-
-#setup tensor size
 M = 1
 K = 12288
+N = 12288
+matmul = Matmul(data_type_dict['int8'])
+_ = matmul(Tensor([M, K], data_type_dict["int8"]), 
+           Tensor([K, N], data_type_dict["int8"]))
+simulate_latency = matmul.compile_and_simulate(simdram_sys.device, 
+                        compile_mode="heuristic-SIMDRAM-Max", debug = True)
+
+
+
 pow = 20
 
 seq = [f"{i}" for i in range(pow)]
 # print(seq)
-N = 1024
 gemv_latency = []
 gemm_latency = []
 standard_latency = []
 
 T = simdram_op_latency_dict["fp16"]["add"] + simdram_op_latency_dict['fp16']["mul"]
-
 a = 64
 b = 16
 d = 8
@@ -34,11 +39,10 @@ col = 128
 frac = T / (col * a * b * d)
 
 
-matmul = Matmul(data_type_dict['fp16'])
 
 
-_ = matmul(Tensor([M, K]), Tensor([K, N]))
-simulate_latency = matmul.compile_and_simulate(simdram_sys.device, compile_mode="heuristic-SIMDRAM-v2", debug = True)
+
+
 
 # test_overhead = True
 # matmul = Matmul(data_type=data_type_dict['fp16'])
