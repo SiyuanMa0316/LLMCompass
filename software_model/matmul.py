@@ -16,6 +16,7 @@ import os
 from scalesim.scale_sim import scalesim
 import copy
 from pimsab_exp.run_pimsab_gemm import run_gemm
+from pimsab_kernel.gemm import gemm_tiled_compute
 
 
 class BatchedMatmul(Operator):
@@ -1621,6 +1622,171 @@ class Matmul(Operator):
             #     total_cycle_count += ceil(l2_tiles[-1, -1, -1].K_reduction_cycle_count)
             print(f"gemm latency: {total_latency}")
             return total_latency
+        elif compile_mode == "heuristic-PIMSAB-sim-v3":
+            print(f"  matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
+            print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
+
+
+            num_tile = pcb_module.compute_module.tile_count
+            num_block = pcb_module.compute_module.tile.arr_count
+            num_row = pcb_module.compute_module.tile.arr_rows
+            num_col = pcb_module.compute_module.tile.arr_cols
+            dse_double_buffering = True
+
+            M_tile_base = num_tile
+            K_tile_base = num_block #nblocks
+            N_tile_base = num_col
+            
+             #crams
+            N_tile = N_tile_base
+            precision_input = self.data_type.word_size
+            precision_accumulate = precision_input + 16
+            tile_capacity = (num_row-precision_accumulate-precision_input)*num_col*num_block/8
+            K_multiple = min(ceil(self.K/float(K_tile_base)), floor((tile_capacity-num_block*num_col*self.data_type.word_size)/(K_tile_base*N_tile_base*self.data_type.word_size)))#leaving 8 rows, then use all for KN
+            K_tile = K_tile_base * K_multiple
+            M_multiple = min(ceil(self.M/float(M_tile_base)) , floor((tile_capacity-K_tile*N_tile*self.data_type.word_size)/(K_tile+N_tile)/self.data_type.word_size))#rest of capacity for MK and MN
+            M_tile = M_multiple * M_tile_base
+
+            if dse_double_buffering:
+                M_tile = M_tile //2
+                K_tile = K_tile //2
+            
+            print(f"tile size: {M_tile}, {K_tile}, {N_tile}")
+            pimsab_loop_order = "nkm"
+            previous_m = 0
+            previous_n = 0
+            previous_k = 0
+            total_latency = 0
+            K_N_io_latency = (K_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
+                             + K_tile * N_tile * self.data_type.word_size / (1024*pcb_module.compute_module.clock_freq/8))
+            M_K_io_latency = M_tile * K_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
+            M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth
+
+            input_acc = self.data_type.word_size*8
+            print(f"precision: {input_acc}bit")
+            accumulate_acc = input_acc+16
+            debug = False
+            tile_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_tile,K_tile,N_tile,input_acc,accumulate_acc)
+            print(f"K_N_io_latency: {K_N_io_latency}, M_K_io_latency: {M_K_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency}")
+            
+            M_t = M // M_tile
+            N_t = N // N_tile
+            K_t = K // K_tile
+            M_remain = self.M % M_tile
+            N_remain = self.N % N_tile
+            K_remain = self.K % K_tile
+            tile_latency = np.zeros(
+                [ceil(M / M_tile), ceil(N / N_tile), ceil(K / K_tile)]
+            )
+            if M_t * N_t * K_t != 0:
+                tile_latency[:M_t, :N_t, :K_t] = tile_compute_latency
+            if M_remain != 0:
+                tile_RKN_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_remain,K_tile,N_tile,input_acc,accumulate_acc)
+                tile_latency[-1, :N_t, :K_t] = tile_RKN_compute_latency
+            if N_remain != 0:
+                tile_MKR_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_tile,K_tile,N_remain,input_acc,accumulate_acc)
+                tile_latency[:M_t, -1, :K_t] = tile_MKR_compute_latency
+            if K_remain != 0:
+                tile_MRN_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_tile,K_remain,N_tile,input_acc,accumulate_acc)
+                tile_latency[:M_t, :N_t, -1] = tile_MRN_compute_latency
+            if M_remain * N_remain != 0:
+                tile_RKR_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_remain,K_tile,N_remain,input_acc,accumulate_acc)
+                tile_latency[-1, -1, :K_t] = tile_RKR_compute_latency
+            if M_remain * K_remain != 0:
+                tile_RRN_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_remain,K_remain,N_tile,input_acc,accumulate_acc)
+                tile_latency[-1, :N_t, -1] = tile_RRN_compute_latency
+            if N_remain * K_remain != 0:
+                tile_MRR_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_tile,K_remain,N_remain,input_acc,accumulate_acc)
+                tile_latency[:M_t, -1, -1] = tile_MRR_compute_latency
+            if M_remain * N_remain * K_remain != 0:
+                tile_RRR_compute_latency ,_ = gemm_tiled_compute(pcb_module.compute_module,M_remain,K_remain,N_remain,input_acc,accumulate_acc)
+                tile_latency[-1, -1, -1] = tile_RRR_compute_latency
+
+            # with np.printoptions(threshold=np.inf):
+            #     print(tile_latency)
+            for m, n, k in self.generate_tile_loops(
+                ceil(M / M_tile),
+                ceil(N / N_tile),
+                ceil(K / K_tile),    
+                pimsab_loop_order,
+            ):
+                if m == 0 and n == 0 and k == 0:
+                    #load data for first tile
+                    total_latency += M_N_io_latency + M_K_io_latency + K_N_io_latency
+                    continue
+
+                
+                #capacity per pimsab tile
+                tile_capacity = (num_row-32-16)*num_col*num_block/8
+                M_K_tile_size = M_tile/num_tile*K_tile*self.data_type.word_size #assume blockwise-unbroadcasted (tight) data layout
+                K_N_tile_size = K_tile*N_tile*self.data_type.word_size
+                M_N_tile_size = M_tile/num_tile*N_tile*self.data_type.word_size
+                assert M_K_tile_size + K_N_tile_size + M_N_tile_size <= tile_capacity
+
+                # determine possible double buffering
+                double_buffering = False
+                # current tile read latency
+                if m == previous_m and k == previous_k:
+                    current_tile_read_latency = K_N_io_latency
+                    if M_K_tile_size + 2*K_N_tile_size +2*M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                elif n == previous_n and k == previous_k:
+                    current_tile_read_latency = M_K_io_latency
+                    if 2*M_K_tile_size + K_N_tile_size + 2*M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                else:
+                    current_tile_read_latency = (
+                        M_K_io_latency + K_N_io_latency
+                    )
+                    if m==previous_m and n==previous_n and 2*M_K_tile_size + 2*K_N_tile_size + M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                    elif 2*M_K_tile_size + 2*K_N_tile_size + 2*M_N_tile_size<=tile_capacity:
+                        double_buffering = True
+                if k > 0 and not (m == previous_m and n == previous_n):
+                    current_tile_read_latency += M_N_io_latency
+                
+                # print(f"iter m{m} n{n} k{k}: double_buffering {double_buffering}")
+                # previous tile compute latency
+                previous_tile_compute_latency = tile_latency[previous_m, previous_n, previous_k]
+                # if k > 0:
+                #     previous_tile_compute_cycle_count += (
+                #         previous_l2_tile.K_reduction_cycle_count
+                #     )
+                # previous tile write latency
+                if m == previous_m and n == previous_n:
+                    previous_tile_write_latency = 0
+                else:
+                    previous_tile_write_latency = M_N_io_latency
+
+                # read current tile, compute previous tile, write previous tile
+                if double_buffering:  # pipelined
+                    total_latency += (
+                        max(
+                            current_tile_read_latency, previous_tile_compute_latency
+                        )
+                        + previous_tile_write_latency
+                    )
+                else:  # non-pipelined
+                    total_latency += (
+                        current_tile_read_latency
+                        + previous_tile_compute_latency
+                        + previous_tile_write_latency
+                    )
+                previous_m = m
+                previous_n = n
+                previous_k = k
+
+            # compute and write last tile
+            total_latency += (
+                M_N_io_latency
+                + tile_compute_latency
+            )
+            
+
+            # if previous_k > 0:
+            #     total_cycle_count += ceil(l2_tiles[-1, -1, -1].K_reduction_cycle_count)
+            print(f"gemm latency: {total_latency}")
+            return total_latency
         else:
             raise ValueError(f"compile_mode {compile_mode} not supported")
 
@@ -1674,9 +1840,9 @@ class Matmul(Operator):
             previous_k = 0
             total_latency = 0
 
-            K_N_io_latency = K_tile * N_tile * self.data_type.word_size * num_array / pcb_module.io_module.bandwidth #move K_tilexN_tile to compute-dram, consider duplication across arrays
-            M_K_io_latency = M_tile * K_tile * self.data_type.word_size * num_bank / pcb_module.io_module.bandwidth #move K_tilexK_tile to compute-dram, consider duplication across banks
-            M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.io_module.bandwidth #move M_tilexN_tile to compute-dram, no duplication as K is reduction axis
+            K_N_io_latency = K_tile * N_tile * self.data_type.word_size * num_array / pcb_module.compute_module.bandwidth #move K_tilexN_tile to compute-dram, consider duplication across arrays
+            M_K_io_latency = M_tile * K_tile * self.data_type.word_size * num_bank / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider duplication across banks
+            M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move M_tilexN_tile to compute-dram, no duplication as K is reduction axis
         
             M_t = M // M_tile
             N_t = N // N_tile
@@ -1692,7 +1858,7 @@ class Matmul(Operator):
             # Add extra accumulation latency
             tile_compute_latency = (add_latency_per_array + mul_latency_per_array + simdram_op_latency_dict['fp32']['add'] + simdram_op_latency_dict['fp32']['mul'])*1e-9
             # reduction across devices
-            tile_compute_latency += M_tile * N_tile * num_device * self.data_type.word_size / pcb_module.io_module.bandwidth
+            tile_compute_latency += M_tile * N_tile * num_device * self.data_type.word_size / pcb_module.compute_module.bandwidth
 
             #per array latency for K_remain
             add_latency_per_array_remain = arr_K_remain * simdram_op_latency_dict[self.data_type.name]['add']
@@ -1700,7 +1866,180 @@ class Matmul(Operator):
             # Add extra accumulation latency
             tile_compute_latency_remain = (add_latency_per_array_remain + mul_latency_per_array_remain + simdram_op_latency_dict['fp32']['add'] + simdram_op_latency_dict['fp32']['mul'])*1e-9
             # reduction across devices
-            tile_compute_latency += M_remain * N_remain * num_device * self.data_type.word_size / pcb_module.io_module.bandwidth
+            tile_compute_latency += M_remain * N_remain * num_device * self.data_type.word_size / pcb_module.compute_module.bandwidth
+            
+            print(f"K_N_io_latency: {K_N_io_latency}, M_K_io_latency: {M_K_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency}, tile_compute_latency_remain:{tile_compute_latency_remain}")
+
+            tile_latency = np.zeros(
+                [ceil(M / M_tile), ceil(N / N_tile), ceil(K / K_tile)]
+            )
+            if M_t * N_t * K_t != 0:
+                tile_latency[:M_t, :N_t, :K_t] = tile_compute_latency
+            if M_remain != 0:
+                tile_RKN_compute_latency = tile_compute_latency
+                tile_latency[-1, :N_t, :K_t] = tile_RKN_compute_latency
+            if N_remain != 0:
+                tile_MKR_compute_latency = tile_compute_latency
+                tile_latency[:M_t, -1, :K_t] = tile_MKR_compute_latency
+            if K_remain != 0:
+                tile_MRN_compute_latency = tile_compute_latency_remain
+                tile_latency[:M_t, :N_t, -1] = tile_MRN_compute_latency
+            if M_remain * N_remain != 0:
+                tile_RKR_compute_latency = tile_compute_latency
+                tile_latency[-1, -1, :K_t] = tile_RKR_compute_latency
+            if M_remain * K_remain != 0:
+                tile_RRN_compute_latency = tile_compute_latency_remain
+                tile_latency[-1, :N_t, -1] = tile_RRN_compute_latency
+            if N_remain * K_remain != 0:
+                tile_MRR_compute_latency  = tile_compute_latency_remain
+                tile_latency[:M_t, -1, -1] = tile_MRR_compute_latency
+            if M_remain * N_remain * K_remain != 0:
+                tile_RRR_compute_latency = tile_compute_latency_remain
+                tile_latency[-1, -1, -1] = tile_RRR_compute_latency
+            # print(tile_latency)
+            # with np.printoptions(threshold=np.inf):
+            #     print(tile_latency)
+            # mapping: 
+            # M -> arrays
+            # N -> banks
+            # K -> devices
+            # we assume for each tile's execution:
+            # M_tilexK_tile is moved from somewhere else to compute-enabled DRAM and duplicated across banks to enable N tiling
+            # K_tilexN_tile is already in compute-enabled DRAM and already duplicated across arrays to enable M tiling
+            # M_tilexN_tile is moved from somewhere else to compute-enabled DRAM, does not need any duplication across K dimension (mapped to devices) as K is reduction axis
+            for m, n, k in self.generate_tile_loops(
+                ceil(M / M_tile),
+                ceil(N / N_tile),
+                ceil(K / K_tile),    
+                simdram_loop_order,
+            ):
+                if m == 0 and n == 0 and k == 0:
+                    #load data for first tile
+                    total_latency += M_N_io_latency + M_K_io_latency + K_N_io_latency
+                    continue
+
+
+                # current tile read latency
+                if m == previous_m and k == previous_k:
+                    current_tile_read_latency = K_N_io_latency
+                elif n == previous_n and k == previous_k:
+                    current_tile_read_latency = M_K_io_latency
+                else:
+                    current_tile_read_latency = (
+                        M_K_io_latency + K_N_io_latency
+                    )
+                if k > 0 and not (m == previous_m and n == previous_n):
+                    current_tile_read_latency += M_N_io_latency
+                
+                # print(f"iter m{m} n{n} k{k}: double_buffering {double_buffering}")
+                # previous tile compute latency
+                previous_tile_compute_latency = tile_latency[previous_m, previous_n, previous_k]
+                # if k > 0:
+                #     previous_tile_compute_cycle_count += (
+                #         previous_l2_tile.K_reduction_cycle_count
+                #     )
+                # previous tile write latency
+                if m == previous_m and n == previous_n:
+                    previous_tile_write_latency = 0
+                else:
+                    previous_tile_write_latency = M_N_io_latency
+
+                double_buffering = False
+                # read current tile, compute previous tile, write previous tile
+                if double_buffering:  # pipelined
+                    total_latency += (
+                        max(
+                            current_tile_read_latency, previous_tile_compute_latency
+                        )
+                        + previous_tile_write_latency
+                    )
+                else:  # non-pipelined
+                    total_latency += (
+                        current_tile_read_latency
+                        + previous_tile_compute_latency
+                        + previous_tile_write_latency
+                    )
+                    # print(total_latency)
+                previous_m = m
+                previous_n = n
+                previous_k = k
+
+            # compute and write last tile
+            total_latency += (
+                M_N_io_latency
+                + tile_compute_latency
+            )
+            
+
+            # if previous_k > 0:
+            #     total_cycle_count += ceil(l2_tiles[-1, -1, -1].K_reduction_cycle_count)
+            print(f"gemm latency: {total_latency}")
+            return total_latency
+        elif compile_mode == "heuristic-SIMDRAM-broadcast":
+            
+            print(f"  matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
+            print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
+
+            num_col_per_array = pcb_module.compute_module.bank.arr_cols
+            num_row = pcb_module.compute_module.bank.arr_rows
+            num_array = pcb_module.compute_module.bank.arr_count
+            num_bank = pcb_module.compute_module.bank_count
+            num_device = pcb_module.compute_module.bank.device_count
+            num_rank = 1
+            capacity_per_array = num_col_per_array * num_row
+            capacity_per_bank = capacity_per_array * num_array
+            capacity_per_device = capacity_per_bank * num_bank
+            capacity_per_rank = capacity_per_device * num_device
+            total_capacity = capacity_per_rank * num_rank
+
+
+            arr_tile_N, arr_tile_M = self.find_tile_N_M(num_col_per_array)
+            factor_N = ceil(N / arr_tile_N)
+            factor_M = ceil(M / arr_tile_M)
+            # find nearest power of 2 of tile_K that satisfy the row limit
+            arr_tile_K, accum_bits = self.find_tile_K(num_row)
+            factor_K = floor(K / arr_tile_K)
+
+            #heuristic tiling M to array, N to bank, K to device
+            M_tile = arr_tile_M * num_array
+            N_tile = arr_tile_N * num_bank
+            K_tile = arr_tile_K * num_device
+            
+            print(f"tile size: {M_tile}, {K_tile}, {N_tile}")
+            simdram_loop_order = "nkm"
+            previous_m = 0
+            previous_n = 0
+            previous_k = 0
+            total_latency = 0
+
+            K_N_io_latency = K_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexN_tile to compute-dram, consider broadcasted duplication across arrays
+            M_K_io_latency = M_tile * K_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider broadcasted duplication across banks
+            M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move M_tilexN_tile to compute-dram, no duplication as K is reduction axis
+        
+            M_t = M // M_tile
+            N_t = N // N_tile
+            K_t = K // K_tile
+            M_remain = self.M % M_tile
+            N_remain = self.N % N_tile
+            K_remain = self.K % K_tile
+            print(f"M_tile:{M_tile}, K_tile:{K_tile}, N_tile:{N_tile}, M_remain:{M_remain}, K_remain:{K_remain}, N_remain:{N_remain}")
+            arr_K_remain = ceil(K_remain / num_device)
+
+            #per array latency
+            add_latency_per_array = arr_tile_K * simdram_op_latency_dict[self.data_type.name]['add']
+            mul_latency_per_array = arr_tile_K * simdram_op_latency_dict[self.data_type.name]['mul']
+            # Add extra accumulation latency
+            tile_compute_latency = (add_latency_per_array + mul_latency_per_array + simdram_op_latency_dict['fp32']['add'] + simdram_op_latency_dict['fp32']['mul'])*1e-9
+            # reduction across devices
+            tile_compute_latency += M_tile * N_tile * num_device * self.data_type.word_size / pcb_module.compute_module.bandwidth # no efficient broadcast across device
+
+            #per array latency for K_remain
+            add_latency_per_array_remain = arr_K_remain * simdram_op_latency_dict[self.data_type.name]['add']
+            mul_latency_per_array_remain = arr_K_remain * simdram_op_latency_dict[self.data_type.name]['mul']
+            # Add extra accumulation latency
+            tile_compute_latency_remain = (add_latency_per_array_remain + mul_latency_per_array_remain + simdram_op_latency_dict['fp32']['add'] + simdram_op_latency_dict['fp32']['mul'])*1e-9
+            # reduction across devices
+            tile_compute_latency_remain += M_remain * N_remain * num_device * self.data_type.word_size / pcb_module.compute_module.bandwidth # no efficient broadcast across device
             
             print(f"K_N_io_latency: {K_N_io_latency}, M_K_io_latency: {M_K_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency}, tile_compute_latency_remain:{tile_compute_latency_remain}")
 
@@ -2462,7 +2801,7 @@ class Matmul(Operator):
         mac_per_clock,
         dataflow="os",
     ):
-        print(f'start: {M} {N} {K} {array_height} {array_width} {mac_per_clock} {dataflow}')
+        # print(f'start: {M} {N} {K} {array_height} {array_width} {mac_per_clock} {dataflow}')
         assert M * N * K * array_height * array_width * mac_per_clock != 0
         # if matrix size is large enough to fully utilize the systolic array
         if M >= array_height and N >= array_width:
@@ -2506,7 +2845,7 @@ class Matmul(Operator):
                     M * N * K / array_height / array_width / mac_per_clock / util_rate
                 )
             # if none of above fits, try the lookup table
-        print('start look up table')
+        # print('start look up table')
         try:
             cycle_count = look_up_table.loc[
                 (M, N, K, array_height, array_width, dataflow), "cycle_count"
