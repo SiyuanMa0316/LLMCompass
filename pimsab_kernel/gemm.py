@@ -12,7 +12,15 @@ def get_array_reduce_cycles(precision, pimsab:cmp.ComputeModulePIMSAB):
     '''
     levels = math.ceil(math.log2(pimsab.tile.arr_count))
     return precision + levels + 1
-
+def get_array_reduce_cycles_rowadd(precision, pimsab:cmp.ComputeModulePIMSAB):
+    levels = math.ceil(math.log2(pimsab.tile.arr_count))
+    cycles=0
+    for i in range(1, levels+1):
+        cycles+= precision + i
+        distance = i+1 if i%2 else i
+        cycles += distance
+    return cycles
+                        
 
 def gemm_tiled_compute(pimsab:cmp.ComputeModulePIMSAB, M, K, N, precision_input, precision_accumulate):
     total_cycles = 0
@@ -20,6 +28,7 @@ def gemm_tiled_compute(pimsab:cmp.ComputeModulePIMSAB, M, K, N, precision_input,
     ncols = pimsab.tile.arr_cols
     narrays = pimsab.tile.arr_count
     ntiles = pimsab.tile_count
+    adder = True
     for n in range(math.ceil(N/ncols)):
         for m in range(math.ceil(M/ntiles)):
             increase_precision_index = 1
@@ -43,10 +52,15 @@ def gemm_tiled_compute(pimsab:cmp.ComputeModulePIMSAB, M, K, N, precision_input,
                 num_reqs += 1
             
                 # print(total_cycles)
-            m_iter_cycles = max(mac_cycles, get_array_reduce_cycles(precision_accumulate_temp, pimsab)) if m > 0  else mac_cycles
+
+            if adder: 
+                m_iter_cycles = max(mac_cycles, get_array_reduce_cycles(precision_accumulate_temp, pimsab)) if m > 0  else mac_cycles
+            else:
+                m_iter_cycles = mac_cycles+ get_array_reduce_cycles_rowadd(precision_accumulate_temp, pimsab) if m > 0 else mac_cycles
             total_cycles += m_iter_cycles
-        total_cycles += get_array_reduce_cycles(precision_accumulate_temp, pimsab) #reduction of last m iteration
+        total_cycles += get_array_reduce_cycles(precision_accumulate_temp, pimsab) if adder else get_array_reduce_cycles_rowadd(precision_accumulate_temp, pimsab) #reduction of last m iteration
     latency = total_cycles/pimsab.clock_freq
+    # print({pimsab.clock_freq})
     print(f"gemm_kernel_cycles: {total_cycles}")
 
     return latency, 0

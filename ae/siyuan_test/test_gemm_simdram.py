@@ -21,7 +21,7 @@ print (f"memory capacity: {simdram.memory_module.memory_capacity}B")
 print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 
 
-latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-broadcast")
+latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM")
 print(f"Siyuan's GEMM latency: {latency}s")
 
 # latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
