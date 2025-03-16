@@ -4,7 +4,7 @@ from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
 M=1024
 K=12288
-N=12288
+N=1
 model = Matmul(data_type=data_type_dict["fp16"])
 _ = model(
     Tensor([M, K], data_type_dict["fp16"]),
@@ -24,5 +24,5 @@ print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM")
 print(f"Siyuan's GEMM latency: {latency}s")
 
-# latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
-# print(f"Max's GEMM latency: {latency*1e-9}s")
+latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
+print(f"Max's GEMM latency: {latency*1e-9}s")

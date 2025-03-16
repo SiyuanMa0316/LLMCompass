@@ -163,7 +163,7 @@ def simdram_heuristic_tiling_v2(self, pcb_module: Device, debug = False) -> floa
     K = self.computational_graph.K
 
     if M == 1 or N == 1:
-        return self.simdram_gemv(pcb_module, debug)
+        return simdram_gemv(self,pcb_module, debug)
 
     M_K_bits = M * K * self.data_type.word_size * 8
     K_N_bits = K * N * self.data_type.word_size * 8
@@ -801,7 +801,7 @@ def compile_and_simulate_simdram(
         print(f"gemm latency: {total_latency}")
         return total_latency
     elif compile_mode == "heuristic-SIMDRAM-Max":
-        return self.simdram_heuristic_tiling_v2(pcb_module, True)
+        return simdram_heuristic_tiling_v2(self, pcb_module, True)
     else:
         raise ValueError(f"compile_mode {compile_mode} not supported")
     
@@ -812,4 +812,4 @@ def compile_and_simulate(
     debug: bool = False,
 ):
     assert pcb_module.type == 'simdram'
-    return self.compile_and_simulate_simdram(pcb_module, compile_mode)
+    return compile_and_simulate_simdram(self,pcb_module, compile_mode)
