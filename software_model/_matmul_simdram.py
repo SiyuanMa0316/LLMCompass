@@ -1,7 +1,7 @@
 import array
 from hardware_model.device import Device
 from math import ceil, log2, floor
-from software_model.utils import Tensor, DataType, simdram_op_latency_dict
+from software_model.utils import Tensor, DataType, simdram_op_latency_dict, dram_pe_latency_dict
 import numpy as np
 
 def find_tile_K(self, row_limits : int, grow : int = 32) -> int:
@@ -164,7 +164,7 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     device = pcb_module.compute_module.bank.device_count
 
     rank = 1
-    pcb_module.io_module.bandwidth = 19.2 * 8 * (1024/1000) ** 3 # bandwidth in bits per ns
+    pcb_module.io_module.bandwidth = 19.2 * (1024/1000) ** 3 # bandwidth in bits per ns
     total_arrays = array_per_device_bank * bank * device * rank
     '''
     Assume input M = 1, LHS is a row vector P and RHS is a complete matrix Q.
@@ -183,10 +183,15 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     factor_N = floor(N / tile_N)
     remain_N = N % tile_N
 
-    tile_K, accum_bits = find_tile_K(self, row)
-    factor_K= floor(K / tile_K)
-    remain_K = K % tile_K
+    # tile_K, accum_bits = find_tile_K(self, row)
+    # factor_K= floor(K / tile_K)
+    # remain_K = K % tile_K
     
+    # use every array in every bank and every device
+    factor_K = array_per_device_bank   
+    tile_K = K // factor_K
+    remain_K = K % tile_K
+
     # As we are duplicating every tile of LHS vector to exact array of every bank and device
     # and we have broadcasting hardware across bank level, we dont need duplication across bank-level.
     # the M_K_IO_latency = factor_K * tile_K * data_width * device/ BW
@@ -194,7 +199,9 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     # so, K_N_IO_latency = factor_K * factor_N * tile_K * tile_N * data_width / BW
     major_M_K_IO_latency = factor_K * tile_K * self.data_type.word_size * device/ pcb_module.io_module.bandwidth
     major_K_N_IO_latency = factor_K * factor_N * tile_K * tile_N * self.data_type.word_size / pcb_module.io_module.bandwidth
-    mac_latency = tile_K * (simdram_op_latency_dict[self.data_type.name]['mul'] + simdram_op_latency_dict[self.data_type.name]['add'])
+    mac_latency = tile_K * (dram_pe_latency_dict[self.data_type.name]['mul'] + dram_pe_latency_dict[self.data_type.name]['add'])
+    # mac_latency = tile_K * (simdram_op_latency_dict[self.data_type.name]['mul'] + simdram_op_latency_dict[self.data_type.name]['add'])
+
     major_IO_latency =  major_K_N_IO_latency + major_M_K_IO_latency
 
     '''
@@ -227,9 +234,8 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     if debug:
         print(f"SIMDRAM GEMV Broadcast\nM = {M} = {tile_M} * {factor_M} + {remain_M}\nK = {K} = {tile_K} * {factor_K} + {remain_K}\nN = {N} = {tile_N} * {factor_N} + {remain_N}")
         print(f"Partition K -> array: K_iteration {iteration_K}, partition N -> bank and device: N_iteration {iteration_N}")
-        print(f"Partition K -> array: K_iteration {iteration_K}, partition N -> bank and device: N_iteration {iteration_N}")
         print(f"Array required for major tiles :{arrays_for_major_tiles}, Array required for remaining tiles: {arrays_for_remaining_tiles},Total Arrays: {total_arrays}")
-        print(f"Major tiles IO latency = {major_IO_latency * 1e-6}ms, Remain tiles IO latency = {remain_IO_latency * 1e-6}ms")
+        print(f"Major tiles IO latency = {major_IO_latency * 1e-6}ms, Remain tiles IO latency = {remain_IO_latency * 1e-6}ms Mac Latency = {mac_latency * 1e-6}ms")
 
 
     total_latency = 0
@@ -310,11 +316,11 @@ def simdram_heuristic_tiling_v2(self, pcb_module: Device, debug = False) -> floa
     Total row storage requires: 2 * self.data_type.word_size * 8 * 2 * K + accum_bits <= row
     """
     #find nearest power of 2 of tile_N, tile_M that satisfy the col_per_array limit
-    tile_N, tile_M = self.find_tile_N_M(col_per_array)
+    tile_N, tile_M = find_tile_N_M(self, col_per_array)
     factor_N = ceil(N / tile_N)
     factor_M = ceil(M / tile_M)
     # find nearest power of 2 of tile_K that satisfy the row limit
-    tile_K, accum_bits = self.find_tile_K(row)
+    tile_K, accum_bits =find_tile_K(self, row)
     factor_K = floor(K / tile_K)
     remain_K = K - factor_K * tile_K
 
@@ -347,7 +353,7 @@ def simdram_heuristic_tiling_v2(self, pcb_module: Device, debug = False) -> floa
     add_latency_per_array = tile_K * simdram_op_latency_dict[self.data_type.name]['add']
     mul_latency_per_array = tile_K * simdram_op_latency_dict[self.data_type.name]['mul']
     # Add extra accumulation latency
-    compute_latency_per_array = add_latency_per_array + mul_latency_per_array + simdram_op_latency_dict['fp32']['add'] + simdram_op_latency_dict['fp32']['mul']
+    compute_latency_per_array = add_latency_per_array + mul_latency_per_array + simdram_op_latency_dict['fp32']['add']
     if debug:
         print(f"Compute Latency per array {compute_latency_per_array} ns")
     """

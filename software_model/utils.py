@@ -15,6 +15,10 @@ simdram_op_latency_dict = {
     DataType("fp16", 1).name: {"add": 6193, "mul": 131135},
     DataType("fp32", 1).name: {"add": 12337, "mul": 532143}
 }
+dram_pe_latency_dict = {
+    DataType("int8", 1).name: {"add": 340, "mul": 453},
+    DataType("fp16", 1).name: {"add": 680, "mul": 906},
+}
 
 class Tensor:
     def __init__(
