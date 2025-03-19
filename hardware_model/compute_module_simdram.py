@@ -56,6 +56,7 @@ class ComputeModuleSIMDRAM:
         self,
         bank: Bank,
         bank_count,
+        with_PE: bool,
         overhead: Overhead = overhead_dict["SIMDRAM"],
     ):
         self.bank = bank
@@ -63,6 +64,7 @@ class ComputeModuleSIMDRAM:
         self.clock_freq = bank.effective_freq
         self.overhead = overhead
         self.bandwidth = bank.bandwidth * bank_count
+        self.with_PE = with_PE
 
 
 compute_module_simdram_dict = {

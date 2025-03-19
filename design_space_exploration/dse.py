@@ -102,8 +102,9 @@ def template_to_system_simdram(arch_specs):
     compute_module = arch_specs["compute_module"]
     bank_specs = compute_module["bank"]
     bank_count = compute_module["bank_count"]
+    with_PE = compute_module["with_PE"]
     bank = Bank(device_count=bank_specs["device_count"] , arr_count=bank_specs["array_count"], arr_cols=bank_specs["array_cols"], arr_rows=bank_specs["array_rows"], device_data_width=bank_specs["device_data_width"], effective_freq=bank_specs["device_frequency_Hz"]/bank_count)
-    compute_module_simdram = ComputeModuleSIMDRAM(bank, bank_count, overhead_dict["SIMDRAM"])
+    compute_module_simdram = ComputeModuleSIMDRAM(bank, bank_count, with_PE, overhead_dict["SIMDRAM"])
     # io module (bandwidth of normal memory)
     io_specs = arch_specs["io"]
     io_module = IOModule(
