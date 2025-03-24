@@ -23,8 +23,8 @@ print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 
 # latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM")
 # print(f"Siyuan's GEMM latency: {latency}s")
-max_latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
-print(f"Max's GEMM latency: {max_latency*1e-9}s")
+# max_latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
+# print(f"Max's GEMM latency: {max_latency*1e-9}s")
 
 # A100_specs = read_architecture_template("configs/GA100x1_fp16.json")
 # A100_system = template_to_system(A100_specs)

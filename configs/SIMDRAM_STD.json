@@ -12,7 +12,7 @@
             "device_data_width": 8,
             "device_frequency_Hz": 3200e6
         },
-        "with_PE": false
+        "with_PE": true
     },
 
     "io": {
