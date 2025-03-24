@@ -23,15 +23,15 @@ print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 
 # latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM")
 # print(f"Siyuan's GEMM latency: {latency}s")
-max_latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
-print(f"Max's GEMM latency: {max_latency*1e-9}s")
+# max_latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-Max")
+# print(f"Max's GEMM latency: {max_latency*1e-9}s")
 
-A100_specs = read_architecture_template("configs/GA100x1_fp16.json")
-A100_system = template_to_system(A100_specs)
-A100_pcb = A100_system.device
+# A100_specs = read_architecture_template("configs/GA100x1_fp16.json")
+# A100_system = template_to_system(A100_specs)
+# A100_pcb = A100_system.device
 
-a100_latency = model.compile_and_simulate(A100_pcb, "heuristic-GPU")
-print(f"a100_latency's GEMM latency: {a100_latency}s")
+# a100_latency = model.compile_and_simulate(A100_pcb, "heuristic-GPU")
+# print(f"a100_latency's GEMM latency: {a100_latency}s")
 
 
 latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM-broadcast")
