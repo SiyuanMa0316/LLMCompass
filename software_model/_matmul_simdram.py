@@ -1,8 +1,8 @@
 from sympy import factor
 from hardware_model.device import Device
 from math import ceil, log2, floor
-from software_model.utils import Tensor, DataType, simdram_op_latency_dict, simdram_PE_op_latency_dict
-from software_model.utils import tiling_pattern_extraction
+from software_model.utils import Tensor, DataType, TilingStrategy, simdram_op_latency_dict, simdram_PE_op_latency_dict
+from software_model.utils import TilingStrategy
 import numpy as np
 import math
 
@@ -74,13 +74,18 @@ def get_tiling_factor(pcb_module: Device, tiling: dict):
     device = pcb_module.compute_module.bank.device_count
     to_return = {'M': 1, 'K': 1, 'N': 1} 
     for key in tiling.keys():
-        for c in tiling[key]:
-            if c == 'A':
-                to_return[key] *= array_per_device_bank
-            if c == 'B':
-                to_return[key] *= bank
-            if c == 'D':
-                to_return[key] *= device
+        val = tiling[key]
+        if val:
+            for c in val:
+                if c == 'A':
+                    to_return[key] *= array_per_device_bank
+                if c == 'B':
+                    to_return[key] *= bank
+                if c == 'D':
+                    to_return[key] *= device
+        else:
+            # tiling[key] == None
+            to_return[key] = 1
     return to_return
 
 
@@ -118,11 +123,17 @@ def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2
     
     return latency
 
-def simdram_gemv(self, pcb_module: Device, tiling: dict = None , mapping: dict = None,debug = True, broad_cast='AB', loop_order='mkn') -> float:
+def simdram_gemv(self, pcb_module: Device, tilingStrategy: TilingStrategy, debug = True,) -> float:
     
     M = self.computational_graph.M
     N = self.computational_graph.N
     K = self.computational_graph.K
+
+    tiling = tilingStrategy.tiling
+    mapping = tilingStrategy.arr_mapping
+    broad_cast = tilingStrategy.broadcast
+    loop_order = tilingStrategy.loop_order
+    pcb_module.compute_module.with_PE = tilingStrategy.with_PE
 
     assert M == 1, "DRAM PIM require input M = 1 or N = 1"
 
@@ -162,7 +173,7 @@ def simdram_gemv(self, pcb_module: Device, tiling: dict = None , mapping: dict =
 
     # extract tiling strategy
     tiling_factors = get_tiling_factor(pcb_module, tiling)
-    tiling_factor_M = tiling_factors['M']
+    tiling_factor_M = 1 # GEMV always assume 1 for dimension_M 
     tiling_factor_N = tiling_factors['N']
     tiling_factor_K = tiling_factors['K']
 
@@ -232,11 +243,12 @@ def simdram_gemv(self, pcb_module: Device, tiling: dict = None , mapping: dict =
     prev_k = 0
     total_latency = 0
 
-    print(type(num_tile_K))
     for m, k, n in self.generate_tile_loops(1, num_tile_N, num_tile_K, loop_order=loop_order):
         # load first tile
         if m == 0 and n == 0  and k == 0:
             total_latency += M_K_io_latency + K_N_io_latency
+            if num_tile_K == num_tile_N == 1: # if only one tile for both N and K, we have to add the compute latency
+                total_latency += compute_latency
             continue
         
         current_tile_io_latency = 0
@@ -276,9 +288,11 @@ def simdram_gemv(self, pcb_module: Device, tiling: dict = None , mapping: dict =
         print(f"{'opt_tile_M':<30}{opt_tile_M:<20}{'opt_tile_K':<30}{opt_tile_K:<20}{'opt_tile_N':<30}{opt_tile_N:<20}")
         print(f"{'util_M':<30}{util_M * 100:.2f}%{'':<15}{'util_K':<30}{util_K * 100:.2f}%{'':<15}{'util_N':<30}{util_N * 100:.2f}%")
         print(f"{'Row Capacity Utilization':<30}{row_util * 100:.2f}%{'':<15}{'SIMD Utilization':<30}{compute_util * 100:.2f}%")
-        print(f"{'Intra_array_multicast':<30}{str(bool(intra_array_multicast)):<20}{'Popcorn adder':<30}{str(bool(popcorn_adder)):<20}")
-        print(f"{'Compute Latency':<30}{compute_latency * 1e-9:.6f}s{'':<15}{'M_K_io_latency':<30}{M_K_io_latency * 1e-9:.6f}s")
-        print(f"{'K_N_io_latency':<30}{K_N_io_latency * 1e-9:.6f}s{'':<15}{'Total Latency':<30}{total_latency * 1e-9:.6f}s")
+        print(f"{'Intra_array_multicast':<30}{str(bool(intra_array_multicast)):<20}{'Popcorn adder':<30}{str(bool(popcorn_adder)):<20}{'Using Bit-serial PE':<30}{str(bool(pcb_module.compute_module.with_PE)):<20}")
+        print(f"{'Compute Latency':<30}{compute_latency * 1e-6:.3f}ms{'':<15}{'M_K_io_latency':<30}{M_K_io_latency * 1e-6:.3f}ms{'':<15}{'K_N_io_latency':<30}{K_N_io_latency * 1e-6:.3f}ms")
+        print(f"{'Remain Compute Latency':<30}{remain_mac_latency * 1e-6:.3f}ms{'':<15}{'remain_K_N_io_latency':<30}{remain_K_N_io_latency * 1e-6:.3f}ms{'':<15}{'remain_M_N_io_latency':<30}{remain_M_N_io_latency * 1e-6:.3f}ms")
+        print(f"{'Total Latency':<30}{total_latency * 1e-6:.3f}ms")
+
 
 
 
@@ -389,17 +403,16 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
 
 
 
-def simdram_heuristic_tiling_v2(self, pcb_module: Device, debug = False) -> float:
+def simdram_heuristic_tiling_v2(self, pcb_module: Device,  tilingStrategy: TilingStrategy, debug=False) -> float:
 
     pcb_module.io_module.bandwidth = 19.2 * (1024/1000) ** 3 # bandwidth in bytes per ns
     M = self.computational_graph.M
     N = self.computational_graph.N
     K = self.computational_graph.K
 
+
     if M == 1 or N == 1:
-        tiling = {'N':'A', 'K':'DB'}
-        mapping = {'K':'R', 'N': 'C'}
-        return simdram_gemv(self,pcb_module, tiling=tiling, mapping=mapping,  broad_cast='')
+        return simdram_gemv(self,pcb_module, tilingStrategy=tilingStrategy, debug=debug)
 
     M_K_bits = M * K * self.data_type.word_size * 8
     K_N_bits = K * N * self.data_type.word_size * 8
@@ -968,7 +981,7 @@ def get_tile_latency(self, pcb_module: Device, broadcast, tiling, arr_mapping, M
 
     return (M_K_io_latency, K_N_io_latency, M_N_io_latency, tile_compute_latency)
 
-def heuristic_simdram_broadcast (self, pcb_module: Device, tiling, arr_mapping, loop_order, broadcast):
+def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_mapping: dict, loop_order: str, broadcast: str):
     '''
     M->array
     N->bank
@@ -1151,9 +1164,17 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling, arr_mapping, 
 def compile_and_simulate_simdram(
     self,
     pcb_module: Device,
-    compile_mode: str = "exhaustive",   
+    tilingStrategy: TilingStrategy,
+    debug: bool,
+    compile_mode: str = "exhaustive"
 ):
-    debug = False
+    
+    tiling = tilingStrategy.tiling
+    arr_mapping = tilingStrategy.arr_mapping
+    loop_order = tilingStrategy.loop_order
+    broadcast = tilingStrategy.broadcast
+
+    # debug = False
     assert pcb_module.type == "simdram"
     M = self.computational_graph.M
     N = self.computational_graph.N
@@ -1162,10 +1183,10 @@ def compile_and_simulate_simdram(
         return heuristic_simdram(self, pcb_module)     
         
     elif compile_mode == "heuristic-SIMDRAM-broadcast":
-        return heuristic_simdram_broadcast(self, pcb_module = pcb_module, tiling="MANBKD", arr_mapping="RKCMN", loop_order="nkm", broadcast="")
+        return heuristic_simdram_broadcast(self, pcb_module = pcb_module, tiling=tiling, arr_mapping=arr_mapping, loop_order=loop_order, broadcast=broadcast)
        
     elif compile_mode == "heuristic-SIMDRAM-Max":
-        return simdram_heuristic_tiling_v2(self, pcb_module, True)
+        return simdram_heuristic_tiling_v2(self, pcb_module,  tilingStrategy, debug=debug)
     else:
         raise ValueError(f"compile_mode {compile_mode} not supported")
     
