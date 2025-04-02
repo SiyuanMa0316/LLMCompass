@@ -5,7 +5,7 @@ from utils import size
 from typing import List, Tuple
 from hardware_model.device import Device
 from software_model.operators import Operator
-from software_model.utils import Tensor, DataType, simdram_op_latency_dict
+from software_model.utils import Tensor, DataType, TilingStrategy, simdram_op_latency_dict
 from math import ceil, log2, floor
 import torch
 import time
@@ -794,15 +794,16 @@ class Matmul(Operator):
     def compile_and_simulate(
         self,
         pcb_module: Device,
-        compile_mode: str = "exhaustive",
+        tilingStrategy: TilingStrategy,
         debug: bool = False,
+        compile_mode: str = "exhaustive",
     ):
         if pcb_module.type=="systolic":
             return self.compile_and_simulate_systolic(pcb_module, compile_mode)
         elif pcb_module.type=="pimsab":
             return compile_and_simulate_pimsab(self, pcb_module, compile_mode)
         elif pcb_module.type == "simdram":
-            return compile_and_simulate_simdram(self, pcb_module, compile_mode)
+            return compile_and_simulate_simdram(self, pcb_module, compile_mode=compile_mode, tilingStrategy=tilingStrategy, debug=debug)
         else:
             raise ValueError("Unsupported device type!")
         # assert pcb_module.type == 'systolic'

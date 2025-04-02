@@ -1,7 +1,8 @@
-import array
+from sympy import factor
 from hardware_model.device import Device
 from math import ceil, log2, floor
-from software_model.utils import Tensor, DataType, simdram_op_latency_dict, simdram_PE_op_latency_dict
+from software_model.utils import Tensor, DataType, TilingStrategy, simdram_op_latency_dict, simdram_PE_op_latency_dict
+from software_model.utils import TilingStrategy
 import numpy as np
 import math
 
@@ -65,92 +66,240 @@ def find_tile_N_M(self, col_limits : int, base : int = 16) -> tuple[int, int]:
     
     return np.sort([tile_M, tile_N])
 
-def simdram_gemv(self, pcb_module: Device, debug = False) -> float:
-    
-    M = self.computational_graph.M
-    N = self.computational_graph.N
-    K = self.computational_graph.K
-
-    assert N == 1 or M == 1, f"SIMDRAM_GEMV_V2 require input M = 1 or N = 1"
+def get_tiling_factor(pcb_module: Device, tiling: dict):
     col_per_array = pcb_module.compute_module.bank.arr_cols
     row = pcb_module.compute_module.bank.arr_rows
     array_per_device_bank = pcb_module.compute_module.bank.arr_count
     bank = pcb_module.compute_module.bank_count
     device = pcb_module.compute_module.bank.device_count
+    to_return = {'M': 1, 'K': 1, 'N': 1} 
+    for key in tiling.keys():
+        val = tiling[key]
+        if val:
+            for c in val:
+                if c == 'A':
+                    to_return[key] *= array_per_device_bank
+                if c == 'B':
+                    to_return[key] *= bank
+                if c == 'D':
+                    to_return[key] *= device
+        else:
+            # tiling[key] == None
+            to_return[key] = 1
+    return to_return
 
+
+def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2: int, word_size: float, dup: str) -> float:
+    array_per_device_bank = pcb_module.compute_module.bank.arr_count
+    device = pcb_module.compute_module.bank.device_count
+    bank = pcb_module.compute_module.bank_count
+
+    array_broadcast_enable = False
+    bank_broadcast_enable = False
+    latency = 0
+    if 'A' in broad_cast:
+        array_broadcast_enable = True
+    if 'B' in broad_cast:
+        bank_broadcast_enable = True
+    
+    if 'A' in dup:
+        # duplicate tile to every array
+        temp = array_per_device_bank * tile_1 * tile_2 * word_size  / pcb_module.io_module.bandwidth
+        if array_broadcast_enable:
+            temp /= array_per_device_bank
+        latency += temp
+
+    if 'B' in dup:
+        # duplicate tile to every bank
+        temp = bank * tile_1 * tile_2 * word_size / pcb_module.io_module.bandwidth
+        if bank_broadcast_enable:
+            temp /= bank
+        latency += temp
+
+    if 'D' in dup:
+        # duplicate tile to every device
+        temp = device * tile_1 * tile_2 * word_size / pcb_module.io_module.bandwidth
+        latency += temp
+    
+    return latency
+
+def simdram_gemv(self, pcb_module: Device, tilingStrategy: TilingStrategy, debug = True,) -> float:
+    
+    M = self.computational_graph.M
+    N = self.computational_graph.N
+    K = self.computational_graph.K
+
+    tiling = tilingStrategy.tiling
+    mapping = tilingStrategy.arr_mapping
+    broad_cast = tilingStrategy.broadcast
+    loop_order = tilingStrategy.loop_order
+    pcb_module.compute_module.with_PE = tilingStrategy.with_PE
+
+    assert M == 1, "DRAM PIM require input M = 1 or N = 1"
+
+    col_per_array = pcb_module.compute_module.bank.arr_cols
+    row = pcb_module.compute_module.bank.arr_rows
+    array_per_device_bank = pcb_module.compute_module.bank.arr_count
+    bank = pcb_module.compute_module.bank_count
+    device = pcb_module.compute_module.bank.device_count
+    
+    pe_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['add'] + simdram_PE_op_latency_dict[self.data_type.name]['mul']
+    normal_op_latency = simdram_op_latency_dict[self.data_type.name]['add'] + simdram_op_latency_dict[self.data_type.name]['mul']
+    mac_latency =  pe_op_latency if pcb_module.compute_module.with_PE else normal_op_latency
+
+    row_element_storage = row // self.data_type.word_size // 8 // 2
     rank = 1
-    pcb_module.io_module.bandwidth = 19.2 * 8 * (1024/1000) ** 3 # bandwidth in bits per ns
+    pcb_module.io_module.bandwidth = 19.2 * (1024/1000) ** 3 # bandwidth in bytes per ns
     total_arrays = array_per_device_bank * bank * device * rank
 
-    # case1 M = 1, LHS is a vector of (1 x K), RHS is a complete matrix of (K x N)
-    if M == 1:
-        tile_N = col_per_array
-        tile_M = 1
+    arr_tile_M = 1
+    # default we only need intra-array-multicast
+    popcorn_adder = False
+    intra_array_multicast = True
+    if mapping:
+        k_arr_map = mapping['K']
+        n_arr_map = mapping['N']
+    else:
+        # default map K to array columns and N to array rows
+        k_arr_map = 'R'
+        n_arr_map = 'C'
     
-    # M = factor_M * tile_M + remain_M
-    # N = factor_N * tile_N + remain_N
-    # K = factor_K * tile_K + remain_K
+    if k_arr_map == 'C':
+        popcorn_adder = True
+        intra_array_multicast = False
+    # smallest problem size to each array
+    arr_tile_N = col_per_array if n_arr_map == 'C' else row_element_storage
+    arr_tile_K = row_element_storage if k_arr_map == 'R' else col_per_array
 
-    tile_K, accum_bits = find_tile_K(self, row)
-    remain_K = K % tile_K
-    factor_K = K // tile_K
+    # extract tiling strategy
+    tiling_factors = get_tiling_factor(pcb_module, tiling)
+    tiling_factor_M = 1 # GEMV always assume 1 for dimension_M 
+    tiling_factor_N = tiling_factors['N']
+    tiling_factor_K = tiling_factors['K']
 
-    remain_N = N % tile_N
-    factor_N = N // tile_N
+    tile_M = arr_tile_M * tiling_factor_M
+    tile_K = arr_tile_K * tiling_factor_K
+    tile_N = arr_tile_N * tiling_factor_N
 
-    factor_M = M // tile_M
-    remain_M = M % tile_M
-
-    # total number of complete SIMDRAM launch
-    complete_iterations =(factor_K * factor_N * factor_M) / total_arrays
-
-
-    mac_latency = simdram_op_latency_dict[self.data_type.name]['add'] + simdram_op_latency_dict[self.data_type.name]['mul']
-    major_compute_latency = complete_iterations * tile_K * mac_latency 
+    util_M = M / tile_M
+    util_N = N / tile_N
+    util_K = K / tile_K
     
-    '''
-    After complete SIMDRAM launch, we have 2 remaining dimensions: remain_K and remain_N
-    LHS remains: M x remain_K = 1 x remain_K, RHS remains 1 row vector (remain_K x N) and 1 column vector (K x remain_N)
-    and they have a small overlapping matrix of (remain_K x remain_N). 
-    Lets ignore this overlapping matrix for now, and focus only on the (N - remain_N) and (K - remain_K).
+    opt_arr_tile_M = arr_tile_M
+    opt_arr_tile_K = arr_tile_K
+    opt_arr_tile_N = arr_tile_N
+
+    opt_tile_M = tile_M
+    opt_tile_N = tile_N
+    opt_tile_K = tile_K
+
+    # optimize the arr_tile size to fully utilize the SIMDRAM
+    if util_M < 1:
+        opt_arr_tile_M = ceil(arr_tile_M * util_M)
+        opt_tile_M = opt_arr_tile_M * tiling_factor_M
+    if util_N < 1:
+        opt_arr_tile_N = ceil(arr_tile_N * util_N)
+        opt_tile_N = opt_arr_tile_N * tiling_factor_N
+    if util_K < 1:
+        opt_arr_tile_K = ceil(arr_tile_K * util_K)
+        opt_tile_K = opt_arr_tile_K * tiling_factor_K
+
+    row_util = opt_arr_tile_K / row_element_storage if k_arr_map == 'R' else opt_arr_tile_N / row_element_storage
+    compute_util = opt_arr_tile_N / col_per_array if n_arr_map == 'C' else opt_arr_tile_K / col_per_array
+
+    num_mac = row_util * row_element_storage
+    compute_latency = num_mac * mac_latency
+
+ 
+
+    dups = ['A', 'B', 'D']
+    K_N_dup = []
+    M_K_dup = []
+    for c in dups:
+        # if not tiled along A/B/D
+        # we need to duplicate this tile to corresponding place
+        if c not in tiling['N']:
+            K_N_dup.append(c)
+        if c not in tiling['K']:
+            M_K_dup.append(c)
+
+
+
+    M_K_io_latency = get_tile_io_latency(pcb_module, broad_cast, opt_tile_M, opt_tile_K, self.data_type.word_size, M_K_dup)
+    K_N_io_latency = get_tile_io_latency(pcb_module, broad_cast, opt_tile_N, opt_tile_K, self.data_type.word_size, K_N_dup)
+    # no duplication required for M_N tile, simply write it back to Host
+    M_N_io_latency = opt_tile_M * opt_tile_N * self.data_type.word_size / pcb_module.io_module.bandwidth
+
     
-    For remained row vector of RHS, there are factor_N x (remain_K x tile_N) matrices, and each of them will
-    have to multiply with the last (1 x remain_K) row vector of LHS. Total factor_N x [(1, remain_K) x (remain_K, tile_K)] GEMV. 
+    # simulate complete end-to-end GEMV latency in tile basis 
+    num_tile_K = K // opt_tile_K
+    remain_K = K % opt_tile_K
 
+    num_tile_N = N // opt_tile_N
+    remain_N = N % opt_tile_N
 
-    Similarly, remained column vector of RHS, there are factor_K x (tile_K x remain_N) matrices, and each of them 
-    will have to multiply with every (1 x tile_K) row vector of LHS. Total factor_K x [(1, tile_K) x (tile_K, remain_N)] GEMVs.
+    prev_m = 0
+    prev_n = 0
+    prev_k = 0
+    total_latency = 0
 
-    lastly, we still have a (1 x remain_K) x (remain_K x remain_N) GEMV.
-    '''
-    # As each array can hold (1 x tile_K) x (tile_K x tile_N), and remain_K < tile_K and remain_N < tile_N
-    # so we only need most factor_N + factor_K + 1 arrays for remaining computation at most
-    arrays_for_remaining_tiles = factor_N + factor_K + 1
-    remain_iterations = arrays_for_remaining_tiles / total_arrays
-    # N dimension: factor_N x [(1, remain_K) x (remain_K, tile_K)] GEMV operations.
-    remain_N_compute_latency = tile_K * mac_latency 
-    # K dimension: factor_K x [(1, tile_K) x (tile_K, remain_N)] GEMV operations.
-    remain_K_compute_latency = remain_K * mac_latency
-    overlapping_gemv_compute_latency = remain_K * mac_latency
+    for m, k, n in self.generate_tile_loops(1, num_tile_N, num_tile_K, loop_order=loop_order):
+        # load first tile
+        if m == 0 and n == 0  and k == 0:
+            total_latency += M_K_io_latency + K_N_io_latency
+            if num_tile_K == num_tile_N == 1: # if only one tile for both N and K, we have to add the compute latency
+                total_latency += compute_latency
+            continue
+        
+        current_tile_io_latency = 0
+        if m == prev_m and k == prev_k:
+            # load new tile_N_K
+            current_tile_io_latency += K_N_io_latency
+        if n == prev_n and k == prev_k:
+            # load new tile_M_K
+            current_tile_io_latency += M_K_io_latency
+        if not(m == prev_m and n == prev_n):
+            # either M or N move to next tile
+            # and we have at least 1 M_tile result available
+            current_tile_io_latency += M_N_io_latency
 
-    # as all remaining workloads are guaranteed to be fulfilled into whole SIMDRAM
-    # the dominant latency will be determined by the max(tile_K, remain_K)   
-    remain_compute_latency =  max(remain_N_compute_latency, remain_K_compute_latency)
-
-    total_iteration = ceil(complete_iterations + remain_iterations) + 1
+        total_latency += current_tile_io_latency + compute_latency
     
-    # the total iteration determines can we map both remaining and major parts into whole SIMDRAM
-    # to overlap the compute latency
-    total_compute_latency = total_iteration * mac_latency * tile_K + simdram_op_latency_dict['fp32']['add']
+    # remaining tiles: 1 x remain_K, remain_K x remain_N
+
+    remain_M_K_io_latency = get_tile_io_latency(pcb_module, broad_cast, opt_tile_M, remain_K, self.data_type.word_size, M_K_dup)
+    remain_K_N_io_latency = get_tile_io_latency(pcb_module, broad_cast, remain_K, remain_N, self.data_type.word_size, K_N_dup)
+    remain_row_util = remain_K / row_element_storage if k_arr_map == 'R' else remain_N / row_element_storage
+    
+    remain_mac_latency = remain_row_util * compute_latency * row_element_storage
+
+    remain_M_N_io_latency = opt_tile_M * remain_N * self.data_type.word_size / pcb_module.io_module.bandwidth
+
+
+    total_latency += remain_K_N_io_latency + remain_M_K_io_latency + remain_M_N_io_latency + remain_mac_latency
 
     if debug:
-        print(f"SIMDRAM GEMV V2\nM = {M} = {tile_M} * {factor_M} + {remain_M}\nK = {K} = {tile_K} * {factor_K} + {remain_K}\nN = {N} = {tile_N} * {factor_N} + {remain_N}")
-        print(f"Bank={bank} Device={device} Array={array_per_device_bank} Total Arrays = {total_arrays} complete_iterations = {complete_iterations}")
-        print(f"Complete Iteration: {complete_iterations}, Remaining Iterations: {remain_iterations}, Total Iterations {total_iteration}")
-        print(f"Major Compute Latency {major_compute_latency * 1e-6}ms, Remain compute latency {remain_compute_latency * 1e-6}ms")
+        print(f"{'Parameter':<30}{'Value':<20}{'Parameter':<30}{'Value':<20}{'Parameter':<30}{'Value':<20}")
+        print(f"{'-'*150}")
+        print(f"{'arr-tile-M':<30}{arr_tile_M:<20}{'arr-tile-K':<30}{arr_tile_K:<20}{'arr-tile-N':<30}{arr_tile_N:<20}")
+        print(f"{'tiling_factor_M':<30}{tiling_factor_M:<20}{'tiling_factor_K':<30}{tiling_factor_K:<20}{'tiling_factor_N':<30}{tiling_factor_N:<20}")
+        print(f"{'tile_M':<30}{tile_M:<20}{'tile_K':<30}{tile_K:<20}{'tile_N':<30}{tile_N:<20}")
+        print(f"{'opt_arr_tile_M':<30}{opt_arr_tile_M:<20}{'opt_arr_tile_K':<30}{opt_arr_tile_K:<20}{'opt_arr_tile_N':<30}{opt_arr_tile_N:<20}")
+        print(f"{'opt_tile_M':<30}{opt_tile_M:<20}{'opt_tile_K':<30}{opt_tile_K:<20}{'opt_tile_N':<30}{opt_tile_N:<20}")
+        print(f"{'util_M':<30}{util_M * 100:.2f}%{'':<15}{'util_K':<30}{util_K * 100:.2f}%{'':<15}{'util_N':<30}{util_N * 100:.2f}%")
+        print(f"{'Row Capacity Utilization':<30}{row_util * 100:.2f}%{'':<15}{'SIMD Utilization':<30}{compute_util * 100:.2f}%")
+        print(f"{'Intra_array_multicast':<30}{str(bool(intra_array_multicast)):<20}{'Popcorn adder':<30}{str(bool(popcorn_adder)):<20}{'Using Bit-serial PE':<30}{str(bool(pcb_module.compute_module.with_PE)):<20}")
+        print(f"{'Compute Latency':<30}{compute_latency * 1e-6:.3f}ms{'':<15}{'M_K_io_latency':<30}{M_K_io_latency * 1e-6:.3f}ms{'':<15}{'K_N_io_latency':<30}{K_N_io_latency * 1e-6:.3f}ms")
+        print(f"{'Remain Compute Latency':<30}{remain_mac_latency * 1e-6:.3f}ms{'':<15}{'remain_K_N_io_latency':<30}{remain_K_N_io_latency * 1e-6:.3f}ms{'':<15}{'remain_M_N_io_latency':<30}{remain_M_N_io_latency * 1e-6:.3f}ms")
+        print(f"{'Total Latency':<30}{total_latency * 1e-6:.3f}ms")
 
-    total_latency = total_compute_latency
+
+
+
     return total_latency
+
+
+
 
 def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> float:
     M = self.computational_graph.M
@@ -180,7 +329,7 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     factor_M = 1
     remain_M = M % (factor_M * tile_M)    
 
-    tile_N = col_per_array
+    tile_N = col_per_array / 2
     factor_N = floor(N / tile_N)
     remain_N = N % tile_N
 
@@ -191,6 +340,8 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     # use every array in every bank and every device
     factor_K = array_per_device_bank   
     tile_K = K // factor_K
+    tile_K = tile_K // 2
+    factor_K = K // tile_K
     remain_K = K % tile_K
 
     # As we are duplicating every tile of LHS vector to exact array of every bank and device
@@ -200,7 +351,7 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     # so, K_N_IO_latency = factor_K * factor_N * tile_K * tile_N * data_width / BW
     major_M_K_IO_latency = factor_K * tile_K * self.data_type.word_size * device/ pcb_module.io_module.bandwidth
     major_K_N_IO_latency = factor_K * factor_N * tile_K * tile_N * self.data_type.word_size / pcb_module.io_module.bandwidth
-    mac_latency = tile_K * (dram_pe_latency_dict[self.data_type.name]['mul'] + dram_pe_latency_dict[self.data_type.name]['add'])
+    mac_latency = tile_K * (simdram_PE_op_latency_dict[self.data_type.name]['mul'] + simdram_PE_op_latency_dict[self.data_type.name]['add'])
     # mac_latency = tile_K * (simdram_op_latency_dict[self.data_type.name]['mul'] + simdram_op_latency_dict[self.data_type.name]['add'])
 
     major_IO_latency =  major_K_N_IO_latency + major_M_K_IO_latency
@@ -249,15 +400,19 @@ def simdram_gemv_broadcast_only(self, pcb_module: Device, debug = False) -> floa
     return total_latency
     
 
-def simdram_heuristic_tiling_v2(self, pcb_module: Device, debug = False) -> float:
+
+
+
+def simdram_heuristic_tiling_v2(self, pcb_module: Device,  tilingStrategy: TilingStrategy, debug=False) -> float:
 
     pcb_module.io_module.bandwidth = 19.2 * (1024/1000) ** 3 # bandwidth in bytes per ns
     M = self.computational_graph.M
     N = self.computational_graph.N
     K = self.computational_graph.K
 
+
     if M == 1 or N == 1:
-        return simdram_gemv_broadcast_only(self,pcb_module, debug)
+        return simdram_gemv(self,pcb_module, tilingStrategy=tilingStrategy, debug=debug)
 
     M_K_bits = M * K * self.data_type.word_size * 8
     K_N_bits = K * N * self.data_type.word_size * 8
@@ -836,7 +991,7 @@ def get_tile_latency(self, pcb_module: Device, broadcast, tiling, arr_mapping, M
 
     return (M_K_io_latency, K_N_io_latency, M_N_io_latency, tile_compute_latency)
 
-def heuristic_simdram_broadcast (self, pcb_module: Device, tiling, arr_mapping, loop_order, broadcast):
+def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_mapping: dict, loop_order: str, broadcast: str):
     '''
     M->array
     N->bank
@@ -1027,9 +1182,17 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling, arr_mapping, 
 def compile_and_simulate_simdram(
     self,
     pcb_module: Device,
-    compile_mode: str = "exhaustive",   
+    tilingStrategy: TilingStrategy,
+    debug: bool,
+    compile_mode: str = "exhaustive"
 ):
-    debug = False
+    
+    tiling = tilingStrategy.tiling
+    arr_mapping = tilingStrategy.arr_mapping
+    loop_order = tilingStrategy.loop_order
+    broadcast = tilingStrategy.broadcast
+
+    # debug = False
     assert pcb_module.type == "simdram"
     M = self.computational_graph.M
     N = self.computational_graph.N
@@ -1038,10 +1201,10 @@ def compile_and_simulate_simdram(
         return heuristic_simdram(self, pcb_module)     
         
     elif compile_mode == "heuristic-SIMDRAM-broadcast":
-        return heuristic_simdram_broadcast(self, pcb_module = pcb_module, tiling="MANBDK", arr_mapping="RMNCK", loop_order="nkm", broadcast="AB")
+        return heuristic_simdram_broadcast(self, pcb_module = pcb_module, tiling=tiling, arr_mapping=arr_mapping, loop_order=loop_order, broadcast=broadcast)
        
     elif compile_mode == "heuristic-SIMDRAM-Max":
-        return simdram_heuristic_tiling_v2(self, pcb_module, True)
+        return simdram_heuristic_tiling_v2(self, pcb_module,  tilingStrategy, debug=debug)
     else:
         raise ValueError(f"compile_mode {compile_mode} not supported")
     
