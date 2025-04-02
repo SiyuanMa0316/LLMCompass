@@ -2,7 +2,7 @@ from software_model.matmul import Matmul
 from software_model.utils import data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
-M=1
+M=1024
 K=12288
 N=1024
 model = Matmul(data_type=data_type_dict["int8"])
