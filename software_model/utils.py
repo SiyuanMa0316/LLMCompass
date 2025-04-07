@@ -74,14 +74,52 @@ class TilingStrategy:
                     break  # Stop when encountering another M/N/K
                 else:
                     assert False, "Invalid character"  # Should never occur according to input constraints
-            result[target] = ''.join(matching) if matching else None
+            result[target] = ''.join(matching) if matching else ''
+        return result
+    
+    @staticmethod
+    def mapping_extraction(s):
+        result = {'R': '', 'C': ''}
+        # Ensure all characters are unique and meet the required conditions
+        chars = set(s)
+        required = {'M', 'K', 'N'}
+        assert required.issubset(chars), "M, K, N must be present"
+        assert 1 <= len(chars & {'R', 'C'}) <= 2, "At least two of M, N, K must be present"
+        assert len(s) == len(chars), "All characters must be unique"
+
+        for target in ['R', 'C']:
+            if target not in s:
+                continue  # Keep the default value of None
+            idx = s.index(target)
+            matching = []
+            # Search forward until a non-A/B/D character or another M/N/K is encountered
+            for i in range(idx + 1, len(s)):
+                char = s[i]
+                if char in {'M', 'K', 'N'}:
+                    matching.append(char)
+                elif char in {'R', 'C'}:
+                    break  # Stop when encountering another M/N/K
+                else:
+                    assert False, "Invalid character"  # Should never occur according to input constraints
+            result[target] = ''.join(matching) if matching else ''
         return result
 
 
-
+#find the denominator of an integer that is closest to its square root
+def find_closest_divisor(n):
+    if n == 0:
+        return 1
+    if n == 1:
+        return 1
+    for i in range(int(n**0.5), 0, -1):
+        if n % i == 0:
+            return i
 
 if __name__ == '__main__':
     s = "MKNABD"
     res = TilingStrategy.tiling_pattern_extraction(s)
+    print(res)
+    s= "RMNCK"
+    res = TilingStrategy.mapping_extraction(s)
     print(res)
     # assert res == expect, "Extracted result does not match"
