@@ -794,7 +794,7 @@ class Matmul(Operator):
     def compile_and_simulate(
         self,
         pcb_module: Device,
-        tilingStrategy: TilingStrategy,
+        strategy: TilingStrategy,
         debug: bool = False,
         compile_mode: str = "exhaustive",
     ):
@@ -803,7 +803,7 @@ class Matmul(Operator):
         elif pcb_module.type=="pimsab":
             return compile_and_simulate_pimsab(self, pcb_module, compile_mode)
         elif pcb_module.type == "simdram":
-            return compile_and_simulate_simdram(self, pcb_module, compile_mode=compile_mode, tilingStrategy=tilingStrategy, debug=debug)
+            return compile_and_simulate_simdram(self, pcb_module, compile_mode=compile_mode, strategy=strategy, debug=debug)
         else:
             raise ValueError("Unsupported device type!")
         # assert pcb_module.type == 'systolic'

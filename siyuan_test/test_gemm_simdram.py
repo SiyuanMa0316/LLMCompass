@@ -2,7 +2,7 @@ from software_model.matmul import Matmul
 from software_model.utils import TilingStrategy, data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
-M=1
+M=1024
 K=12288
 N=1024
 model = Matmul(data_type=data_type_dict["int8"])
@@ -36,33 +36,17 @@ for tile in gemv_tiling_base:
     # print(res)
     gem_vtiling.append(res)
 
+tiling = TilingStrategy.tiling_pattern_extraction('MANBDK')
+arr_map = TilingStrategy.mapping_extraction('RMNCK')
+with_PE = True
+broadcast = 'AB'
+loop_order = 'mkn' 
 
-arr_map = [{"K": "R", "N": "C"},{"K": "C", "N": "R"}]
-with_PE = [True, False]
-broad_cast = ['AB' , 'A', 'B', '']
-loop_order = ['mkn' , 'mnk', 'kmn', 'kmn', 'nkm', 'nmk']
 
+strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast)
 
-tilingStrategy = []
-
-for t in gem_vtiling:
-    for a in arr_map:
-        for b in broad_cast:
-            for p in with_PE:
-                for l in loop_order:
-                    res = TilingStrategy(t, a, l, p, b)
-                tilingStrategy.append(res)
-                # print(res)
-
-for i in range(len(tilingStrategy)):
-    tile = tilingStrategy[i]
-    print(f'*' * 20)
-    print(f"Tiling Strategy[{i}]:{tile}")
-    max_latency = model.compile_and_simulate(simdram,compile_mode="heuristic-SIMDRAM-Max", tilingStrategy=tile,debug=True)
-    print(f"Max's GEMM latency: {max_latency*1e-6}ms")
-    print(f'*' * 20)
-
-    max_latency = 0
+latency = model.compile_and_simulate(simdram,compile_mode="heuristic-SIMDRAM-broadcast", strategy=strategy, debug=True)
+print(f"GEMM latency: {latency}ms")
 
 
 # A100_specs = read_architecture_template("configs/GA100x1_fp16.json")

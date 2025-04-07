@@ -9,16 +9,17 @@ class DataType:
         #Siyuan: add support for int4 or lower
         self.word_size = word_size
 
+rcd = 14.167
 data_type_dict = {"int4": DataType("int4", 0.5), "int8": DataType("int8", 1), "fp16": DataType("fp16", 2), "fp32": DataType("fp32", 4)}
 simdram_op_latency_dict = {
-    DataType("int8", 1).name: {"add": 3121, "mul": 31815, 'add_reduce':3121+340},
-    DataType("int16", 1).name: {"add": 6193, "mul": 131135, 'add_reduce':6193+680},
-    DataType("int32", 1).name: {"add": 12337, "mul": 532143, 'add_reduce':12337+1360}
+    DataType("int8", 1).name: {"add": 3121, "mul": 31815, 'add_reduce':3121+8*rcd, 'mul_reduce':31815+16*rcd},
+    DataType("int16", 1).name: {"add": 6193, "mul": 131135, 'add_reduce':6193+16*rcd, 'mul_reduce':131135+32*rcd},
+    DataType("int32", 1).name: {"add": 12337, "mul": 532143, 'add_reduce':12337+32*rcd, 'mul_reduce':532143+64*rcd}
 }
 simdram_PE_op_latency_dict = {
-    DataType("int8", 1).name: {"add": 340, "mul": 453.3, 'add_reduce':340},
-    DataType("int16", 1).name: {"add": 680, "mul": 906, 'add_reduce':680},
-    DataType("int32", 1).name: {"add": 1360, "mul": 1813, 'add_reduce':1360}
+    DataType("int8", 1).name: {"add": 340, "mul": 453.3, 'add_reduce':340, 'mul_reduce':453.3},
+    DataType("int16", 1).name: {"add": 680, "mul": 906, 'add_reduce':680, 'mul_reduce': 906},
+    DataType("int32", 1).name: {"add": 1360, "mul": 1813, 'add_reduce':1360, 'mul_reduce': 1813}
 }
 
 class Tensor:
@@ -73,14 +74,52 @@ class TilingStrategy:
                     break  # Stop when encountering another M/N/K
                 else:
                     assert False, "Invalid character"  # Should never occur according to input constraints
-            result[target] = ''.join(matching) if matching else None
+            result[target] = ''.join(matching) if matching else ''
+        return result
+    
+    @staticmethod
+    def mapping_extraction(s):
+        result = {'R': '', 'C': ''}
+        # Ensure all characters are unique and meet the required conditions
+        chars = set(s)
+        required = {'M', 'K', 'N'}
+        assert required.issubset(chars), "M, K, N must be present"
+        assert 1 <= len(chars & {'R', 'C'}) <= 2, "At least two of M, N, K must be present"
+        assert len(s) == len(chars), "All characters must be unique"
+
+        for target in ['R', 'C']:
+            if target not in s:
+                continue  # Keep the default value of None
+            idx = s.index(target)
+            matching = []
+            # Search forward until a non-A/B/D character or another M/N/K is encountered
+            for i in range(idx + 1, len(s)):
+                char = s[i]
+                if char in {'M', 'K', 'N'}:
+                    matching.append(char)
+                elif char in {'R', 'C'}:
+                    break  # Stop when encountering another M/N/K
+                else:
+                    assert False, "Invalid character"  # Should never occur according to input constraints
+            result[target] = ''.join(matching) if matching else ''
         return result
 
 
-
+#find the denominator of an integer that is closest to its square root
+def find_closest_divisor(n):
+    if n == 0:
+        return 1
+    if n == 1:
+        return 1
+    for i in range(int(n**0.5), 0, -1):
+        if n % i == 0:
+            return i
 
 if __name__ == '__main__':
     s = "MKNABD"
     res = TilingStrategy.tiling_pattern_extraction(s)
+    print(res)
+    s= "RMNCK"
+    res = TilingStrategy.mapping_extraction(s)
     print(res)
     # assert res == expect, "Extracted result does not match"

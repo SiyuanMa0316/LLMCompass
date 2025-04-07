@@ -2,7 +2,7 @@ from sympy import factor
 from hardware_model.device import Device
 from math import ceil, log2, floor
 from software_model.utils import Tensor, DataType, TilingStrategy, simdram_op_latency_dict, simdram_PE_op_latency_dict
-from software_model.utils import TilingStrategy
+from software_model.utils import TilingStrategy, find_closest_divisor
 import numpy as np
 import math
 
@@ -102,26 +102,39 @@ def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2
     if 'B' in broad_cast:
         bank_broadcast_enable = True
     
-    if 'A' in dup:
-        # duplicate tile to every array
-        temp = array_per_device_bank * tile_1 * tile_2 * word_size  / pcb_module.io_module.bandwidth
-        if array_broadcast_enable:
-            temp /= array_per_device_bank
-        latency += temp
-
-    if 'B' in dup:
+    latency = tile_1 * tile_2 * word_size  / pcb_module.compute_module.bandwidth
+    # print(f"latency {latency} = {tile_1} * {tile_2} * {word_size} / {pcb_module.compute_module.bandwidth}")
+    if 'A' in dup and not array_broadcast_enable:
+        # duplicate tile to every device
+        latency *= array_per_device_bank
+    if 'B' in dup and not bank_broadcast_enable:
         # duplicate tile to every bank
-        temp = bank * tile_1 * tile_2 * word_size / pcb_module.io_module.bandwidth
-        if bank_broadcast_enable:
-            temp /= bank
-        latency += temp
-
+        latency *= bank
     if 'D' in dup:
         # duplicate tile to every device
-        temp = device * tile_1 * tile_2 * word_size / pcb_module.io_module.bandwidth
-        latency += temp
-    
+        latency *= device
     return latency
+    
+    # if 'A' in dup:
+    #     # duplicate tile to every array
+    #     temp = array_per_device_bank * tile_1 * tile_2 * word_size  / pcb_module.io_module.bandwidth
+    #     if array_broadcast_enable:
+    #         temp /= array_per_device_bank
+    #     latency += temp
+
+    # if 'B' in dup:
+    #     # duplicate tile to every bank
+    #     temp = bank * tile_1 * tile_2 * word_size / pcb_module.io_module.bandwidth
+    #     if bank_broadcast_enable:
+    #         temp /= bank
+    #     latency += temp
+
+    # if 'D' in dup:
+    #     # duplicate tile to every device
+    #     temp = device * tile_1 * tile_2 * word_size / pcb_module.io_module.bandwidth
+    #     latency += temp
+    
+    # return latency
 
 def simdram_gemv(self, pcb_module: Device, tilingStrategy: TilingStrategy, debug = True,) -> float:
     
@@ -875,119 +888,257 @@ def heuristic_simdram(self, pcb_module):
     print(f"gemm latency: {total_latency}")
     return total_latency
 
-def find_arr_tile(self, pcb_module: Device, arr_mapping):
+
+
+def find_arr_tile(self, pcb_module: Device, arr_mapping, debug=False):
     col_per_arr = pcb_module.compute_module.bank.arr_cols
     row_per_arr = pcb_module.compute_module.bank.arr_rows
-    if arr_mapping == 'RKCMN':
-        arr_tile_N, arr_tile_M = find_tile_N_M(self, col_per_arr)
-        # find nearest power of 2 of tile_K that satisfy the row limit
-        arr_tile_K, accum_bits = find_tile_K(self, row_per_arr)
-    elif arr_mapping == 'RMNCK':
+    if arr_mapping['C'] == 'M':
+        arr_tile_M = col_per_arr
+        arr_tile_N = find_closest_divisor(row_per_arr // (self.data_type.word_size * 8))
+        arr_tile_K = row_per_arr // (self.data_type.word_size * 8) // arr_tile_N
+    elif arr_mapping['C'] == 'N':
+        arr_tile_N = col_per_arr
+        arr_tile_M = find_closest_divisor(row_per_arr // (self.data_type.word_size * 8))
+        arr_tile_K = row_per_arr // (self.data_type.word_size * 8) // arr_tile_M
+    elif arr_mapping['C'] == 'K':
         arr_tile_K = col_per_arr
-        arr_tile_M = min(32, row_per_arr // (self.data_type.word_size * 8) )
+        arr_tile_M = find_closest_divisor(row_per_arr // (self.data_type.word_size * 8))
         arr_tile_N = row_per_arr // (self.data_type.word_size * 8) // arr_tile_M
-    print(f"arr_tile_M: {arr_tile_M}, arr_tile_K: {arr_tile_K}, arr_tile_N: {arr_tile_N}")
+    elif arr_mapping['C'] == 'MN' or arr_mapping['C'] == 'NM':
+        arr_tile_M = find_closest_divisor(col_per_arr)
+        arr_tile_N = col_per_arr // arr_tile_M
+        arr_tile_K = row_per_arr // (self.data_type.word_size * 8) // 2
+    elif arr_mapping['C'] == 'MK' or arr_mapping['C'] == 'KM':
+        arr_tile_M = find_closest_divisor(col_per_arr)
+        arr_tile_K = col_per_arr // arr_tile_M
+        arr_tile_N = row_per_arr // (self.data_type.word_size * 8) // 2
+    elif arr_mapping['C'] == 'NK' or arr_mapping['C'] == 'KN':
+        arr_tile_N = find_closest_divisor(col_per_arr)
+        arr_tile_K = col_per_arr // arr_tile_N
+        arr_tile_M = row_per_arr // (self.data_type.word_size * 8) // 2
+
+    # if arr_mapping == 'RKCMN':
+    #     arr_tile_N, arr_tile_M = find_tile_N_M(self, col_per_arr)
+    #     # find nearest power of 2 of tile_K that satisfy the row limit
+    #     arr_tile_K, accum_bits = find_tile_K(self, row_per_arr)
+    # elif arr_mapping == 'RMNCK':
+    #     arr_tile_K = col_per_arr
+    #     arr_tile_M = min(32, row_per_arr // (self.data_type.word_size * 8) )
+    #     arr_tile_N = row_per_arr // (self.data_type.word_size * 8) // arr_tile_M
+    if debug:
+        print(f"find_arr_tile: arr_tile_M: {arr_tile_M}, arr_tile_K: {arr_tile_K}, arr_tile_N: {arr_tile_N}")
     return arr_tile_M, arr_tile_N, arr_tile_K
 
-def get_arr_tile_latency(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_tile_K, arr_mapping):
+def get_arr_tile_latency(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_tile_K, arr_mapping, debug=False):
+    col_per_arr = pcb_module.compute_module.bank.arr_cols
+    row_per_arr = pcb_module.compute_module.bank.arr_rows
     ################ Compute Latencies #################
     #add and mul latency
     if pcb_module.compute_module.with_PE:
         add_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['add']
         mul_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['mul']
         acc_op_latency = simdram_PE_op_latency_dict['int32']['add']
-        add_reduce_latency = simdram_PE_op_latency_dict[self.data_type.name]['add_reduce']
+        add_reduce_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['add_reduce']
+        mul_reduce_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['mul_reduce']
     else:
         add_op_latency = simdram_op_latency_dict[self.data_type.name]['add']
         mul_op_latency = simdram_op_latency_dict[self.data_type.name]['mul']
         acc_op_latency = simdram_op_latency_dict['int32']['add']
-        add_reduce_latency = simdram_op_latency_dict[self.data_type.name]['add_reduce']
+        add_reduce_op_latency = simdram_op_latency_dict[self.data_type.name]['add_reduce']
+        mul_reduce_op_latency = simdram_op_latency_dict[self.data_type.name]['mul_reduce']
     
+    if arr_mapping['C'] == 'M':
+        macs = arr_tile_N * arr_tile_K
+        mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        arr_latency = mac_latency + acc_op_latency * 1e-9
+    elif arr_mapping['C'] == 'N':
+        macs = arr_tile_M * arr_tile_K
+        mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        arr_latency = mac_latency + acc_op_latency * 1e-9
+    elif arr_mapping['C'] == 'K':
+        mul_reduce_latency = arr_tile_M * arr_tile_N * mul_reduce_op_latency * 1e-9
+        arr_latency = mul_reduce_latency + acc_op_latency*1e-9
+    elif arr_mapping['C'] == 'MN' or arr_mapping['C'] == 'NM':
+        macs = arr_tile_K
+        mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        arr_latency = mac_latency + acc_op_latency * 1e-9
+    elif arr_mapping['C'] == 'MK' or arr_mapping['C'] == 'KM':
+        mul_reduce_latency = arr_tile_N * mul_reduce_op_latency * 1e-9
+        arr_latency = mul_reduce_latency + acc_op_latency*1e-9
+    elif arr_mapping['C'] == 'NK' or arr_mapping['C'] == 'KN':
+        mul_reduce_latency = arr_tile_M * mul_reduce_op_latency * 1e-9
+        arr_latency = mul_reduce_latency + acc_op_latency*1e-9
+        print(f"get_arr_tile_latency: arr_tile_M={arr_tile_M}, arr_tile_N={arr_tile_N}, arr_tile_K={arr_tile_K}, arr_mapping={arr_mapping}, latency={arr_latency}=({arr_tile_M} * {mul_reduce_op_latency} + {acc_op_latency}) * 1e-9, parallelism_utilization={arr_tile_K/col_per_arr}, capacity_utilization={arr_tile_M*arr_tile_N/row_per_arr}")
+    
+    return arr_latency
 
-    if arr_mapping == 'RKCMN':
-        #per array latency
-        add_latency_per_array = arr_tile_K * add_op_latency
-        mul_latency_per_array = arr_tile_K * mul_op_latency
-        # Add extra accumulation latency
-        tile_compute_latency = (add_latency_per_array + mul_latency_per_array + acc_op_latency)*1e-9
-    elif arr_mapping == 'RMNCK':
-        #per array latency
-        add_reduce_latency_per_array = arr_tile_M * arr_tile_N * add_reduce_latency
-        # Add extra accumulation latency
-        # assume MN partial sum stores in 1 row instead of 1 column after all the column reductions, therefore only 1 acc_op_latency is added
-        tile_compute_latency = (add_reduce_latency_per_array + acc_op_latency)*1e-9
-    return tile_compute_latency
+    # if arr_mapping == 'RKCMN':
+    #     #per array latency
+    #     add_latency_per_array = arr_tile_K * add_op_latency
+    #     mul_latency_per_array = arr_tile_K * mul_op_latency
+    #     # Add extra accumulation latency
+    #     tile_compute_latency = (add_latency_per_array + mul_latency_per_array + acc_op_latency)*1e-9 #acc_op_latency to add with partial sum
+    #     print(f"get_arr_tile_latency: arr_tile_M={arr_tile_M}, arr_tile_N={arr_tile_N}, arr_tile_K={arr_tile_K}, arr_mapping={arr_mapping}, latency={tile_compute_latency}, parallelism_utilization={arr_tile_M*arr_tile_N/col_per_arr}, capacity_utilization={arr_tile_K/row_per_arr}")
+    # elif arr_mapping == 'RMNCK':
+    #     #per array latency
+    #     mul_reduce_latency_per_array = arr_tile_M * arr_tile_N * mul_reduce_latency
+    #     # Add extra accumulation latency
+    #     # assume MN partial sum stores in 1 row instead of 1 column after all the column reductions, therefore only 1 acc_op_latency is added
+    #     tile_compute_latency = (mul_reduce_latency_per_array + acc_op_latency)*1e-9
+    #     print(f"get_arr_tile_latency: arr_tile_M={arr_tile_M}, arr_tile_N={arr_tile_N}, arr_tile_K={arr_tile_K}, arr_mapping={arr_mapping}, latency={tile_compute_latency}, parallelism_utilization={arr_tile_K/col_per_arr}, capacity_utilization={arr_tile_M*arr_tile_N/row_per_arr}")
+    # return tile_compute_latency
 
-def find_tile_size(self, pcb_module: Device, tiling, arr_tile_M, arr_tile_N, arr_tile_K):
+def find_tile_size(self, pcb_module: Device, tiling, arr_tile_M, arr_tile_N, arr_tile_K, debug=False):
     num_array = pcb_module.compute_module.bank.arr_count
     num_bank = pcb_module.compute_module.bank_count
     num_device = pcb_module.compute_module.bank.device_count
     num_rank = 1
-    if tiling == "MANBKD":
-        #heuristic tiling M to array, N to bank, K to device
-        M_tile = arr_tile_M * num_array
-        N_tile = arr_tile_N * num_bank
-        K_tile = arr_tile_K * num_device
-    elif tiling == "MANBDK":
-        M_tile = arr_tile_M * num_array
-        N_tile = arr_tile_N * num_bank * num_device
-        K_tile = arr_tile_K
-    print(f"M_tile:{M_tile}, K_tile:{K_tile}, N_tile:{N_tile}")
-    return M_tile, N_tile, K_tile
+    tile_size = {'M': arr_tile_M, 'K': arr_tile_K, 'N': arr_tile_N}
+    for key in tiling.keys():
+        val = tiling[key]
+        if val:
+            for c in val:
+                if c == 'A':
+                    tile_size[key] *= num_array
+                if c == 'B':
+                    tile_size[key] *= num_bank
+                if c == 'D':
+                    tile_size[key] *= num_device
+    tile_size['M'] = min(tile_size['M'], self.M)
+    tile_size['N'] = min(tile_size['N'], self.N)
+    tile_size['K'] = min(tile_size['K'], self.K)
+    if debug:
+        print(f"find_tile_size: {tile_size}")
+    return tile_size
+        # else:
+        #     # tiling[key] == None
+        #     to_return[key] = 1
+    # if tiling == "MANBKD":
+    #     #heuristic tiling M to array, N to bank, K to device
+    #     M_tile = arr_tile_M * num_array
+    #     N_tile = arr_tile_N * num_bank
+    #     K_tile = arr_tile_K * num_device
+    # elif tiling == "MANBDK":
+    #     M_tile = arr_tile_M * num_array
+    #     N_tile = arr_tile_N * num_bank * num_device
+    #     K_tile = arr_tile_K
+    # M_tile = min(M_tile, self.M)
+    # K_tile = min(K_tile, self.K)
+    # N_tile = min(N_tile, self.N)
+   
+    # print(f"M_tile:{M_tile}, K_tile:{K_tile}, N_tile:{N_tile}")
+    # return M_tile, N_tile, K_tile
 
-def get_tile_latency(self, pcb_module: Device, broadcast, tiling, arr_mapping, M_tile, N_tile, K_tile):
+def get_tile_latency(self, pcb_module: Device, strategy:TilingStrategy, tile_size, debug=False):
     num_array = pcb_module.compute_module.bank.arr_count
     num_bank = pcb_module.compute_module.bank_count
     num_device = pcb_module.compute_module.bank.device_count
     num_rank = 1
-    broadcast_across_array = False
-    broadcast_across_bank = False
-    if "A" in broadcast:
-        broadcast_across_array = True
-    if "B" in broadcast:
-        broadcast_across_bank = True
-    #heuristic tiling M to array, N to bank, K to device
-    if tiling == "MANBKD":
-        arr_tile_M = ceil(M_tile / num_array)
-        arr_tile_N = ceil(N_tile / num_bank)
-        arr_tile_K = ceil(K_tile / num_device)
-        
-        if broadcast_across_array:
-            K_N_io_latency = K_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexN_tile to compute-dram, consider broadcasted duplication across arrays
-        else:
-            K_N_io_latency = K_tile * N_tile * num_array * self.data_type.word_size / pcb_module.compute_module.bandwidth
-        if broadcast_across_bank:
-            M_K_io_latency = M_tile * K_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider broadcasted duplication across banks
-        else:
-            M_K_io_latency = M_tile * K_tile * num_bank * self.data_type.word_size  / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider duplication across banks
-
-        M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move M_tilexN_tile to compute-dram, no duplication as K is reduction axis
-        K_reduction_latency =  M_tile * N_tile * num_device * self.data_type.word_size / pcb_module.compute_module.bandwidth #each device contains M_tike*N_tile partial sum data, load all these to host and reduce
-        tile_compute_latency = get_arr_tile_latency(self, pcb_module, arr_tile_M, arr_tile_N, arr_tile_K, arr_mapping) + K_reduction_latency
-    elif tiling == "MANBDK":
-        arr_tile_M = ceil(M_tile / num_array)
-        arr_tile_N = ceil(N_tile / num_bank / num_device)
-        arr_tile_K = ceil(K_tile)
-
-        if broadcast_across_array:
-            K_N_io_latency = K_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexN_tile to compute-dram, consider broadcasted duplication across arrays
-        else:
-            K_N_io_latency = K_tile * N_tile * num_array * self.data_type.word_size / pcb_module.compute_module.bandwidth
-        if broadcast_across_bank:
-            M_K_io_latency = M_tile * K_tile * num_device *self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider broadcasted duplication across banks, no broadcast across banks
-        else:
-            M_K_io_latency = M_tile * K_tile * num_bank * num_device * self.data_type.word_size  / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider duplication across banks
-
-        M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move M_tilexN_tile to compute-dram, no duplication 
-        K_reduction_latency =  0 # no reduction across device/bank/array on K dimension
-        tile_compute_latency = get_arr_tile_latency(self, pcb_module, arr_tile_M, arr_tile_N, arr_tile_K, arr_mapping) + K_reduction_latency
-
-    print(f"M_tile: {M_tile}, K_tile: {K_tile}, N_tile: {N_tile}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency}")
+    tiling = strategy.tiling
+    arr_tile_size = {'M': tile_size['M'], 'K': tile_size['K'], 'N': tile_size['N']}
+    for key in tiling.keys():
+        val = tiling[key]
+        if val:
+            for c in val:
+                if c == 'A':
+                    arr_tile_size[key] = arr_tile_size[key] // num_array
+                if c == 'B':
+                    arr_tile_size[key] = arr_tile_size[key] // num_bank
+                if c == 'D':
+                    arr_tile_size[key] = arr_tile_size[key] // num_device
     
+    #extract duplication of matrices
+    parallelisms = ['A', 'B', 'D']
+    K_N_dup = []
+    M_K_dup = []
+    for c in parallelisms:
+        # if not tiled along A/B/D
+        # we need to duplicate this tile to corresponding place
+        if c not in tiling['K'] and c not in tiling['N']:
+            K_N_dup.append(c)
+        if c not in tiling['M'] and c not in tiling['K']:
+            M_K_dup.append(c)
 
+    #compute io latencies
+    M_K_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['M'], tile_size['K'], self.data_type.word_size, M_K_dup)
+    K_N_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['K'], tile_size['N'], self.data_type.word_size, K_N_dup)
+    # no duplication required for M_N tile, simply write it back to Host
+    M_N_io_latency = tile_size['M'] * tile_size['N'] * self.data_type.word_size / pcb_module.io_module.bandwidth
+    
+    # compute arr_tile size from tile size
+    arr_tile_size = {'M': tile_size['M'], 'K': tile_size['K'], 'N': tile_size['N']}
+    for key in tiling.keys():
+        val = tiling[key]
+        if val:
+            for c in val:
+                if c == 'A':
+                    arr_tile_size[key] = arr_tile_size[key] // num_array
+                if c == 'B':
+                    arr_tile_size[key] = arr_tile_size[key] // num_bank
+                if c == 'D':
+                    arr_tile_size[key] = arr_tile_size[key] // num_device
+    arr_mapping = strategy.arr_mapping
+    arr_latency = get_arr_tile_latency(self, pcb_module, arr_tile_size['M'], arr_tile_size['N'], arr_tile_size['K'], arr_mapping, debug)
+
+    K_reduction_latency =  tile_size['M'] * tile_size['N'] * self.data_type.word_size / pcb_module.compute_module.bandwidth #each device contains M_tike*N_tile partial sum data, load all these to host and reduce
+    for c in parallelisms:
+        if c in tiling['K']:
+            if c == 'A':
+                K_reduction_latency *= num_array
+            if c == 'B':
+                K_reduction_latency *= num_bank
+            if c == 'D':
+                K_reduction_latency *= num_device
+    tile_compute_latency =  arr_latency + K_reduction_latency
+
+    if debug:
+        print(f"get_tile_latency: tile_size: {tile_size}, arr_tile_size: {arr_tile_size}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency} = {arr_latency}(arr_latency) + {K_reduction_latency}(K_reduction_latency)")
     return (M_K_io_latency, K_N_io_latency, M_N_io_latency, tile_compute_latency)
 
-def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_mapping: dict, loop_order: str, broadcast: str):
+    # K_N_io_latency = tile_size['K'] * tile_size['N'] * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexN_tile to compute-dram, consider duplication across arrays
+    #heuristic tiling M to array, N to bank, K to device
+    # if tiling == "MANBKD":
+    #     arr_tile_M = ceil(M_tile / num_array)
+    #     arr_tile_N = ceil(N_tile / num_bank)
+    #     arr_tile_K = ceil(K_tile / num_device)
+        
+    #     if broadcast_across_array:
+    #         K_N_io_latency = K_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexN_tile to compute-dram, consider broadcasted duplication across arrays
+    #     else:
+    #         K_N_io_latency = K_tile * N_tile * num_array * self.data_type.word_size / pcb_module.compute_module.bandwidth
+    #     if broadcast_across_bank:
+    #         M_K_io_latency = M_tile * K_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider broadcasted duplication across banks
+    #     else:
+    #         M_K_io_latency = M_tile * K_tile * num_bank * self.data_type.word_size  / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider duplication across banks
+
+    #     M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move M_tilexN_tile to compute-dram, no duplication as K is reduction axis
+    #     K_reduction_latency =  M_tile * N_tile * num_device * self.data_type.word_size / pcb_module.compute_module.bandwidth #each device contains M_tike*N_tile partial sum data, load all these to host and reduce
+    #     tile_compute_latency = get_arr_tile_latency(self, pcb_module, arr_tile_M, arr_tile_N, arr_tile_K, arr_mapping) + K_reduction_latency
+    # elif tiling == "MANBDK":
+    #     arr_tile_M = ceil(M_tile / num_array)
+    #     arr_tile_N = ceil(N_tile / num_bank / num_device)
+    #     arr_tile_K = ceil(K_tile)
+
+    #     if broadcast_across_array:
+    #         K_N_io_latency = K_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexN_tile to compute-dram, consider broadcasted duplication across arrays
+    #     else:
+    #         K_N_io_latency = K_tile * N_tile * num_array * self.data_type.word_size / pcb_module.compute_module.bandwidth
+    #     if broadcast_across_bank:
+    #         M_K_io_latency = M_tile * K_tile * num_device *self.data_type.word_size / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider broadcasted duplication across banks, no broadcast across banks
+    #     else:
+    #         M_K_io_latency = M_tile * K_tile * num_bank * num_device * self.data_type.word_size  / pcb_module.compute_module.bandwidth #move K_tilexK_tile to compute-dram, consider duplication across banks
+
+    #     M_N_io_latency = M_tile * N_tile * self.data_type.word_size / pcb_module.compute_module.bandwidth #move M_tilexN_tile to compute-dram, no duplication 
+    #     K_reduction_latency =  0 # no reduction across device/bank/array on K dimension
+    #     tile_compute_latency = get_arr_tile_latency(self, pcb_module, arr_tile_M, arr_tile_N, arr_tile_K, arr_mapping) + K_reduction_latency
+
+    # print(f"M_tile: {M_tile}, K_tile: {K_tile}, N_tile: {N_tile}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency}")
+    
+
+    # return (M_K_io_latency, K_N_io_latency, M_N_io_latency, tile_compute_latency)
+
+def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrategy, debug=False):
     '''
     M->array
     N->bank
@@ -1012,10 +1163,17 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_map
     # total_capacity = capacity_per_rank * num_rank
 
     ################ Heuristic Tiling #################
-    print(f"tiling: {tiling}, arr_mapping: {arr_mapping}, loop_order: {loop_order}, broadcast: {broadcast}")
-    arr_tile_M, arr_tile_N, arr_tile_K = find_arr_tile(self, pcb_module, arr_mapping)
-    M_tile, N_tile, K_tile = find_tile_size(self, pcb_module, tiling , arr_tile_M, arr_tile_N, arr_tile_K)
-    
+    tiling = strategy.tiling
+    arr_mapping = strategy.arr_mapping
+    loop_order = strategy.loop_order
+    broadcast = strategy.broadcast
+    print(f"Strategy: tiling: {tiling}, arr_mapping: {arr_mapping}, loop_order: {loop_order}, broadcast: {broadcast}")
+    arr_tile_M, arr_tile_N, arr_tile_K = find_arr_tile(self, pcb_module, arr_mapping, debug)
+    tile_size = find_tile_size(self, pcb_module, tiling, arr_tile_M, arr_tile_N, arr_tile_K, debug)
+    M_tile = tile_size['M']
+    N_tile = tile_size['N']
+    K_tile = tile_size['K']
+
     M_t = self.M // M_tile
     N_t = self.N // N_tile
     K_t = self.K // K_tile
@@ -1027,6 +1185,8 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_map
     previous_n = 0
     previous_k = 0
     total_latency = 0    
+    total_io_latency = 0
+    total_compute_latency = 0
     tile_latency = np.zeros(
         [ceil(self.M / M_tile), ceil(self.N / N_tile), ceil(self.K / K_tile)]
     )
@@ -1043,42 +1203,42 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_map
     tile_shape_N = np.zeros([ceil(self.M / M_tile), ceil(self.N / N_tile), ceil(self.K / K_tile)])
     tile_shape_K = np.zeros([ceil(self.M / M_tile), ceil(self.N / N_tile), ceil(self.K / K_tile)])
     if M_t * N_t * K_t != 0:
-        tile_MK_io_latency[:M_t, :N_t, :K_t], tile_KN_io_latency[:M_t, :N_t, :K_t], tile_MN_io_latency[:M_t, :N_t, :K_t], tile_latency[:M_t, :N_t, :K_t] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_tile, N_tile, K_tile)
+        tile_MK_io_latency[:M_t, :N_t, :K_t], tile_KN_io_latency[:M_t, :N_t, :K_t], tile_MN_io_latency[:M_t, :N_t, :K_t], tile_latency[:M_t, :N_t, :K_t] = get_tile_latency(self, pcb_module, strategy, {'M': M_tile, 'K': K_tile, 'N': N_tile}, debug)
         tile_shape_M[:M_t, :N_t, :K_t] = M_tile
         tile_shape_N[:M_t, :N_t, :K_t] = N_tile
         tile_shape_K[:M_t, :N_t, :K_t] = K_tile
     if M_remain != 0:
-        tile_MK_io_latency[-1, :N_t, :K_t], tile_KN_io_latency[-1, :N_t, :K_t], tile_MN_io_latency[-1, :N_t, :K_t], tile_latency[-1, :N_t, :K_t] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_remain, N_tile, K_tile)
+        tile_MK_io_latency[-1, :N_t, :K_t], tile_KN_io_latency[-1, :N_t, :K_t], tile_MN_io_latency[-1, :N_t, :K_t], tile_latency[-1, :N_t, :K_t] = get_tile_latency(self, pcb_module, strategy, {'M': M_remain, 'K': K_tile, 'N': N_tile}, debug)
         tile_shape_M[-1, :N_t, :K_t] = M_remain
         tile_shape_N[-1, :N_t, :K_t] = N_tile
         tile_shape_K[-1, :N_t, :K_t] = K_tile
     if N_remain != 0:
-        tile_MK_io_latency[:M_t, -1, :K_t], tile_KN_io_latency[:M_t, -1, :K_t], tile_MN_io_latency[:M_t, -1, :K_t], tile_latency[:M_t, -1, :K_t] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_tile, N_remain, K_tile)
+        tile_MK_io_latency[:M_t, -1, :K_t], tile_KN_io_latency[:M_t, -1, :K_t], tile_MN_io_latency[:M_t, -1, :K_t], tile_latency[:M_t, -1, :K_t] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, {'M': M_tile, 'K': K_tile, 'N': N_remain}, debug)
         tile_shape_M[:M_t, -1, :K_t] = M_tile
         tile_shape_N[:M_t, -1, :K_t] = N_remain
         tile_shape_K[:M_t, -1, :K_t] = K_tile
     if K_remain != 0:
-        tile_MK_io_latency[:M_t, :N_t, -1], tile_KN_io_latency[:M_t, :N_t, -1], tile_MN_io_latency[:M_t, :N_t, -1], tile_latency[:M_t, :N_t, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_tile, N_tile, K_remain)
+        tile_MK_io_latency[:M_t, :N_t, -1], tile_KN_io_latency[:M_t, :N_t, -1], tile_MN_io_latency[:M_t, :N_t, -1], tile_latency[:M_t, :N_t, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, {'M': M_tile, 'K': K_remain, 'N': N_tile}, debug)
         tile_shape_M[:M_t, :N_t, -1] = M_tile
         tile_shape_N[:M_t, :N_t, -1] = N_tile
         tile_shape_K[:M_t, :N_t, -1] = K_remain
     if M_remain * N_remain != 0:
-        tile_MK_io_latency[-1, -1, :K_t], tile_KN_io_latency[-1, -1, :K_t], tile_MN_io_latency[-1, -1, :K_t], tile_latency[-1, -1, :K_t] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_remain, N_remain, K_tile)
+        tile_MK_io_latency[-1, -1, :K_t], tile_KN_io_latency[-1, -1, :K_t], tile_MN_io_latency[-1, -1, :K_t], tile_latency[-1, -1, :K_t] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, {'M': M_remain, 'K': K_tile, 'N': N_remain}, debug)
         tile_shape_M[-1, -1, :K_t] = M_remain
         tile_shape_N[-1, -1, :K_t] = N_remain
         tile_shape_K[-1, -1, :K_t] = K_tile
     if M_remain * K_remain != 0:
-        tile_MK_io_latency[-1, :N_t, -1], tile_KN_io_latency[-1, :N_t, -1], tile_MN_io_latency[-1, :N_t, -1], tile_latency[-1, :N_t, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_remain, N_tile, K_remain)
+        tile_MK_io_latency[-1, :N_t, -1], tile_KN_io_latency[-1, :N_t, -1], tile_MN_io_latency[-1, :N_t, -1], tile_latency[-1, :N_t, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, {'M': M_remain, 'K': K_remain, 'N': N_tile}, debug)
         tile_shape_M[-1, :N_t, -1] = M_remain
         tile_shape_N[-1, :N_t, -1] = N_tile
         tile_shape_K[-1, :N_t, -1] = K_remain
     if N_remain * K_remain != 0:
-        tile_MK_io_latency[:M_t, -1, -1], tile_KN_io_latency[:M_t, -1, -1], tile_MN_io_latency[:M_t, -1, -1], tile_latency[:M_t, -1, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_tile, N_remain, K_remain)
+        tile_MK_io_latency[:M_t, -1, -1], tile_KN_io_latency[:M_t, -1, -1], tile_MN_io_latency[:M_t, -1, -1], tile_latency[:M_t, -1, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, {'M': M_tile, 'K': K_remain, 'N': N_remain}, debug)
         tile_shape_M[:M_t, -1, -1] = M_tile
         tile_shape_N[:M_t, -1, -1] = N_remain
         tile_shape_K[:M_t, -1, -1] = K_remain
     if M_remain * N_remain * K_remain != 0:
-        tile_MK_io_latency[-1, -1, -1], tile_KN_io_latency[-1, -1, -1], tile_MN_io_latency[-1, -1, -1], tile_latency[-1, -1, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, M_remain, N_remain, K_remain)
+        tile_MK_io_latency[-1, -1, -1], tile_KN_io_latency[-1, -1, -1], tile_MN_io_latency[-1, -1, -1], tile_latency[-1, -1, -1] = get_tile_latency(self, pcb_module, broadcast, tiling, arr_mapping, {'M': M_remain, 'K': K_remain, 'N': N_remain}, debug)
         tile_shape_M[-1, -1, -1] = M_remain
         tile_shape_N[-1, -1, -1] = N_remain
         tile_shape_K[-1, -1, -1] = K_remain
@@ -1107,6 +1267,8 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_map
         if m == 0 and n == 0 and k == 0:
             #load data for first tile
             total_latency += M_N_io_latency + M_K_io_latency + K_N_io_latency
+            total_compute_latency += 0
+            total_io_latency += M_N_io_latency + M_K_io_latency + K_N_io_latency
             continue
 
 
@@ -1150,6 +1312,8 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_map
                 + previous_tile_compute_latency
                 + previous_tile_write_latency
             )
+            total_io_latency += (current_tile_read_latency + previous_tile_write_latency)
+            total_compute_latency += previous_tile_compute_latency
             # print(total_latency)
         previous_m = m
         previous_n = n
@@ -1160,25 +1324,27 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, tiling: dict, arr_map
         tile_MN_io_latency[-1, -1, -1] #last tile write
         + tile_latency[-1, -1, -1] #lsat tile compute
     )
+    total_io_latency += tile_MN_io_latency[-1, -1, -1] #last tile write
+    total_compute_latency += tile_latency[-1, -1, -1] #lsat tile compute
     
 
     # if previous_k > 0:
     #     total_cycle_count += ceil(l2_tiles[-1, -1, -1].K_reduction_cycle_count)
-    print(f"gemm latency: {total_latency}")
+    print(f"gemm latency: {total_latency}, compute_latency: {total_compute_latency}, io_latency:{total_io_latency}")
     return total_latency
 
 def compile_and_simulate_simdram(
     self,
     pcb_module: Device,
-    tilingStrategy: TilingStrategy,
+    strategy: TilingStrategy,
     debug: bool,
     compile_mode: str = "exhaustive"
 ):
     
-    tiling = tilingStrategy.tiling
-    arr_mapping = tilingStrategy.arr_mapping
-    loop_order = tilingStrategy.loop_order
-    broadcast = tilingStrategy.broadcast
+    tiling = strategy.tiling
+    arr_mapping = strategy.arr_mapping
+    loop_order = strategy.loop_order
+    broadcast = strategy.broadcast
 
     # debug = False
     assert pcb_module.type == "simdram"
@@ -1189,10 +1355,10 @@ def compile_and_simulate_simdram(
         return heuristic_simdram(self, pcb_module)     
         
     elif compile_mode == "heuristic-SIMDRAM-broadcast":
-        return heuristic_simdram_broadcast(self, pcb_module = pcb_module, tiling=tiling, arr_mapping=arr_mapping, loop_order=loop_order, broadcast=broadcast)
+        return heuristic_simdram_broadcast(self, pcb_module = pcb_module, strategy=strategy, debug=debug)
        
     elif compile_mode == "heuristic-SIMDRAM-Max":
-        return simdram_heuristic_tiling_v2(self, pcb_module,  tilingStrategy, debug=debug)
+        return simdram_heuristic_tiling_v2(self, pcb_module,  strategy, debug=debug)
     else:
         raise ValueError(f"compile_mode {compile_mode} not supported")
     
@@ -1203,4 +1369,4 @@ def compile_and_simulate(
     debug: bool = False,
 ):
     assert pcb_module.type == 'simdram'
-    return compile_and_simulate_simdram(self,pcb_module, compile_mode)
+    return compile_and_simulate_simdram(self,pcb_module, compile_mode, debug)
