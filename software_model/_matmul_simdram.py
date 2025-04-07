@@ -218,10 +218,15 @@ def simdram_gemv(self, pcb_module: Device, tilingStrategy: TilingStrategy, debug
     for c in dups:
         # if not tiled along A/B/D
         # we need to duplicate this tile to corresponding place
-        if c not in tiling['N']:
-            K_N_dup.append(c)
-        if c not in tiling['K']:
-            M_K_dup.append(c)
+        if tiling['N']:
+            if c not in tiling['N']:
+                K_N_dup.append(c)
+        if tiling['K']:
+            if c not in tiling['K']:
+                M_K_dup.append(c)
+        if tiling['M']:
+            if c not in tiling['M']:
+                M_K_dup.append(c)
 
 
 
@@ -229,7 +234,8 @@ def simdram_gemv(self, pcb_module: Device, tilingStrategy: TilingStrategy, debug
     K_N_io_latency = get_tile_io_latency(pcb_module, broad_cast, opt_tile_N, opt_tile_K, self.data_type.word_size, K_N_dup)
     # no duplication required for M_N tile, simply write it back to Host
     M_N_io_latency = opt_tile_M * opt_tile_N * self.data_type.word_size / pcb_module.io_module.bandwidth
-
+    # assume K_N tile is inside SIMDRAM
+    K_N_io_latency = 0
     
     # simulate complete end-to-end GEMV latency in tile basis 
     num_tile_K = K // opt_tile_K
