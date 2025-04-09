@@ -2,6 +2,7 @@ from software_model.matmul import Matmul
 from software_model.utils import TilingStrategy, data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
+import csv
 M=1024
 K=12288
 N=1024
@@ -21,35 +22,35 @@ print (f"memory capacity: {simdram.memory_module.memory_capacity}B")
 print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 
 
-# latency = model.compile_and_simulate(simdram, "heuristic-SIMDRAM")
-# print(f"Siyuan's GEMM latency: {latency}s")
+csv_data = [['loop_order', 'with_PE', 'broadcast','tiling_M','tiling_N','tiling_K', 'arr_map_R', 'arr_map_C','tile_M', 'tile_N', 'tile_K', 'arr_tile_M', 'arr_tile_N', 'arr_tile_K', 'SIMD_Utilization', 'Capacity_Utilization', 'latency', 'compute_latency', 'io_latency']]
+
+tiling_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
+arr_map_list = ['RKNCM','RMNCK', 'RMKCN', 'RKCMN', 'RNCMK', 'RMCKN']
+# arr_map_list = ['RKNCM']
+
+for tiling_str in tiling_list:
+    for arr_map_str in arr_map_list:
+        tiling = TilingStrategy.tiling_pattern_extraction(tiling_str)
+        arr_map = TilingStrategy.mapping_extraction(arr_map_str)
+        with_PE = True
+        broadcast = 'AB'
+        loop_order = 'mkn' 
 
 
-base = ['A', 'B', 'D']
-dims = ['N', 'K']
+        strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast)
 
-tiling_base = ['NABDK', 'NABKD', 'NAKBD', 'NKABD', 'NABKD', 'NADKB', 'NBDKA', 'NKADB']
-gemv_tiling_base = ['NDBKA']
-gem_vtiling = []
-for tile in gemv_tiling_base:
-    res = TilingStrategy.tiling_pattern_extraction(tile)
-    # print(res)
-    gem_vtiling.append(res)
+        latency = model.compile_and_simulate(simdram,compile_mode="heuristic-SIMDRAM-broadcast", strategy=strategy, debug=True)
+        # print(model.stats)
+        # print(model.stats.toCSV())
+        csv_data.append(model.stats.toCSV())
 
-tiling = TilingStrategy.tiling_pattern_extraction('MANBDK')
-arr_map = TilingStrategy.mapping_extraction('RMNCK')
-with_PE = True
-broadcast = 'AB'
-loop_order = 'mkn' 
+with open('test_gemm_simdram.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(csv_data)
+# print(f"GEMM latency: {latency}ms")
 
 
-strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast)
-
-latency = model.compile_and_simulate(simdram,compile_mode="heuristic-SIMDRAM-broadcast", strategy=strategy, debug=True)
-print(f"GEMM latency: {latency}ms")
-
-
-# A100_specs = read_architecture_template("configs/GA100x1_fp16.json")
+# A100_specs = read_architecture_template("configs/GA100x1_int8.json")
 # A100_system = template_to_system(A100_specs)
 # A100_pcb = A100_system.device
 

@@ -58,7 +58,7 @@ class TilingStrategy:
         required = {'A', 'B', 'D'}
         assert required.issubset(chars), "A, B, D must be present"
         assert 2 <= len(chars & {'M', 'N', 'K'}) <= 3, "At least two of M, N, K must be present"
-        assert len(s) == len(chars), "All characters must be unique"
+        assert len(s) == len(chars), f"{s}: All characters must be unique"
 
         for target in ['M', 'N', 'K']:
             if target not in s:
@@ -115,6 +115,46 @@ def find_closest_divisor(n):
         if n % i == 0:
             return i
 
+class Stats:
+    def __init__ (self, strategy:TilingStrategy) -> None:
+        self.strategy = strategy
+        self.tile_size = {'M': 0, 'N': 0, 'K': 0}
+        self.arr_tile_size = {'M': 0, 'N': 0, 'K': 0}
+        self.latency = 0
+        self.compute_latency = 0
+        self.io_latency = 0
+        self.simd_utilization = 0
+        self.capacity_utilization = 0
+    def __str__(self) -> str:
+        strategy_str = str(self.strategy)
+        return (f"{strategy_str}\n"
+                f"tile_M:{self.tile_size['M']}, tile_N:{self.tile_size['N']}, tile_K:{self.tile_size['K']}\n"
+                f"arr_tile_M:{self.arr_tile_size['M']}, arr_tile_N;{self.arr_tile_size['N']}, arr_tile_K:{self.arr_tile_size['K']}\n"
+                f"SIMD Utilization:{self.simd_utilization}\n"
+                f"Capacity Utilization:{self.capacity_utilization}\n"
+                f"Latency:{self.latency}\n"
+                f"Compute Latency:{self.compute_latency}\n"
+                f"IO Latency:{self.io_latency}\n")
+    def toCSV(self):
+        return [self.strategy.loop_order,
+                self.strategy.with_PE,
+                self.strategy.broadcast,
+                self.strategy.tiling['M'],
+                self.strategy.tiling['N'],
+                self.strategy.tiling['K'],
+                self.strategy.arr_mapping['R'],
+                self.strategy.arr_mapping['C'],
+                self.tile_size['M'],
+                self.tile_size['N'],
+                self.tile_size['K'],
+                self.arr_tile_size['M'],
+                self.arr_tile_size['N'],
+                self.arr_tile_size['K'],
+                self.simd_utilization,
+                self.capacity_utilization,
+                self.latency,
+                self.compute_latency,
+                self.io_latency]
 if __name__ == '__main__':
     s = "MKNABD"
     res = TilingStrategy.tiling_pattern_extraction(s)
