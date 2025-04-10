@@ -125,6 +125,62 @@ class Stats:
         self.io_latency = 0
         self.simd_utilization = 0
         self.capacity_utilization = 0
+
+        #broadcast/multicast unit requirement
+        self.col_multicast = False
+        self.col_broadcast = False
+        self.arr_broadcast = False
+        self.bank_broadcast = False
+        #popcount adder requirement
+        self.col_popcount = False
+        self.arr_popcount = False
+        self.bank_popcount = False
+        self.device_popcount = False
+
+        #parse hardware requirements from tiling
+        tiling = self.strategy.tiling
+        simd_set = ['A', 'B', 'D']
+        broadcast_requirement = {'A': False, 'B': False, 'D': False}
+        reduction_requirement = {'A': False, 'B': False, 'D': False}
+        for c in simd_set:
+            # if not tiled along A/B/D
+            # we need to duplicate this tile to corresponding place
+            if tiling['N']:
+                if c not in tiling['N']:
+                    # MK broadcast
+                    broadcast_requirement[c] = True
+            if tiling['K']:
+                if c in tiling['K']:
+                    # MN reduction
+                    reduction_requirement[c] = True
+            if tiling['M']:
+                if c not in tiling['M']:
+                    # KN broadcast
+                    broadcast_requirement[c] = True
+        self.arr_broadcast = broadcast_requirement['A']
+        self.bank_broadcast = broadcast_requirement['B']
+        #device broadcast is not supported
+        self.arr_popcount = reduction_requirement['A']
+        self.bank_popcount = reduction_requirement['B']
+        self.device_popcount = reduction_requirement['D']
+
+        #parse hardware requirements from array mapping
+        arr_mapping = self.strategy.arr_mapping
+        if 'K' in arr_mapping['C']:
+            self.col_popcount = True
+        # if C has 2 mapped dimensions, col multicast is required. For example, in RKCMN, MK and KN matrices needs to be multicast to C, as they cannot occupy all cols in the array
+        if len(arr_mapping['C']) > 1:
+            self.col_multicast = True
+        # if C has only 1 mapped dimension, the matrix that does not have this dimension needs to be broadcast to C
+        if len(arr_mapping['C']) == 1:
+            #MK broadcast to col
+            if 'M' not in arr_mapping['C'] and 'K' not in arr_mapping['C']:
+                self.col_broadcast = True
+            #KN broadcast to col
+            if 'K' not in arr_mapping['C'] and 'N' not in arr_mapping['C']:
+                self.col_broadcast = True
+            #MN does not need to be broadcast to col as it is the output matrix
+
     def __str__(self) -> str:
         strategy_str = str(self.strategy)
         return (f"{strategy_str}\n"
@@ -134,7 +190,28 @@ class Stats:
                 f"Capacity Utilization:{self.capacity_utilization}\n"
                 f"Latency:{self.latency}\n"
                 f"Compute Latency:{self.compute_latency}\n"
-                f"IO Latency:{self.io_latency}\n")
+                f"IO Latency:{self.io_latency}\n"
+                f"Hardware Requirements:\n"
+                f"  col_multicast: {self.col_multicast}\n"
+                f"  col_broadcast: {self.col_broadcast}\n"
+                f"  arr_broadcast: {self.arr_broadcast}\n"
+                f"  bank_broadcast: {self.bank_broadcast}\n"
+                f"  col_popcount: {self.col_popcount}\n"
+                f"  arr_popcount: {self.arr_popcount}\n"
+                f"  bank_popcount: {self.bank_popcount}\n"
+                f"  device_popcount: {self.device_popcount}\n")
+    def get_csv_header(self):
+        return ['loop_order', 'with_PE', 'broadcast',
+                'tiling_M', 'tiling_N', 'tiling_K',
+                'arr_map_R', 'arr_map_C',
+                'tile_M', 'tile_N', 'tile_K',
+                'arr_tile_M', 'arr_tile_N', 'arr_tile_K',
+                'SIMD_Utilization', 'Capacity_Utilization',
+                'latency', 'compute_latency', 'io_latency',
+                'col_multicast', 'col_broadcast',
+                'arr_broadcast', 'bank_broadcast',
+                'col_popcount', 'arr_popcount',
+                'bank_popcount', 'device_popcount']
     def toCSV(self):
         return [self.strategy.loop_order,
                 self.strategy.with_PE,
@@ -154,7 +231,15 @@ class Stats:
                 self.capacity_utilization,
                 self.latency,
                 self.compute_latency,
-                self.io_latency]
+                self.io_latency,
+                self.col_multicast,
+                self.col_broadcast,
+                self.arr_broadcast,
+                self.bank_broadcast,
+                self.col_popcount,
+                self.arr_popcount,
+                self.bank_popcount,
+                self.device_popcount]
 if __name__ == '__main__':
     s = "MKNABD"
     res = TilingStrategy.tiling_pattern_extraction(s)

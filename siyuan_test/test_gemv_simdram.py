@@ -3,7 +3,7 @@ from software_model.utils import TilingStrategy, data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
-M=1024
+M=1
 K=12288
 N=1024
 model = Matmul(data_type=data_type_dict["int8"])
@@ -21,11 +21,11 @@ print (f"simdram bw: {simdram.compute_module.bandwidth}B/s")
 print (f"memory capacity: {simdram.memory_module.memory_capacity}B")
 print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 
+csv_header = model.stats.get_csv_header()
+csv_data = [csv_header]
 
-csv_data = []
-
-tiling_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
-arr_map_list = ['RKNCM','RMNCK', 'RMKCN', 'RKCMN', 'RNCMK', 'RMCKN']
+tiling_list = ['MNABKD', 'MNAKBD', 'MNKABD']
+arr_map_list = ['RMKCN','RMNCK', 'RMCKN']
 # arr_map_list = ['RKNCM']
 
 for tiling_str in tiling_list:
@@ -43,10 +43,8 @@ for tiling_str in tiling_list:
         # print(model.stats)
         # print(model.stats.toCSV())
         csv_data.append(model.stats.toCSV())
-csv_header = model.stats.get_csv_header()
-csv_data.insert(0, csv_header)
 
-with open('test_gemm_simdram.csv', 'w', newline='') as file:
+with open('test_gemv_simdram.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(csv_data)
 # print(f"GEMM latency: {latency}ms")
