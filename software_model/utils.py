@@ -33,12 +33,13 @@ class Tensor:
 
 class TilingStrategy:
     def __init__(self, tiling: dict, arr_mapping: dict, 
-                 loop_order: str='mkn', PE_enable = False, broadcast: str = "AB") -> None:
+                 loop_order: str='mkn', PE_enable = False, broadcast: str = "AB", weight_resident = False) -> None:
         self.tiling = tiling
         self.arr_mapping = arr_mapping
         self.loop_order = loop_order
         self.with_PE = PE_enable
         self.broadcast = broadcast
+        self.weight_resident = weight_resident
 
     def __str__(self) -> str:
         tiling_str = "".join([f"  {key}: {value}" for key, value in self.tiling.items()])
@@ -85,7 +86,7 @@ class TilingStrategy:
         required = {'M', 'K', 'N'}
         assert required.issubset(chars), "M, K, N must be present"
         assert 1 <= len(chars & {'R', 'C'}) <= 2, "At least two of M, N, K must be present"
-        assert len(s) == len(chars), "All characters must be unique"
+        assert len(s) == len(chars), f"{s}: All characters must be unique"
 
         for target in ['R', 'C']:
             if target not in s:
@@ -154,7 +155,8 @@ class Stats:
                     # MN reduction
                     reduction_requirement[c] = True
             if tiling['M']:
-                if c not in tiling['M']:
+                # if weight resident, no need to have hardware to broadcast weight.
+                if c not in tiling['M'] and not self.strategy.weight_resident:
                     # KN broadcast
                     broadcast_requirement[c] = True
         self.arr_broadcast = broadcast_requirement['A']
@@ -169,7 +171,8 @@ class Stats:
         if 'K' in arr_mapping['C']:
             self.col_popcount = True
         # if C has 2 mapped dimensions, col multicast is required. For example, in RKCMN, MK and KN matrices needs to be multicast to C, as they cannot occupy all cols in the array
-        if len(arr_mapping['C']) > 1:
+        # when arr_mapping['C'] == 'MK' or arr_mapping['C'] == 'KM', only KN matrix needs to be multicasted, but if weight_resident is enabled, so KN does not need to be multicasted
+        if len(arr_mapping['C']) > 1 and not ( self.strategy.weight_resident and ( arr_mapping['C'] == 'MK' or arr_mapping['C'] == 'KM')):
             self.col_multicast = True
         # if C has only 1 mapped dimension, the matrix that does not have this dimension needs to be broadcast to C
         if len(arr_mapping['C']) == 1:
@@ -177,7 +180,7 @@ class Stats:
             if 'M' not in arr_mapping['C'] and 'K' not in arr_mapping['C']:
                 self.col_broadcast = True
             #KN broadcast to col
-            if 'K' not in arr_mapping['C'] and 'N' not in arr_mapping['C']:
+            if 'K' not in arr_mapping['C'] and 'N' not in arr_mapping['C'] and not self.strategy.weight_resident:
                 self.col_broadcast = True
             #MN does not need to be broadcast to col as it is the output matrix
 

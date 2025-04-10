@@ -25,7 +25,7 @@ print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 csv_data = []
 
 tiling_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
-arr_map_list = ['RKNCM','RMNCK', 'RMKCN', 'RKCMN', 'RNCMK', 'RMCKN']
+arr_map_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
 # arr_map_list = ['RKNCM']
 
 for tiling_str in tiling_list:

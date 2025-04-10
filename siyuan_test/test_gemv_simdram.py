@@ -21,11 +21,10 @@ print (f"simdram bw: {simdram.compute_module.bandwidth}B/s")
 print (f"memory capacity: {simdram.memory_module.memory_capacity}B")
 print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 
-csv_header = model.stats.get_csv_header()
-csv_data = [csv_header]
+csv_data = []
 
 tiling_list = ['MNABKD', 'MNAKBD', 'MNKABD']
-arr_map_list = ['RMKCN','RMNCK', 'RMCKN']
+arr_map_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
 # arr_map_list = ['RKNCM']
 
 for tiling_str in tiling_list:
@@ -34,15 +33,18 @@ for tiling_str in tiling_list:
         arr_map = TilingStrategy.mapping_extraction(arr_map_str)
         with_PE = True
         broadcast = 'AB'
-        loop_order = 'mkn' 
+        loop_order = 'mkn'
+        weight_resident = True 
 
 
-        strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast)
+        strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast, weight_resident)
 
         latency = model.compile_and_simulate(simdram,compile_mode="heuristic-SIMDRAM-broadcast", strategy=strategy, debug=True)
         # print(model.stats)
         # print(model.stats.toCSV())
         csv_data.append(model.stats.toCSV())
+csv_header = model.stats.get_csv_header()
+csv_data.insert(0, csv_header)
 
 with open('test_gemv_simdram.csv', 'w', newline='') as file:
         writer = csv.writer(file)

@@ -1064,7 +1064,11 @@ def get_tile_latency(self, pcb_module: Device, strategy:TilingStrategy, tile_siz
 
     #compute io latencies
     M_K_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['M'], tile_size['K'], self.data_type.word_size, M_K_dup)
-    K_N_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['K'], tile_size['N'], self.data_type.word_size, K_N_dup)
+    if strategy.weight_resident:
+        # if weight resident, we don't need to load K_N tile
+        K_N_io_latency = 0
+    else:
+        K_N_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['K'], tile_size['N'], self.data_type.word_size, K_N_dup)
     # no duplication required for M_N tile, simply write it back to Host
     M_N_io_latency = tile_size['M'] * tile_size['N'] * self.data_type.word_size / pcb_module.io_module.bandwidth
     
