@@ -1,7 +1,6 @@
-from sympy import factor
 from hardware_model.device import Device
-from math import ceil, log2, floor
-from software_model.utils import Tensor, DataType, TilingStrategy, simdram_op_latency_dict, simdram_PE_op_latency_dict
+from math import ceil
+from software_model.utils import TilingStrategy, simdram_op_latency_dict, simdram_PE_op_latency_dict
 from software_model.utils import TilingStrategy, find_closest_divisor, Stats
 import numpy as np
 
@@ -261,17 +260,6 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
         print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
 
     self.stats = Stats(strategy)
-    # num_col_per_array = pcb_module.compute_module.bank.arr_cols
-    # num_row = pcb_module.compute_module.bank.arr_rows
-    # num_array = pcb_module.compute_module.bank.arr_count
-    # num_bank = pcb_module.compute_module.bank_count
-    # num_device = pcb_module.compute_module.bank.device_count
-    # num_rank = 1
-    # capacity_per_array = num_col_per_array * num_row
-    # capacity_per_bank = capacity_per_array * num_array
-    # capacity_per_device = capacity_per_bank * num_bank
-    # capacity_per_rank = capacity_per_device * num_device
-    # total_capacity = capacity_per_rank * num_rank
 
     ################ Heuristic Tiling #################
     tiling = strategy.tiling

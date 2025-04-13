@@ -244,6 +244,7 @@ class Stats:
                 self.bank_popcount,
                 self.device_popcount]
 if __name__ == '__main__':
+    # Demo testcases
     s = "MKNABD"
     res = TilingStrategy.tiling_pattern_extraction(s)
     print(res)
