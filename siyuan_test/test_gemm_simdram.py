@@ -1,6 +1,5 @@
 from software_model.matmul import Matmul
 from software_model.utils import TilingStrategy, data_type_dict, Tensor
-from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
 M=1024

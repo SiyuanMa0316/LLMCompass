@@ -1,8 +1,4 @@
-import array
-from pyparsing import col
-from sympy import factor
 from utils import size
-from typing import List, Tuple
 from hardware_model.device import Device
 from software_model.operators import Operator
 from software_model.utils import Tensor, DataType, TilingStrategy, simdram_op_latency_dict
