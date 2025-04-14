@@ -42,15 +42,17 @@ def find_arr_tile_max(self, pcb_module: Device, strategy:TilingStrategy, debug=F
     simd_set = {'A','B','D'}
     simd_size = {'A': num_array, 'B': num_bank, 'D': num_device}
     for simd_dim in simd_set:
-        if simd_dim in tiling['M']:
-            arr_tile_M_max = arr_tile_M_max // simd_size[simd_dim]
-        if simd_dim in tiling['K']:
+        # only tile when M/K/N is larger than simd_sizes.
+        if simd_dim in tiling['M'] and arr_tile_M_max >= simd_size[simd_dim]:
+            arr_tile_M_max = arr_tile_M_max // simd_size[simd_dim] 
+        if simd_dim in tiling['K'] and arr_tile_K_max >= simd_size[simd_dim]:
             arr_tile_K_max = arr_tile_K_max // simd_size[simd_dim]
-        if simd_dim in tiling['N']:
+        if simd_dim in tiling['N'] and arr_tile_N_max >= simd_size[simd_dim]:
             arr_tile_N_max = arr_tile_N_max // simd_size[simd_dim]
+
     arr_tile_max = {'M': arr_tile_M_max, 'K': arr_tile_K_max, 'N': arr_tile_N_max}
     if debug:
-        print(f'find_arr_tile_max: {arr_tile_max}')
+        print(f'Maximum Tile Size across Bank/Device/Array: {arr_tile_max}')
     return arr_tile_max
 
 def find_arr_tile(self, pcb_module: Device, strategy:TilingStrategy, debug=False):
@@ -58,33 +60,45 @@ def find_arr_tile(self, pcb_module: Device, strategy:TilingStrategy, debug=False
     col_per_arr = pcb_module.compute_module.bank.arr_cols
     row_per_arr = pcb_module.compute_module.bank.arr_rows
     arr_mapping = strategy.arr_mapping
+    row_elem_per_arr = row_per_arr // (self.data_type.word_size * 8)
     if arr_mapping['C'] == 'M':
         arr_tile_M = col_per_arr
-        arr_tile_N = min(arr_tile_max['N'], find_closest_divisor(row_per_arr // (self.data_type.word_size * 8)))
-        arr_tile_K = row_per_arr // (self.data_type.word_size * 8) // arr_tile_N
+        arr_tile_N = min(arr_tile_max['N'], find_closest_divisor(row_elem_per_arr))
+        arr_tile_K = row_elem_per_arr // arr_tile_N
+        
+
     elif arr_mapping['C'] == 'N':
         arr_tile_N = col_per_arr
-        arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(row_per_arr // (self.data_type.word_size * 8)))
-        arr_tile_K = row_per_arr // (self.data_type.word_size * 8) // arr_tile_M
+        arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(row_elem_per_arr))
+        arr_tile_K = row_elem_per_arr // arr_tile_M
+
+
     elif arr_mapping['C'] == 'K':
         arr_tile_K = col_per_arr
-        arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(row_per_arr // (self.data_type.word_size * 8))) 
-        arr_tile_N = row_per_arr // (self.data_type.word_size * 8) // arr_tile_M
+        arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(row_elem_per_arr)) 
+        arr_tile_N = row_elem_per_arr // arr_tile_M
+
+
+
     elif arr_mapping['C'] == 'MN' or arr_mapping['C'] == 'NM':
         arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(col_per_arr))
         arr_tile_N = col_per_arr // arr_tile_M
-        arr_tile_K = row_per_arr // (self.data_type.word_size * 8) // 2
+        arr_tile_K = row_elem_per_arr // 2
+
     elif arr_mapping['C'] == 'MK' or arr_mapping['C'] == 'KM':
         arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(col_per_arr))
         arr_tile_K = col_per_arr // arr_tile_M
-        arr_tile_N = row_per_arr // (self.data_type.word_size * 8) // 2
+        arr_tile_N = row_elem_per_arr // 2
+
+        
     elif arr_mapping['C'] == 'NK' or arr_mapping['C'] == 'KN':
         arr_tile_N = min(arr_tile_max['N'], find_closest_divisor(col_per_arr))
         arr_tile_K = col_per_arr // arr_tile_N
-        arr_tile_M = row_per_arr // (self.data_type.word_size * 8) // 2
+        arr_tile_M = row_elem_per_arr // 2
 
-    if debug:
-        print(f"find_arr_tile: arr_tile_M: {arr_tile_M}, arr_tile_K: {arr_tile_K}, arr_tile_N: {arr_tile_N}")
+
+    # if debug:
+
     return arr_tile_M, arr_tile_N, arr_tile_K
 
 def get_arr_tile_latency(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_tile_K, arr_mapping, debug=False):
@@ -138,12 +152,12 @@ def get_arr_tile_latency(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_t
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
         simd_utilization = arr_tile_N * arr_tile_K / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_M / row_per_arr
-        if debug:
-            print(f"get_arr_tile_latency: arr_tile_M={arr_tile_M}, arr_tile_N={arr_tile_N}, arr_tile_K={arr_tile_K}, arr_mapping={arr_mapping}, latency={arr_latency}=({arr_tile_M} * {mul_reduce_op_latency} + {acc_op_latency}) * 1e-9, parallelism_utilization={arr_tile_K/col_per_arr}, capacity_utilization={arr_tile_M*arr_tile_N/row_per_arr}")
+        # if debug:
+        #     print(f"get_arr_tile_latency: arr_tile_M={arr_tile_M}, arr_tile_N={arr_tile_N}, arr_tile_K={arr_tile_K}, arr_mapping={arr_mapping}, latency={arr_latency}=({arr_tile_M} * {mul_reduce_op_latency} + {acc_op_latency}) * 1e-9, parallelism_utilization={arr_tile_K/col_per_arr}, capacity_utilization={arr_tile_M*arr_tile_N/row_per_arr}")
     self.stats.simd_utilization = max(self.stats.simd_utilization, simd_utilization)
     self.stats.capacity_utilization = max(self.stats.capacity_utilization, capacity_utilization)
-    if debug:
-        print(f"simd utilization: {simd_utilization}, capacity utilization: {capacity_utilization}")
+    # if debug:
+    #     print(f"simd utilization: {simd_utilization}, capacity utilization: {capacity_utilization}")
     return arr_latency
 
 
@@ -166,8 +180,8 @@ def find_tile_size(self, pcb_module: Device, tiling, arr_tile_M, arr_tile_N, arr
     tile_size['M'] = min(tile_size['M'], self.M)
     tile_size['N'] = min(tile_size['N'], self.N)
     tile_size['K'] = min(tile_size['K'], self.K)
-    if debug:
-        print(f"find_tile_size: {tile_size}")
+    # if debug:
+    #     print(f"find_tile_size: {tile_size}")
     return tile_size
 
 def get_tile_latency(self, pcb_module: Device, strategy:TilingStrategy, tile_size, debug=False):
@@ -241,8 +255,8 @@ def get_tile_latency(self, pcb_module: Device, strategy:TilingStrategy, tile_siz
                 K_reduction_latency *= num_device
     tile_compute_latency =  arr_latency + K_reduction_latency
 
-    if debug:
-        print(f"get_tile_latency: tile_size: {tile_size}, arr_tile_size: {arr_tile_size}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency} = {arr_latency}(arr_latency) + {K_reduction_latency}(K_reduction_latency)")
+    # if debug:
+    #     print(f"get_tile_latency: tile_size: {tile_size}, arr_tile_size: {arr_tile_size}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency} = {arr_latency}(arr_latency) + {K_reduction_latency}(K_reduction_latency)")
     return (M_K_io_latency, K_N_io_latency, M_N_io_latency, tile_compute_latency)
 
 
@@ -256,8 +270,8 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
     loop order: NKM
     '''
     if debug:
-        print(f"  matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
-        print(f"  M:{self.M}, K:{self.K}, N:{self.N}")
+        # print(f"Matmul: {self.input1_shape}, {self.input2_shape}, {self.output_shape}")
+        print(f"--- Input Matmul Size --- M:{self.M}, K:{self.K}, N:{self.N}")
 
     self.stats = Stats(strategy)
 
@@ -266,8 +280,7 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
     arr_mapping = strategy.arr_mapping
     loop_order = strategy.loop_order
     broadcast = strategy.broadcast
-    if debug:
-        print(f"Strategy: tiling: {tiling}, arr_mapping: {arr_mapping}, loop_order: {loop_order}, broadcast: {broadcast}")
+        
     arr_tile_M, arr_tile_N, arr_tile_K = find_arr_tile(self, pcb_module, strategy, debug)
     tile_size = find_tile_size(self, pcb_module, tiling, arr_tile_M, arr_tile_N, arr_tile_K, debug)
     M_tile = tile_size['M']
@@ -280,6 +293,8 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
     M_remain = self.M % M_tile
     N_remain = self.N % N_tile
     K_remain = self.K % K_tile
+
+
 
     previous_m = 0
     previous_n = 0
@@ -430,31 +445,37 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
 
     # if previous_k > 0:
     #     total_cycle_count += ceil(l2_tiles[-1, -1, -1].K_reduction_cycle_count)
-    if debug:
-        print(f"gemm latency: {total_latency}, compute_latency: {total_compute_latency}, io_latency:{total_io_latency}")
+    # if debug:
+    #     print(f"gemm latency: {total_latency}, compute_latency: {total_compute_latency}, io_latency:{total_io_latency}")
     self.stats.latency = total_latency
     self.stats.compute_latency = total_compute_latency
     self.stats.io_latency = total_io_latency
+
+    if debug:
+        external_debug_info = {
+            "M_remain": M_remain,
+            "K_remain": K_remain,
+            "N_remain": N_remain,
+            "M_t": M_t,
+            "K_t": K_t,
+            "N_t": N_t
+        }
+
+        debug_info = self.stats.to_string(debug=True, debug_info=external_debug_info)
+
+        print(debug_info)
     return total_latency
 
 def compile_and_simulate_simdram(
     self,
     pcb_module: Device,
     strategy: TilingStrategy,
-    debug: bool,
-    compile_mode: str = "exhaustive"
+    debug: bool
 ):
 
     # debug = False
     assert pcb_module.type == "simdram"
-    M = self.computational_graph.M
-    N = self.computational_graph.N
-    K = self.computational_graph.K
-
-    if compile_mode == "heuristic-SIMDRAM-broadcast":
-        return heuristic_simdram_broadcast(self, pcb_module = pcb_module, strategy=strategy, debug=debug)
-    else:
-        raise ValueError(f"compile_mode {compile_mode} not supported")
+    return heuristic_simdram_broadcast(self, pcb_module = pcb_module, strategy=strategy, debug=debug)
     
 def compile_and_simulate(
     self,

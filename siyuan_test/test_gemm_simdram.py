@@ -4,7 +4,7 @@ from design_space_exploration.dse import template_to_system, read_architecture_t
 import csv
 M=1024
 K=12288
-N=1024
+N=12288
 model = Matmul(data_type=data_type_dict["int8"])
 _ = model(
     Tensor([M, K], data_type_dict["int8"]),
@@ -26,9 +26,8 @@ csv_data = []
 tiling_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
 arr_map_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
 # arr_map_list = ['RKNCM']
-
-for tiling_str in tiling_list:
-    for arr_map_str in arr_map_list:
+for tiling_str in tiling_list[0:1]:
+    for arr_map_str in arr_map_list[0:1]:
         tiling = TilingStrategy.tiling_pattern_extraction(tiling_str)
         arr_map = TilingStrategy.mapping_extraction(arr_map_str)
         with_PE = True
@@ -38,7 +37,7 @@ for tiling_str in tiling_list:
 
         strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast)
 
-        latency = model.compile_and_simulate(simdram,compile_mode="heuristic-SIMDRAM-broadcast", strategy=strategy, debug=True)
+        latency = model.compile_and_simulate(simdram, strategy=strategy, debug=True)
         # print(model.stats)
         # print(model.stats.toCSV())
         csv_data.append(model.stats.toCSV())
