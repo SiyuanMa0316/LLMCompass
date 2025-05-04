@@ -31,28 +31,33 @@ class Tensor:
         self.data_type = data_type
 
 
-class TilingStrategy:
-    def __init__(self, tiling: dict, arr_mapping: dict, 
-                 loop_order: str='mkn', PE_enable = False, broadcast: str = "AB", weight_resident = False) -> None:
-        self.tiling = tiling
+class Mapping:
+    def __init__(self, tile_mapping: dict, arr_mapping: dict, 
+                 loop_order: str='mkn', PE_enable = False, broadcast: str = "AB", weight_resident = False, input_resident=False, output_resident=False) -> None:
+        self.tile_mapping = tile_mapping
         self.arr_mapping = arr_mapping
         self.loop_order = loop_order
         self.with_PE = PE_enable
         self.broadcast = broadcast
         self.weight_resident = weight_resident
-
+        self.input_resident = input_resident
+        self.output_resident = output_resident
+        
     def __str__(self) -> str:
-        tiling_str = "".join([f"  {key}: {value}" for key, value in self.tiling.items()])
+        tile_mapping_str = "".join([f"  {key}: {value}" for key, value in self.tile_mapping.items()])
         arr_mapping_str = "".join([f"  {key}: {value}" for key, value in self.arr_mapping.items()])
-        return (f"TilingStrategy(\n"
+        return (f"Strategy(\n"
                 f"  Loop Order: {self.loop_order}"
                 f"  PE Enabled: {self.with_PE}"
                 f"  Broadcast: {self.broadcast}\n"
-                f"  Tiling Parameters:{tiling_str}"
-                f"  Array Mapping:{arr_mapping_str}\n)")
+                f"  Tile Mapping:{tile_mapping_str}"
+                f"  Array Mapping:{arr_mapping_str}\n"
+                f"  Weight Resident: {self.weight_resident}\n"
+                f"  Input Resident: {self.input_resident}\n"
+                f"  Output Resident: {self.output_resident}\n)")
 
     @staticmethod
-    def tiling_pattern_extraction(s):
+    def tile_mapping_extraction(s):
         result = {'M': None, 'N': None, 'K': None}
         # Ensure all characters are unique and meet the required conditions
         chars = set(s)
@@ -79,7 +84,7 @@ class TilingStrategy:
         return result
     
     @staticmethod
-    def mapping_extraction(s):
+    def arr_mapping_extraction(s):
         result = {'R': '', 'C': ''}
         # Ensure all characters are unique and meet the required conditions
         chars = set(s)
@@ -116,7 +121,7 @@ def find_closest_divisor(n):
             return i
 
 class Stats:
-    def __init__ (self, strategy:TilingStrategy) -> None:
+    def __init__ (self, strategy:Mapping) -> None:
         self.strategy = strategy
         self.tile_size = {'M': 0, 'N': 0, 'K': 0}
         self.arr_tile_size = {'M': 0, 'N': 0, 'K': 0}
@@ -138,24 +143,24 @@ class Stats:
         self.device_popcount = False
 
         #parse hardware requirements from tiling
-        tiling = self.strategy.tiling
+        tile_mapping = self.strategy.tile_mapping
         simd_set = ['A', 'B', 'D']
         broadcast_requirement = {'A': False, 'B': False, 'D': False}
         reduction_requirement = {'A': False, 'B': False, 'D': False}
         for c in simd_set:
             # if not tiled along A/B/D
             # we need to duplicate this tile to corresponding place
-            if tiling['N']:
-                if c not in tiling['N']:
+            if tile_mapping['N']:
+                if c not in tile_mapping['N']:
                     # MK broadcast
                     broadcast_requirement[c] = True
-            if tiling['K']:
-                if c in tiling['K']:
+            if tile_mapping['K']:
+                if c in tile_mapping['K']:
                     # MN reduction
                     reduction_requirement[c] = True
-            if tiling['M']:
+            if tile_mapping['M']:
                 # if weight resident, no need to have hardware to broadcast weight.
-                if c not in tiling['M'] and not self.strategy.weight_resident:
+                if c not in tile_mapping['M'] and not self.strategy.weight_resident:
                     # KN broadcast
                     broadcast_requirement[c] = True
         self.arr_broadcast = broadcast_requirement['A']
@@ -256,9 +261,9 @@ class Stats:
         return [self.strategy.loop_order,
                 self.strategy.with_PE,
                 self.strategy.broadcast,
-                self.strategy.tiling['M'],
-                self.strategy.tiling['N'],
-                self.strategy.tiling['K'],
+                self.strategy.tile_mapping['M'],
+                self.strategy.tile_mapping['N'],
+                self.strategy.tile_mapping['K'],
                 self.strategy.arr_mapping['R'],
                 self.strategy.arr_mapping['C'],
                 self.tile_size['M'],
@@ -283,9 +288,9 @@ class Stats:
 if __name__ == '__main__':
     # Demo testcases
     s = "MKNABD"
-    res = TilingStrategy.tiling_pattern_extraction(s)
+    res = Mapping.tile_mapping_extraction(s)
     print(res)
     s= "RMNCK"
-    res = TilingStrategy.mapping_extraction(s)
+    res = Mapping.arr_mapping_extraction(s)
     print(res)
     # assert res == expect, "Extracted result does not match"

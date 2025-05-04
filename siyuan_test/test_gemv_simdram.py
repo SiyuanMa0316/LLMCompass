@@ -1,5 +1,5 @@
 from software_model.matmul import Matmul
-from software_model.utils import TilingStrategy, data_type_dict, Tensor
+from software_model.utils import Mapping, data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
@@ -29,15 +29,15 @@ arr_map_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
 
 for tiling_str in tiling_list:
     for arr_map_str in arr_map_list:
-        tiling = TilingStrategy.tiling_pattern_extraction(tiling_str)
-        arr_map = TilingStrategy.mapping_extraction(arr_map_str)
+        tiling = Mapping.tile_mapping_extraction(tiling_str)
+        arr_map = Mapping.arr_mapping_extraction(arr_map_str)
         with_PE = True
         broadcast = 'AB'
         loop_order = 'mkn'
         weight_resident = True 
 
 
-        strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast, weight_resident)
+        strategy = Mapping(tiling, arr_map, loop_order, with_PE, broadcast, weight_resident)
 
         latency = model.compile_and_simulate(simdram,compile_mode="heuristic-SIMDRAM-broadcast", strategy=strategy, debug=True)
         # print(model.stats)

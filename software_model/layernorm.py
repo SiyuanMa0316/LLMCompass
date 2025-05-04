@@ -82,6 +82,9 @@ class LayerNorm(Operator):
         if compile_mode == "heuristic-PIMSAB-sim-v2":
             #Siyuan: to be implemented
             return 0
+        if pcb_module.type == "simdram":
+            #Siyuan: to be implemented
+            return 0
         self.computational_graph.data_type = (
             pcb_module.compute_module.core.vector_unit.data_type
         )

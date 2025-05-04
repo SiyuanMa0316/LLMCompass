@@ -1,5 +1,5 @@
 from software_model.matmul import Matmul
-from software_model.utils import TilingStrategy, data_type_dict, Tensor
+from software_model.utils import Mapping, data_type_dict, Tensor
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
 M=1024
@@ -23,21 +23,21 @@ print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
 
 csv_data = []
 
-tiling_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
-arr_map_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
+tile_mapping_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
+arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
 # arr_map_list = ['RKNCM']
-for tiling_str in tiling_list[0:1]:
-    for arr_map_str in arr_map_list[0:1]:
-        tiling = TilingStrategy.tiling_pattern_extraction(tiling_str)
-        arr_map = TilingStrategy.mapping_extraction(arr_map_str)
+for tile_mapping_str in tile_mapping_list:
+    for arr_mapping_str in arr_mapping_list:
+        tile_mapping = Mapping.tile_mapping_extraction(tile_mapping_str)
+        arr_mapping = Mapping.arr_mapping_extraction(arr_mapping_str)
         with_PE = True
         broadcast = 'AB'
         loop_order = 'mkn' 
 
 
-        strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast)
+        strategy = Mapping(tile_mapping, arr_mapping, loop_order, with_PE, broadcast)
 
-        latency = model.compile_and_simulate(simdram, strategy=strategy, debug=True)
+        latency = model.compile_and_simulate(simdram, compile_mode="specific", strategy=strategy, debug=False)
         # print(model.stats)
         # print(model.stats.toCSV())
         csv_data.append(model.stats.toCSV())
@@ -50,6 +50,8 @@ with open('test_gemm_simdram.csv', 'w', newline='') as file:
 # print(f"GEMM latency: {latency}ms")
 
 
+latency = model.compile_and_simulate(simdram, compile_mode="exhaustive", debug=False)
+print(f"test_gemm_exhastive: GEMM latency: {latency}ms")
 # A100_specs = read_architecture_template("configs/GA100x1_int8.json")
 # A100_system = template_to_system(A100_specs)
 # A100_pcb = A100_system.device

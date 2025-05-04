@@ -1,5 +1,5 @@
 from software_model.matmul import Matmul
-from software_model.utils import TilingStrategy, data_type_dict, Tensor
+from software_model.utils import Mapping, data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
 M=1024
@@ -32,7 +32,7 @@ tiling_base = ['NABDK', 'NABKD', 'NAKBD', 'NKABD', 'NABKD', 'NADKB', 'NBDKA', 'N
 gemv_tiling_base = ['NDBKA']
 gem_vtiling = []
 for tile in gemv_tiling_base:
-    res = TilingStrategy.tiling_pattern_extraction(tile)
+    res = Mapping.tile_mapping_extraction(tile)
     # print(res)
     gem_vtiling.append(res)
 
@@ -50,7 +50,7 @@ for t in gem_vtiling:
         for b in broad_cast:
             for p in with_PE:
                 for l in loop_order:
-                    res = TilingStrategy(t, a, l, p, b)
+                    res = Mapping(t, a, l, p, b)
                 tilingStrategy.append(res)
                 # print(res)
 

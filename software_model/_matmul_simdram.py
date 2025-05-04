@@ -1,7 +1,7 @@
 from hardware_model.device import Device
 from math import ceil
-from software_model.utils import TilingStrategy, simdram_op_latency_dict, simdram_PE_op_latency_dict
-from software_model.utils import TilingStrategy, find_closest_divisor, Stats
+from software_model.utils import Mapping, simdram_op_latency_dict, simdram_PE_op_latency_dict
+from software_model.utils import Mapping, find_closest_divisor, Stats
 import numpy as np
 
 def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2: int, word_size: float, dup: str) -> float:
@@ -31,11 +31,11 @@ def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2
     return latency
    
 
-def find_arr_tile_max(self, pcb_module: Device, strategy:TilingStrategy, debug=False):
+def find_arr_tile_max(self, pcb_module: Device, strategy:Mapping, debug=False):
     num_array = pcb_module.compute_module.bank.arr_count
     num_bank = pcb_module.compute_module.bank_count
     num_device = pcb_module.compute_module.bank.device_count
-    tiling = strategy.tiling
+    tiling = strategy.tile_mapping
     arr_tile_M_max = self.M
     arr_tile_K_max = self.K
     arr_tile_N_max = self.N
@@ -55,7 +55,7 @@ def find_arr_tile_max(self, pcb_module: Device, strategy:TilingStrategy, debug=F
         print(f'Maximum Tile Size across Bank/Device/Array: {arr_tile_max}')
     return arr_tile_max
 
-def find_arr_tile(self, pcb_module: Device, strategy:TilingStrategy, debug=False):
+def find_arr_tile(self, pcb_module: Device, strategy:Mapping, debug=False):
     arr_tile_max = find_arr_tile_max(self, pcb_module, strategy, debug)
     col_per_arr = pcb_module.compute_module.bank.arr_cols
     row_per_arr = pcb_module.compute_module.bank.arr_rows
@@ -184,12 +184,12 @@ def find_tile_size(self, pcb_module: Device, tiling, arr_tile_M, arr_tile_N, arr
     #     print(f"find_tile_size: {tile_size}")
     return tile_size
 
-def get_tile_latency(self, pcb_module: Device, strategy:TilingStrategy, tile_size, debug=False):
+def get_tile_latency(self, pcb_module: Device, strategy:Mapping, tile_size, debug=False):
     num_array = pcb_module.compute_module.bank.arr_count
     num_bank = pcb_module.compute_module.bank_count
     num_device = pcb_module.compute_module.bank.device_count
     num_rank = 1
-    tiling = strategy.tiling
+    tiling = strategy.tile_mapping
     arr_tile_size = {'M': tile_size['M'], 'K': tile_size['K'], 'N': tile_size['N']}
     for key in tiling.keys():
         val = tiling[key]
@@ -220,14 +220,21 @@ def get_tile_latency(self, pcb_module: Device, strategy:TilingStrategy, tile_siz
             M_K_dup.append(c)
 
     #compute io latencies
-    M_K_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['M'], tile_size['K'], self.data_type.word_size, M_K_dup)
+    if strategy.input_resident:
+        # if input resident, we don't need to load M_K tile
+        M_K_io_latency = 0
+    else:
+        M_K_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['M'], tile_size['K'], self.data_type.word_size, M_K_dup)
     if strategy.weight_resident:
         # if weight resident, we don't need to load K_N tile
         K_N_io_latency = 0
     else:
         K_N_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['K'], tile_size['N'], self.data_type.word_size, K_N_dup)
-    # no duplication required for M_N tile, simply write it back to Host
-    M_N_io_latency = tile_size['M'] * tile_size['N'] * self.data_type.word_size / pcb_module.io_module.bandwidth
+    if strategy.output_resident:
+        M_N_io_latency = 0
+    else:
+        # no duplication required for M_N tile, simply write it back to Host
+        M_N_io_latency = tile_size['M'] * tile_size['N'] * self.data_type.word_size / pcb_module.io_module.bandwidth
     
     # compute arr_tile size from tile size
     arr_tile_size = {'M': tile_size['M'], 'K': tile_size['K'], 'N': tile_size['N']}
@@ -255,12 +262,12 @@ def get_tile_latency(self, pcb_module: Device, strategy:TilingStrategy, tile_siz
                 K_reduction_latency *= num_device
     tile_compute_latency =  arr_latency + K_reduction_latency
 
-    # if debug:
-    #     print(f"get_tile_latency: tile_size: {tile_size}, arr_tile_size: {arr_tile_size}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency} = {arr_latency}(arr_latency) + {K_reduction_latency}(K_reduction_latency)")
+    if debug:
+        print(f"get_tile_latency: tile_size: {tile_size}, arr_tile_size: {arr_tile_size}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency} = {arr_latency}(arr_latency) + {K_reduction_latency}(K_reduction_latency)")
     return (M_K_io_latency, K_N_io_latency, M_N_io_latency, tile_compute_latency)
 
 
-def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrategy, debug=False):
+def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: Mapping, debug=False):
     '''
     M->array
     N->bank
@@ -276,7 +283,7 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
     self.stats = Stats(strategy)
 
     ################ Heuristic Tiling #################
-    tiling = strategy.tiling
+    tiling = strategy.tile_mapping
     arr_mapping = strategy.arr_mapping
     loop_order = strategy.loop_order
     broadcast = strategy.broadcast
@@ -440,7 +447,7 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
         + tile_latency[-1, -1, -1] #lsat tile compute
     )
     total_io_latency += tile_MN_io_latency[-1, -1, -1] #last tile write
-    total_compute_latency += tile_latency[-1, -1, -1] #lsat tile compute
+    total_compute_latency += tile_latency[-1, -1, -1] #last tile compute
     
 
     # if previous_k > 0:
@@ -469,7 +476,7 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: TilingStrat
 def compile_and_simulate_simdram(
     self,
     pcb_module: Device,
-    strategy: TilingStrategy,
+    strategy: Mapping,
     debug: bool
 ):
 
