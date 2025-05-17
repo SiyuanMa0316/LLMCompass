@@ -26,8 +26,8 @@ csv_data = []
 tiling_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
 arr_map_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
 # arr_map_list = ['RKNCM']
-for tiling_str in tiling_list[0:1]:
-    for arr_map_str in arr_map_list[0:1]:
+for tiling_str in tiling_list:
+    for arr_map_str in arr_map_list:
         tiling = TilingStrategy.tiling_pattern_extraction(tiling_str)
         arr_map = TilingStrategy.mapping_extraction(arr_map_str)
         with_PE = True
@@ -37,7 +37,7 @@ for tiling_str in tiling_list[0:1]:
 
         strategy = TilingStrategy(tiling, arr_map, loop_order, with_PE, broadcast)
 
-        latency = model.compile_and_simulate(simdram, strategy=strategy, debug=True)
+        latency = model.compile_and_simulate(simdram, strategy=strategy, debug=False)
         # print(model.stats)
         # print(model.stats.toCSV())
         csv_data.append(model.stats.toCSV())
