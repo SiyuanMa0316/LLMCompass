@@ -116,6 +116,9 @@ class Softmax(Operator):
         elif pcb_module.type == 'pimsab':
             # Siyuan to implement
             return 0
+        elif pcb_module.type == 'simdram':
+            # Siyuan to implement
+            return 0
 
     def simulate(
         self,

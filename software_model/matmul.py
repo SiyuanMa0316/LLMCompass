@@ -1,7 +1,7 @@
 from utils import size
 from hardware_model.device import Device
 from software_model.operators import Operator
-from software_model.utils import Tensor, DataType, TilingStrategy, simdram_op_latency_dict
+from software_model.utils import Tensor, DataType, Mapping, simdram_op_latency_dict
 from math import ceil, log2, floor
 import torch
 import time
@@ -38,6 +38,8 @@ class BatchedMatmul(Operator):
         self.N = self.input2_shape[-1]
         self.output_shape = self.input1_shape[:-2] + [self.M, self.N]
         output = Tensor(self.output_shape, self.data_type)
+        self.matmul = Matmul(self.data_type)
+        _ = self.matmul(Tensor([self.M, self.K],self.data_type), Tensor([self.K, self.N],self.data_type))
         return output
 
     def roofline_model(self, pcb_module: Device):
@@ -66,28 +68,31 @@ class BatchedMatmul(Operator):
     #     )
     #     self.latency = matmul_latency * self.bs  # + pcb_module.io_module.latency * 2
     #     return self.latency
-
-    def compile_and_simulate(self, pcb_module: Device, compile_mode: str):
-        matmul = Matmul(self.data_type)
-        _ = matmul(Tensor([self.M, self.K],self.data_type), Tensor([self.K, self.N],self.data_type))
+    def compile_and_simulate(self, pcb_module: Device, compile_mode: str, strategy:Mapping=None, debug=False):
+        print(f"Batched Matmul: M={self.M}, K={self.K}, N={self.N}, BS={self.bs}")
         matmul_latency1 = (
-            matmul.compile_and_simulate(pcb_module, compile_mode) * self.bs
+            self.matmul.compile_and_simulate(pcb_module, compile_mode=compile_mode, strategy=strategy, debug=debug) * self.bs
         )
-
-        matmul = Matmul(self.data_type)
-        _ = matmul(
-            Tensor([self.M, self.K * self.bs],self.data_type), Tensor([self.K * self.bs, self.N],self.data_type)
-        )
-        matmul_latency2 = (
-            matmul.compile_and_simulate(pcb_module, compile_mode)
-            # Siyuan: I don't understand this overhead so commented out
-            # + (self.bs - 1)
-            # * self.M
-            # * self.N
-            # * self.data_type.word_size
-            # / pcb_module.io_module.bandwidth
-        )
-        self.latency = min(matmul_latency1, matmul_latency2)
+        if pcb_module.type == "simdram":
+            self.stats = self.matmul.stats
+            self.stats.compute_latency *= self.bs
+            self.stats.io_latency *= self.bs
+            self.stats.latency *= self.bs
+        # matmul = Matmul(self.data_type)
+        # _ = matmul(
+        #     Tensor([self.M, self.K * self.bs],self.data_type), Tensor([self.K * self.bs, self.N],self.data_type)
+        # )
+        # matmul_latency2 = (
+        #     matmul.compile_and_simulate(pcb_module, compile_mode=compile_mode, strategy=strategy, debug=debug)
+        #     # Siyuan: I don't understand this overhead so commented out
+        #     # + (self.bs - 1)
+        #     # * self.M
+        #     # * self.N
+        #     # * self.data_type.word_size
+        #     # / pcb_module.io_module.bandwidth
+        # )
+        # self.latency = min(matmul_latency1, matmul_latency2)
+        self.latency = matmul_latency1
         print(f"BatchedMatmul latency: {self.latency}")
         return self.latency
 
@@ -304,8 +309,32 @@ class Matmul(Operator):
         return list(permutations)
 
  
-    
-    
+    def find_simdram_mapping(self,pcb_module: Device, debug=False):
+        assert pcb_module.type == 'simdram'
+        min_latency = 2**63 - 1
+        best_mapping = None
+        tile_mapping_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
+        arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
+        if self.M == 1 or self.N == 1:
+            tile_mapping_list = ['MNABKD', 'MNAKBD', 'MNKABD']
+            arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
+        for tile_mapping_str in tile_mapping_list:
+            for arr_mapping_str in arr_mapping_list:
+                tile_mapping = Mapping.tile_mapping_extraction(tile_mapping_str)
+                arr_mapping = Mapping.arr_mapping_extraction(arr_mapping_str)
+                with_PE = True
+                broadcast = 'AB'
+                loop_order = 'mkn' 
+                strategy = Mapping(tile_mapping, arr_mapping, loop_order, with_PE, broadcast, weight_resident=True)
+                latency = self.compile_and_simulate(pcb_module=pcb_module, compile_mode="specific", strategy=strategy, debug=False)
+                if latency < min_latency:
+                    min_latency = latency
+                    best_mapping = strategy
+        if debug:
+            print(f"find_simdram_mapping: Best mapping: {best_mapping}")
+        return best_mapping
+
+
     def compile_and_simulate_systolic(
         self,
         pcb_module: Device,
@@ -790,15 +819,21 @@ class Matmul(Operator):
     def compile_and_simulate(
         self,
         pcb_module: Device,
-        strategy: TilingStrategy,
-        debug: bool = False,
         compile_mode: str = "exhaustive",
+        strategy: Mapping = None,
+        debug: bool = False
     ):
+        
         if pcb_module.type=="systolic":
             return self.compile_and_simulate_systolic(pcb_module, compile_mode)
         elif pcb_module.type=="pimsab":
             return compile_and_simulate_pimsab(self, pcb_module, compile_mode)
         elif pcb_module.type == "simdram":
+            if compile_mode == "exhaustive":
+                print(f"simdram matmul: M={self.M}, N={self.N}, K={self.K}")
+                strategy = self.find_simdram_mapping(pcb_module, debug=False)
+            elif compile_mode == "specific":
+                assert strategy is not None  
             return compile_and_simulate_simdram(self, pcb_module, strategy=strategy, debug=debug)
         else:
             raise ValueError("Unsupported device type!")

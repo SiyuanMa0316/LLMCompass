@@ -93,6 +93,9 @@ class GeLU(Operator):
         elif pcb_module.type == 'pimsab':
             # Siyuan TODO
             return 0
+        elif pcb_module.type == 'simdram':
+            # Siyuan TODO
+            return 0
         else:
             raise ValueError('Unsupported device type')
 
