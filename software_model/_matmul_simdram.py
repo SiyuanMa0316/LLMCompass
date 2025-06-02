@@ -126,13 +126,18 @@ def find_arr_tile(self, pcb_module: Device, strategy:Mapping, debug=False):
     row_elem_per_arr = row_per_arr // (self.data_type.word_size * 8)
     if arr_mapping['C'] == 'M':
         arr_tile_M = col_per_arr
-        arr_tile_N = min(arr_tile_max['N'], find_closest_divisor(row_elem_per_arr))
+        storage_limit = row_elem_per_arr - arr_tile_K
+        # in this case, MK matrix should also take 'arr_tile_K' elements
+        # the row storage limit for NK matrix is left only row_elem_per_arr - arr_tile_k
+        arr_tile_N = min(arr_tile_max['N'], find_closest_divisor(storage_limit))
         arr_tile_K = row_elem_per_arr // arr_tile_N
-        
 
     elif arr_mapping['C'] == 'N':
         arr_tile_N = col_per_arr
-        arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(row_elem_per_arr))
+        storage_limit = row_elem_per_arr - arr_tile_K
+        # in this case, NK matrix should also take 'arr_tile_K' elements
+        # the row storage limit for MK matrix is left only row_elem_per_arr - arr_tile_k
+        arr_tile_M = min(arr_tile_max['M'], find_closest_divisor(storage_limit))
         arr_tile_K = row_elem_per_arr // arr_tile_M
 
 
@@ -159,8 +164,6 @@ def find_arr_tile(self, pcb_module: Device, strategy:Mapping, debug=False):
         arr_tile_K = col_per_arr // arr_tile_N
         arr_tile_M = row_elem_per_arr // 2
 
-
-    # if debug:
 
     return arr_tile_M, arr_tile_N, arr_tile_K
 
