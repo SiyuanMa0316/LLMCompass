@@ -1,9 +1,9 @@
 from software_model.matmul import Matmul
-from software_model.utils import data_type_dict, Tensor
+from software_model.utils import  data_type_dict, Tensor
 from software_model.mapping import Mapping
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
-M=1024
+M=1
 K=12288
 N=12288
 model = Matmul(data_type=data_type_dict["int8"])
@@ -12,7 +12,7 @@ _ = model(
     Tensor([K, N], data_type_dict["int8"]),
 )
 
-specs = read_architecture_template("configs/SIMDRAM_256x.json")
+specs = read_architecture_template("configs/SIMDRAM_STD.json")
 system = template_to_system(specs)
 
 simdram = system.device
@@ -21,28 +21,19 @@ print(simdram.info())
 
 csv_data = []
 
-tile_mapping_list = ['MANSBRKDC', 'MABNKD', 'MNABKD', 'MDNKAB']
-arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
-# arr_map_list = ['RKNCM']
-for tile_mapping_str in tile_mapping_list[0:1]:
-    for arr_mapping_str in arr_mapping_list[0:1]:
-        tile_mapping = Mapping.tile_mapping_extraction(simdram, tile_mapping_str)
-        arr_mapping = Mapping.arr_mapping_extraction(arr_mapping_str)
-        with_PE = True
-        broadcast = 'AB'
-        loop_order = 'mkn' 
 
 
-        strategy = Mapping(tile_mapping, arr_mapping, loop_order, with_PE, broadcast, weight_resident=True)
-
-        latency = model.compile_and_simulate(simdram, compile_mode="specific", strategy=strategy, debug=True)
-        # print(model.stats)
-        # print(model.stats.toCSV())
-        csv_data.append(model.stats.toCSV())
+# latency = model.compile_and_simulate(simdram, compile_mode="exhaustive", debug=False)
+strategy = model.find_simdram_mapping(simdram, debug=False)
+print(f"optimal strategy: {strategy}")
+# print(model.stats)
+# print(model.stats.toCSV())
+latency = model.compile_and_simulate(simdram, compile_mode="specific", strategy=strategy, debug=True)
+csv_data.append(model.stats.toCSV())
 csv_header = model.stats.get_csv_header()
 csv_data.insert(0, csv_header)
 
-with open('test_gemm_simdram.csv', 'w', newline='') as file:
+with open('test_gemv_simdram.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(csv_data)
 print(f"GEMM latency: {latency}ms")

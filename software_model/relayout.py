@@ -1,7 +1,9 @@
 from hardware_model.device import Device
 from math import ceil
-from software_model.utils import Mapping, simdram_op_latency_dict, simdram_PE_op_latency_dict
-from software_model.utils import Mapping, find_closest_divisor, Stats
+from software_model.utils import  simdram_op_latency_dict, simdram_PE_op_latency_dict
+from software_model.utils import find_closest_divisor
+from software_model.mapping import Mapping
+from software_model.stats import Stats
 from software_model.matmul import Matmul, BatchedMatmul
 
 def has_same_characters(str1, str2):

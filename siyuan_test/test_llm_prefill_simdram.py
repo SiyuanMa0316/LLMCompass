@@ -5,13 +5,10 @@ from software_model.transformer import (
 )
 from software_model.utils import data_type_dict, Tensor
 
-specs = read_architecture_template("configs/SIMDRAM_STD.json")
+specs = read_architecture_template("configs/SIMDRAM_96x.json")
 system = template_to_system(specs)
 simdram = system.device
-print (f"simdram config: {simdram.compute_module.bank_count}banks, {simdram.compute_module.bank.arr_count}arrays x {simdram.compute_module.bank.arr_rows}rows x {simdram.compute_module.bank.arr_cols}cols x {simdram.compute_module.bank.device_count}devices, with_PE: {simdram.compute_module.with_PE}")
-print (f"simdram bw: {simdram.compute_module.bandwidth}B/s")
-print (f"memory capacity: {simdram.memory_module.memory_capacity}B")
-print (f"external bandwidth: {simdram.io_module.bandwidth}B/s")
+print(simdram.info())
 layers = 96
 bs=1
 seq_len=1024

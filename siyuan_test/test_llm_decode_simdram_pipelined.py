@@ -5,11 +5,11 @@ from software_model.transformer import (
 )
 from software_model.utils import data_type_dict, Tensor
 
-specs = read_architecture_template("configs/SIMDRAM_96x.json")
+specs = read_architecture_template("configs/SIMDRAM_STD.json")
 system = template_to_system(specs)
 simdram = system.device
+print('SimDRAM configuration for each pipeline stage:')
 print(simdram.info())
-layers = 96
 bs=1
 seq_len=1024
 precision = "int8"
@@ -37,8 +37,11 @@ model_decode = TransformerBlockAutoRegressionTP(
 _ = model_decode(
     Tensor([bs, 1, 12288], data_type_dict["int8"]), seq_len
 )
-decode_latency_simulated = layers * model_decode.compile_and_simulate(system, "specific")
+layers=96
+decode_latency_simulated = model_decode.compile_and_simulate(system, "specific")
 print(f"GPT-3 decode latency per token: {decode_latency_simulated}")
+decode_total_latency = decode_latency_simulated * layers + decode_latency_simulated * (output_len-1)
+print(f"GPT-3 decode total latency for {output_len} tokens: {decode_total_latency}")
 
 # latency_to_first_token = E2E_prefill_latency + decode_latency_simulated * layers
 # decode_tokps = 1 / decode_latency_simulated

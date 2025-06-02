@@ -1,7 +1,9 @@
 from utils import size
 from hardware_model.device import Device
 from software_model.operators import Operator
-from software_model.utils import Tensor, DataType, Mapping, simdram_op_latency_dict
+from software_model.utils import Tensor, DataType, simdram_op_latency_dict
+from software_model.mapping import Mapping
+
 from math import ceil, log2, floor
 import torch
 import time
@@ -15,6 +17,7 @@ from pimsab_exp.run_pimsab_gemm import run_gemm
 from pimsab_kernel.gemm import gemm_tiled_compute
 from software_model._matmul_pimsab import compile_and_simulate_pimsab
 from software_model._matmul_simdram import compile_and_simulate_simdram
+import itertools
 
 
 class BatchedMatmul(Operator):
@@ -308,19 +311,51 @@ class Matmul(Operator):
 
         return list(permutations)
 
- 
+    
+    def generate_possible_mappings(self, parallelisms, dims):
+        # Generate all possible mappings
+        all_distributions = []
+
+        # Generate all assignments: one bucket index per item
+        for assignment in itertools.product(range(len(dims)), repeat=len(parallelisms)):
+            # Create empty buckets
+            buckets = [[] for _ in range(len(dims))]
+            for item, bucket_index in zip(parallelisms, assignment):
+                buckets[bucket_index].append(item)
+            all_distributions.append(buckets)
+
+        mappings = []
+        for distribution in all_distributions:
+            # convert to mapping string format
+            mapping_str = ""
+            for bucket, dim in zip(distribution, dims):
+                mapping_str += dim + "".join(bucket)
+            mappings.append(mapping_str)
+        return mappings
+
     def find_simdram_mapping(self,pcb_module: Device, debug=False):
         assert pcb_module.type == 'simdram'
         min_latency = 2**63 - 1
         best_mapping = None
-        tile_mapping_list = ['MANBKD', 'MABNKD', 'MNABKD', 'MDNKAB']
+        # construct tile mapping list for all possible tile mapping
+        tile_mapping_list = []
+        parallelisms = pcb_module.compute_module.parallelisms.keys()
+        dims = ['M', 'N', 'K']
+        tile_mapping_list = self.generate_possible_mappings(parallelisms, dims)
+        # print(f"tile_mapping_list: {tile_mapping_list}")
+        
+        # tile_mapping_list = ['MANBCKDR', 'MABNCKDR', 'MNABCKDR', 'MDNCKABR'] # TODO: try more design space
         arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
         if self.M == 1 or self.N == 1:
-            tile_mapping_list = ['MNABKD', 'MNAKBD', 'MNKABD']
+            # tile_mapping_list = ['MNABCKDR', 'MNACKBDR', 'MNCKABDR']
+            dims = ['N', 'K']
+            tile_mapping_list = self.generate_possible_mappings(parallelisms, dims)
+            tile_mapping_list = ['M'+mapping for mapping in tile_mapping_list]
             arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
+        self.dse_csv_data = []
         for tile_mapping_str in tile_mapping_list:
             for arr_mapping_str in arr_mapping_list:
-                tile_mapping = Mapping.tile_mapping_extraction(tile_mapping_str)
+                tile_mapping = Mapping.tile_mapping_extraction(pcb_module, tile_mapping_str)
                 arr_mapping = Mapping.arr_mapping_extraction(arr_mapping_str)
                 with_PE = True
                 broadcast = 'AB'
@@ -330,6 +365,7 @@ class Matmul(Operator):
                 if latency < min_latency:
                     min_latency = latency
                     best_mapping = strategy
+                self.dse_csv_data.append(self.stats.toCSV())
         if debug:
             print(f"find_simdram_mapping: Best mapping: {best_mapping}")
         return best_mapping
@@ -832,6 +868,7 @@ class Matmul(Operator):
             if compile_mode == "exhaustive":
                 print(f"simdram matmul: M={self.M}, N={self.N}, K={self.K}")
                 strategy = self.find_simdram_mapping(pcb_module, debug=False)
+                # print(strategy)
             elif compile_mode == "specific":
                 assert strategy is not None  
             return compile_and_simulate_simdram(self, pcb_module, strategy=strategy, debug=debug)

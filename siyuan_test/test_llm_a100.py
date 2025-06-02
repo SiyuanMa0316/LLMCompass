@@ -12,6 +12,8 @@ seq_len=1024
 precision = "fp16"
 specs = read_architecture_template(f"configs/GA100x1_{precision}.json")
 system = template_to_system(specs)
+print(f"memory bandwidth: {system.device.io_module.bandwidth}B/s")
+print(f"flops: {system.device.compute_module.total_systolic_array_flops/1e12}TFLOPS")
 model_prefill = TransformerBlockInitComputationTP(
         d_model=12288,
         n_heads=96,

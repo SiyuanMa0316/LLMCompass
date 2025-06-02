@@ -3,8 +3,8 @@
     "type": "simdram",
 
     "compute_module":{
-        "channel_count": 1,
-        "rank_count": 1,
+        "channel_count": 32,
+        "rank_count": 32,
         "bank_count": 16,
         "bank": {
             "device_count": 8,

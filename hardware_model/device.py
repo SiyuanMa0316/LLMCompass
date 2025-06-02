@@ -18,7 +18,9 @@ class Device:
         self.io_module = io_module
         self.memory_module = memory_module
 
-
+    def info(self):
+        return self.compute_module.info() + "\n" + self.memory_module.info()
+        
 device_dict = {
     "A100_80GB_fp16": Device(
         "systolic",
