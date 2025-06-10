@@ -10,7 +10,7 @@ layers = 96
 bs=1
 seq_len=1024
 precision = "int8"
-specs = read_architecture_template(f"configs/GA100x1_{precision}.json")
+specs = read_architecture_template(f"configs/H100x1_{precision}.json")
 system = template_to_system(specs)
 print(f"memory bandwidth: {system.device.io_module.bandwidth}B/s")
 print(f"flops: {system.device.compute_module.total_systolic_array_flops/1e12}TFLOPS")

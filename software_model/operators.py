@@ -56,6 +56,24 @@ class Reshape(Operator):
         self.output_shape = output_shape
         output = Tensor(output_shape, self.data_type)
         return output
+    
+class Repeat(Operator):
+    def __init__(self, data_type: DataType):
+        super().__init__(0, 0, 0, 0, data_type)
+        self.input_shape = None
+        self.output_shape = None
+
+    def __call__(self, input: Tensor, repeats: List[int]) -> Tensor:
+        self.flop_count = 0
+        self.load_count = 0
+        self.store_count = 0
+        self.io_count = 0
+        self.peak_memory_usage = 0
+        self.input_shape = input.shape
+        self.output_shape = [self.input_shape[i]* repeats[i] for i in range(len(self.input_shape))]
+        output = Tensor(self.output_shape, self.data_type)
+        return output
+
 
 
 class Concat(Operator):

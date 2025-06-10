@@ -1,0 +1,9 @@
+{
+    "name" : "Llama-3.1-70B",
+    "num_layers": 80,
+    "model_dimension": 8192,
+    "num_attention_heads": 64,
+    "num_key_value_heads": 8,
+    "ffn_dimension": 28672,
+    "activation_function": "silu"
+}

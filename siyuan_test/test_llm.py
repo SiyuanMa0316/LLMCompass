@@ -1,12 +1,14 @@
 from design_space_exploration.dse import template_to_system, template_to_system_pimsab, read_architecture_template
-from software_model.transformer import (
+from software_model.transformer_Llama import (
     TransformerBlockInitComputationTP,
     TransformerBlockAutoRegressionTP,
 )
+from software_model.transformer_hyper import Transformer_hyper
 from software_model.utils import data_type_dict, Tensor
 
-
-layers = 96
+llm_hyper = Transformer_hyper()
+llm_hyper.read_from_json("LLM_hyper/llama-3.1-70b.json")
+layers = llm_hyper.num_layers
 bs=1
 seq_len=1024
 precision = "int8"
@@ -15,13 +17,15 @@ system = template_to_system(specs)
 print(f"memory bandwidth: {system.device.io_module.bandwidth}B/s")
 print(f"flops: {system.device.compute_module.total_systolic_array_flops/1e12}TFLOPS")
 model_prefill = TransformerBlockInitComputationTP(
-        d_model=12288,
-        n_heads=96,
+        d_model=llm_hyper.d_model,
+        n_heads=llm_hyper.num_heads,
+        n_kv_heads=llm_hyper.num_kv_heads,
+        ffn_dim=llm_hyper.ffn_dim,
         device_count=1,
         data_type=data_type_dict[precision],
     )
 _ = model_prefill(
-	Tensor([bs, seq_len, 12288], data_type_dict[precision])
+	Tensor([bs, seq_len, llm_hyper.d_model], data_type_dict[precision])
 )
 prefill_latency_simulated = model_prefill.compile_and_simulate(
 	system, "heuristic-GPU"
@@ -32,13 +36,15 @@ print(f"GPT-3 {layers} layers prefill latency: {E2E_prefill_latency}")
 
 output_len = 2048
 model_decode = TransformerBlockAutoRegressionTP(
-        d_model=12288,
-        n_heads=96,
+        d_model=llm_hyper.d_model,
+        n_heads=llm_hyper.num_heads,
+        n_kv_heads=llm_hyper.num_kv_heads,
+        ffn_dim=llm_hyper.ffn_dim,
         device_count=1,
         data_type=data_type_dict[precision],
     )
 _ = model_decode(
-    Tensor([bs, 1, 12288], data_type_dict[precision]), seq_len
+    Tensor([bs, 1, llm_hyper.d_model], data_type_dict[precision]), seq_len
 )
 decode_latency_simulated = model_decode.compile_and_simulate(
     system, "heuristic-GPU"

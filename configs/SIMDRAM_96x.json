@@ -9,7 +9,7 @@
         "bank": {
             "device_count": 8,
             "array_count": 64,
-            "subarray_count": 32,
+            "subarray_count": 1,
             "array_cols": 128,
             "array_rows": 131072,
             "device_data_width": 8,
