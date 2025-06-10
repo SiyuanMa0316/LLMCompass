@@ -6,9 +6,11 @@ from software_model.transformer_Llama import (
 from software_model.transformer_hyper import Transformer_hyper
 from software_model.utils import data_type_dict, Tensor
 
-specs = read_architecture_template("configs/SIMDRAM_STD.json")
+specs = read_architecture_template("configs/SIMDRAM_96x_arr512.json")
 system = template_to_system(specs)
 simdram = system.device
+simdram.compute_module.channel_count = 1
+simdram.compute_module.rank_count = 1
 print('SimDRAM configuration for each pipeline stage:')
 print(simdram.info())
 
