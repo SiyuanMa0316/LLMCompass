@@ -61,6 +61,7 @@ class ComputeModuleSIMDRAM:
         bank: Bank,
         bank_count,
         with_PE: bool,
+        bit_parallel: bool = False,
         overhead: Overhead = overhead_dict["SIMDRAM"],
     ):
         self.channel_count = channel_count
@@ -71,8 +72,16 @@ class ComputeModuleSIMDRAM:
         self.overhead = overhead
         self.bandwidth = bank.bandwidth * bank_count * rank_count * channel_count
         self.with_PE = with_PE
-        self.gops = channel_count * rank_count * bank_count * bank.arr_count * bank.subarr_count * bank.arr_cols *2 / 453.3
-
+        self.bit_parallel = bit_parallel
+        # if with_PE:
+        #     if bit_parallel:
+        #         self.op_latency_dict = simdram_PE_op_latency_dict
+        #     else:
+        #         self.op_latency_dict = simdram_op_latency_dict
+        if bit_parallel:
+            self.gops = channel_count * rank_count * bank_count * bank.arr_count * bank.subarr_count * bank.arr_cols / 8 *2 / (14.16*6)
+        else:
+            self.gops = channel_count * rank_count * bank_count * bank.arr_count * bank.subarr_count * bank.arr_cols *2 / 453.3
         self.parallelisms = {}
         self.parallelisms['C'] = self.channel_count
         self.parallelisms['R'] = self.rank_count
