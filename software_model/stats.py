@@ -13,6 +13,8 @@ class Stats:
         self.total_reduction_latency = 0
         self.io_latency = 0
         self.simd_utilization = 0
+        self.total_simd_lane = 0
+        self.used_simd_lane = 0
         # self.tiling_utilization = {"A": 0, "B": 0, "D": 0, "R": 0, "C": 0}
         self.tiling_utilization = {c: 0 for c in device.compute_module.parallelisms.keys()}
         self.capacity_utilization = 0
@@ -142,8 +144,6 @@ class Stats:
             return f"{base_output}{debug_output}"
 
         return base_output
-
-
 
     def __str__(self) -> str:
         return self.to_string(debug=False)

@@ -19,6 +19,17 @@ from hardware_model.system import System
 import csv
 
 
+def dump_log(logs: dict, name: str, e2e_latency, stats, overhead):
+    logs[name] = {}
+    logs[name]['latency'] = e2e_latency
+    logs[name]['compute_latency'] = stats.compute_latency
+    logs[name]['io_latency'] = stats.io_latency
+    logs[name]['kernel_launch_overhead'] = overhead
+    logs[name]['simd_utilization'] = stats.simd_utilization
+    logs[name]['tiling_utilization'] = stats.tiling_utilization
+    logs[name]['capacity_utilization'] = stats.capacity_utilization
+    return logs
+
 class TransformerBlockInitComputationTP(Operator):
     def __init__(self, d_model, n_heads, device_count, data_type: DataType):
         super().__init__(0, 0, 0, 0, data_type)
@@ -214,76 +225,93 @@ class TransformerBlockInitComputationTP(Operator):
 
         # matmul
         logs = {}
+        launch_overhead = device.compute_module.overhead.matmul
         print(f"simulating qkv: ")
         qkv_latency = 3 * (
             self.Q_proj.compile_and_simulate(device, compile_mode=compile_mode, strategy=qkv_mapping)
-            + device.compute_module.overhead.matmul
+            + launch_overhead
         )
         logs['qkv'] = {}
         logs['qkv']['latency'] = 3*qkv_latency
         logs['qkv']['compute_latency'] = 3*self.Q_proj.stats.compute_latency
         logs['qkv']['io_latency'] = 3*self.Q_proj.stats.io_latency
-        logs['qkv']['kernel_launch_overhead'] = 3*device.compute_module.overhead.matmul
+        logs['qkv']['kernel_launch_overhead'] = 3*launch_overhead
+
+        logs['qkv']['simd_utilization'] = self.Q_proj.stats.simd_utilization
+        logs['qkv']['tiling_utilization'] = self.Q_proj.stats.tiling_utilization
+        logs['qkv']['capacity_utilization'] = self.Q_proj.stats.capacity_utilization
         print(f"qkv latency: {qkv_latency}, compute latency: {self.Q_proj.stats.compute_latency}, io overhead: {self.Q_proj.stats.io_latency}")
 
         print("simulating q_mul_k")
         q_mul_k_latency = (
             self.Q_mul_K.compile_and_simulate(device, compile_mode=compile_mode, strategy=q_mul_k_mapping, debug=False)
-            + device.compute_module.overhead.matmul
+            + launch_overhead
         )
-        logs['q_mul_k'] = {}
-        logs['q_mul_k']['latency'] = q_mul_k_latency
-        logs['q_mul_k']['compute_latency'] = self.Q_mul_K.stats.compute_latency
-        logs['q_mul_k']['io_latency'] = self.Q_mul_K.stats.io_latency
-        logs['q_mul_k']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['q_mul_k'] = {}
+        # logs['q_mul_k']['latency'] = q_mul_k_latency
+        # logs['q_mul_k']['compute_latency'] = self.Q_mul_K.stats.compute_latency
+        # logs['q_mul_k']['io_latency'] = self.Q_mul_K.stats.io_latency
+        # logs['q_mul_k']['kernel_launch_overhead'] = launch_overhead
         print(f"q_mul_k latency: {q_mul_k_latency}, compute latency: {self.Q_mul_K.stats.compute_latency}, io overhead: {self.Q_mul_K.stats.io_latency}")
+
+        logs = dump_log(logs, 'q_mul_k', q_mul_k_latency, self.Q_mul_K.stats, launch_overhead)
 
         print("simulating a_mul_v")
         a_mul_v_latency = (
             self.A_mul_V.compile_and_simulate(device, compile_mode=compile_mode, strategy=a_mul_v_mapping)
-            + device.compute_module.overhead.matmul
+            + launch_overhead
         )
-        logs['a_mul_v'] = {}
-        logs['a_mul_v']['latency'] = a_mul_v_latency
-        logs['a_mul_v']['compute_latency'] = self.A_mul_V.stats.compute_latency
-        logs['a_mul_v']['io_latency'] = self.A_mul_V.stats.io_latency
-        logs['a_mul_v']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['a_mul_v'] = {}
+        # logs['a_mul_v']['latency'] = a_mul_v_latency
+        # logs['a_mul_v']['compute_latency'] = self.A_mul_V.stats.compute_latency
+        # logs['a_mul_v']['io_latency'] = self.A_mul_V.stats.io_latency
+        # logs['a_mul_v']['kernel_launch_overhead'] = launch_overhead
+
+        logs = dump_log(logs, 'a_mul_v', a_mul_v_latency, self.A_mul_V.stats, launch_overhead)
         print(f"a_mul_v latency: {a_mul_v_latency}, compute latency: {self.A_mul_V.stats.compute_latency}, io overhead: {self.A_mul_V.stats.io_latency}")
 
         print("simulating h_matmul0")
         h_matmul0_latency = (
             self.H_matmul0.compile_and_simulate(device, compile_mode=compile_mode, strategy=h_matmul0_mapping)
-            + device.compute_module.overhead.matmul
+            + launch_overhead
         )
-        logs['h_matmul0'] = {}
-        logs['h_matmul0']['latency'] = h_matmul0_latency
-        logs['h_matmul0']['compute_latency'] = self.H_matmul0.stats.compute_latency
-        logs['h_matmul0']['io_latency'] = self.H_matmul0.stats.io_latency
-        logs['h_matmul0']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['h_matmul0'] = {}
+        # logs['h_matmul0']['latency'] = h_matmul0_latency
+        # logs['h_matmul0']['compute_latency'] = self.H_matmul0.stats.compute_latency
+        # logs['h_matmul0']['io_latency'] = self.H_matmul0.stats.io_latency
+        # logs['h_matmul0']['kernel_launch_overhead'] = launch_overhead
+
+        logs = dump_log(logs, 'h_matmul0', h_matmul0_latency, self.H_matmul0.stats, launch_overhead)
         print(f"h_matmul0 latency: {h_matmul0_latency}, compute latency: {self.H_matmul0.stats.compute_latency}, io overhead: {self.H_matmul0.stats.io_latency}")
 
         print("simulating h1_matmul1")
         h1_matmul1_latency = (
             self.H_matmul1.compile_and_simulate(device, compile_mode=compile_mode, strategy=h1_matmul1_mapping)
-            + device.compute_module.overhead.matmul
+            + launch_overhead
         )
-        logs['h1_matmul1'] = {}
-        logs['h1_matmul1']['latency'] = h1_matmul1_latency
-        logs['h1_matmul1']['compute_latency'] = self.H_matmul1.stats.compute_latency
-        logs['h1_matmul1']['io_latency'] = self.H_matmul1.stats.io_latency
-        logs['h1_matmul1']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['h1_matmul1'] = {}
+        # logs['h1_matmul1']['latency'] = h1_matmul1_latency
+        # logs['h1_matmul1']['compute_latency'] = self.H_matmul1.stats.compute_latency
+        # logs['h1_matmul1']['io_latency'] = self.H_matmul1.stats.io_latency
+        # logs['h1_matmul1']['kernel_launch_overhead'] = launch_overhead
+
+        
+        logs = dump_log(logs, 'h1_matmul1', h1_matmul1_latency, self.H_matmul1.stats, launch_overhead)
+
         print(f"h1_matmul1 latency: {h1_matmul1_latency}, compute latency: {self.H_matmul1.stats.compute_latency}, io overhead: {self.H_matmul1.stats.io_latency}")
 
         print("simulating h2_matmul2")
         h2_matmul2_latency = (
             self.H_matmul2.compile_and_simulate(device, compile_mode=compile_mode, strategy=h2_matmul2_mapping)
-            + device.compute_module.overhead.matmul
+            + launch_overhead
         )
-        logs['h2_matmul2'] = {}
-        logs['h2_matmul2']['latency'] = h2_matmul2_latency
-        logs['h2_matmul2']['compute_latency'] = self.H_matmul2.stats.compute_latency
-        logs['h2_matmul2']['io_latency'] = self.H_matmul2.stats.io_latency
-        logs['h2_matmul2']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['h2_matmul2'] = {}
+        # logs['h2_matmul2']['latency'] = h2_matmul2_latency
+        # logs['h2_matmul2']['compute_latency'] = self.H_matmul2.stats.compute_latency
+        # logs['h2_matmul2']['io_latency'] = self.H_matmul2.stats.io_latency
+        # logs['h2_matmul2']['kernel_launch_overhead'] = launch_overhead
+        
+        logs = dump_log(logs, 'h2_matmul2', h2_matmul2_latency, self.H_matmul2.stats, launch_overhead)
         print(f"h2_matmul2 latency: {h2_matmul2_latency}, compute latency: {self.H_matmul2.stats.compute_latency}, io overhead: {self.H_matmul2.stats.io_latency}")
         print("finish matmul simulation")
 
@@ -298,8 +326,8 @@ class TransformerBlockInitComputationTP(Operator):
 
        
 
-        print(f"matmul total overhead: {8*device.compute_module.overhead.matmul}")
-        print(f"matmul total latency w/o overhead: {matmul_total_latency - 8*device.compute_module.overhead.matmul}")
+        print(f"matmul total overhead: {8*launch_overhead}")
+        print(f"matmul total latency w/o overhead: {matmul_total_latency - 8*launch_overhead}")
         print(f"matmul total latency: {matmul_total_latency}")
 
         # normalization
@@ -329,32 +357,44 @@ class TransformerBlockInitComputationTP(Operator):
             allreduce_total_latency = 0
 
         #log latencies to a csv file
-        with open('transformer_prefill_latency_log.csv', mode='w', newline='') as file:
+        with open('transformer_prefill_profile.csv', mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([
+            writer.writerow(['Entry',
                 'Q_K_V', 'Q_mul_k', 'A_mul_V', 
                 'Wo_proj', 'W1_proj', 'W2_proj', 
                 'Softmax', 'Layernorm', 
                 'GeLU', 'Allreduce'
             ])
-            writer.writerow([
-                qkv_latency, q_mul_k_latency, a_mul_v_latency, 
-                h_matmul0_latency, h1_matmul1_latency, h2_matmul2_latency, 
-                softmax_latency, layernorm_latency,
-                gelu_latency, allreduce_latency
-            ])
-            writer.writerow([
-                logs['qkv']['compute_latency'], logs['q_mul_k']['compute_latency'], logs['a_mul_v']['compute_latency'],
-                logs['h_matmul0']['compute_latency'], logs['h1_matmul1']['compute_latency'], logs['h2_matmul2']['compute_latency']
-            ])
-            writer.writerow([
-                logs['qkv']['io_latency'], logs['q_mul_k']['io_latency'], logs['a_mul_v']['io_latency'],
-                logs['h_matmul0']['io_latency'], logs['h1_matmul1']['io_latency'], logs['h2_matmul2']['io_latency']
-            ])
-            writer.writerow([
-                logs['qkv']['kernel_launch_overhead'], logs['q_mul_k']['kernel_launch_overhead'], logs['a_mul_v']['kernel_launch_overhead'],
-                logs['h_matmul0']['kernel_launch_overhead'], logs['h1_matmul1']['kernel_launch_overhead'], logs['h2_matmul2']['kernel_launch_overhead']
-            ])
+            # writer.writerow(['End2End Latency',
+            #     qkv_latency, q_mul_k_latency, a_mul_v_latency, 
+            #     h_matmul0_latency, h1_matmul1_latency, h2_matmul2_latency, 
+            #     softmax_latency, layernorm_latency,
+            #     gelu_latency, allreduce_latency
+            # ])
+
+            keys = ['entry','qkv', 'q_mul_k', 'a_mul_v', 'h_matmul0', 'h1_matmul1', 'h2_matmul2']
+
+            logs['entry'] = {'latency': 'latency', 'compute_latency': 'compute_latency', 'io_latency': 'io_latency', 
+                             'kernel_launch_overhead': 'kernel_launch_overhead', 'tiling_utilization': 'tiling_utilization',
+                             'simd_utilization': 'simd_utilization', 'capacity_utilization': 'capacity_utilization'}
+            
+
+            latency_row = [logs[key]['latency'] for key in keys]
+            compute_latency_row = [logs[key]['compute_latency'] for key in keys]
+            io_latency_row = [logs[key]['io_latency'] for key in keys]
+            launch_overhead_row = [logs[key]['kernel_launch_overhead'] for key in keys]
+            simd_utilization_row = [logs[key]['simd_utilization'] for key in keys]
+            capacity_utilization_row = [logs[key]['capacity_utilization'] for key in keys]
+            tiling_utilization_row = [logs[key]['tiling_utilization'] for key in keys]
+
+            writer.writerow(latency_row)
+            writer.writerow(compute_latency_row)
+            writer.writerow(io_latency_row)
+            writer.writerow(launch_overhead_row)
+            writer.writerow(simd_utilization_row)
+            writer.writerow(capacity_utilization_row)
+            writer.writerow(tiling_utilization_row)
+
 
         # others
 
@@ -373,7 +413,7 @@ class TransformerBlockInitComputationTP(Operator):
             + gelu_latency
             + allreduce_total_latency
         )
-        self.simluate_log = f"{qkv_latency}, {q_mul_k_latency}, {a_mul_v_latency}, {h_matmul0_latency}, {h1_matmul1_latency}, {h2_matmul2_latency}, {softmax_latency}, {layernorm_latency}, {layernorm_latency}, {gelu_latency}, {allreduce_latency}, {allreduce_latency}"
+        self.simulate_log = f"{qkv_latency}, {q_mul_k_latency}, {a_mul_v_latency}, {h_matmul0_latency}, {h1_matmul1_latency}, {h2_matmul2_latency}, {softmax_latency}, {layernorm_latency}, {layernorm_latency}, {gelu_latency}, {allreduce_latency}, {allreduce_latency}"
         return self.latency
 
     def compile_and_simulate_gpu(self, system: System, compile_mode: str):
@@ -486,7 +526,7 @@ class TransformerBlockInitComputationTP(Operator):
             + gelu_latency
             + allreduce_total_latency
         )
-        self.simluate_log = f"{qkv_latency}, {q_mul_k_latency}, {a_mul_v_latency}, {h_matmul0_latency}, {h1_matmul1_latency}, {h2_matmul2_latency}, {softmax_latency}, {layernorm_latency}, {layernorm_latency}, {gelu_latency}, {allreduce_latency}, {allreduce_latency}"
+        self.simulate_log = f"{qkv_latency}, {q_mul_k_latency}, {a_mul_v_latency}, {h_matmul0_latency}, {h1_matmul1_latency}, {h2_matmul2_latency}, {softmax_latency}, {layernorm_latency}, {layernorm_latency}, {gelu_latency}, {allreduce_latency}, {allreduce_latency}"
         return self.latency
     def compile_and_simulate(self, system: System, compile_mode: str = "exhaustive"):
         device = system.device
@@ -790,7 +830,7 @@ class TransformerBlockAutoRegressionTP(Operator):
             h2_matmul2_mapping = None
         #create  logs
         logs = {}
-        
+        launch_overhead = device.compute_module.overhead.matmul
         qkv_latency = 3 * (
             self.Q_proj.compile_and_simulate(device, compile_mode=compile_mode, strategy=qkv_mapping)
             + device.compute_module.overhead.matmul
@@ -800,6 +840,11 @@ class TransformerBlockAutoRegressionTP(Operator):
         logs['qkv']['compute_latency'] = 3*self.Q_proj.stats.compute_latency
         logs['qkv']['io_latency'] = 3*self.Q_proj.stats.io_latency
         logs['qkv']['kernel_launch_overhead'] = 3*device.compute_module.overhead.matmul
+        logs['qkv']['simd_utilization'] = self.Q_proj.stats.simd_utilization
+        logs['qkv']['tiling_utilization'] = self.Q_proj.stats.tiling_utilization
+        logs['qkv']['capacity_utilization'] = self.Q_proj.stats.capacity_utilization
+
+
         print(f"qkv latency: {qkv_latency}, compute latency: {3*self.Q_proj.stats.compute_latency}, io overhead: {3*self.Q_proj.stats.io_latency}, kernel launch overhead: {3*device.compute_module.overhead.matmul}")
 
         print("simulating q_mul_k")
@@ -807,11 +852,15 @@ class TransformerBlockAutoRegressionTP(Operator):
             self.Q_mul_K.compile_and_simulate(device, compile_mode=compile_mode, strategy=q_mul_k_mapping, debug=False)
             + device.compute_module.overhead.matmul
         )
-        logs['q_mul_k'] = {}
-        logs['q_mul_k']['latency'] = q_mul_k_latency
-        logs['q_mul_k']['compute_latency'] = self.Q_mul_K.stats.compute_latency
-        logs['q_mul_k']['io_latency'] = self.Q_mul_K.stats.io_latency
-        logs['q_mul_k']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['q_mul_k'] = {}
+        # logs['q_mul_k']['latency'] = q_mul_k_latency
+        # logs['q_mul_k']['compute_latency'] = self.Q_mul_K.stats.compute_latency
+        # logs['q_mul_k']['io_latency'] = self.Q_mul_K.stats.io_latency
+        # logs['q_mul_k']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+
+
+        logs = dump_log(logs, 'q_mul_k', q_mul_k_latency, self.Q_mul_K.stats, launch_overhead)
+
         print(f"q_mul_k latency: {q_mul_k_latency}, compute latency: {self.Q_mul_K.stats.compute_latency}, io overhead: {self.Q_mul_K.stats.io_latency}, kernel launch overhead: {device.compute_module.overhead.matmul}")
 
         print("simulating a_mul_v")
@@ -819,11 +868,13 @@ class TransformerBlockAutoRegressionTP(Operator):
             self.A_mul_V.compile_and_simulate(device, compile_mode=compile_mode, strategy=a_mul_v_mapping)
             + device.compute_module.overhead.matmul
         )
-        logs['a_mul_v'] = {}
-        logs['a_mul_v']['latency'] = a_mul_v_latency
-        logs['a_mul_v']['compute_latency'] = self.A_mul_V.stats.compute_latency
-        logs['a_mul_v']['io_latency'] = self.A_mul_V.stats.io_latency
-        logs['a_mul_v']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['a_mul_v'] = {}
+        # logs['a_mul_v']['latency'] = a_mul_v_latency
+        # logs['a_mul_v']['compute_latency'] = self.A_mul_V.stats.compute_latency
+        # logs['a_mul_v']['io_latency'] = self.A_mul_V.stats.io_latency
+        # logs['a_mul_v']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        logs = dump_log(logs, 'a_mul_v', a_mul_v_latency, self.A_mul_V.stats, launch_overhead)
+
         print(f"a_mul_v latency: {a_mul_v_latency}, compute latency: {self.A_mul_V.stats.compute_latency}, io overhead: {self.A_mul_V.stats.io_latency}, kernel launch overhead: {device.compute_module.overhead.matmul}")
 
         print("simulating h_matmul0")
@@ -831,11 +882,14 @@ class TransformerBlockAutoRegressionTP(Operator):
             self.H_matmul0.compile_and_simulate(device, compile_mode=compile_mode, strategy=h_matmul0_mapping)
             + device.compute_module.overhead.matmul
         )
-        logs['h_matmul0'] = {}
-        logs['h_matmul0']['latency'] = h_matmul0_latency
-        logs['h_matmul0']['compute_latency'] = self.H_matmul0.stats.compute_latency
-        logs['h_matmul0']['io_latency'] = self.H_matmul0.stats.io_latency
-        logs['h_matmul0']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['h_matmul0'] = {}
+        # logs['h_matmul0']['latency'] = h_matmul0_latency
+        # logs['h_matmul0']['compute_latency'] = self.H_matmul0.stats.compute_latency
+        # logs['h_matmul0']['io_latency'] = self.H_matmul0.stats.io_latency
+        # logs['h_matmul0']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+
+
+        logs = dump_log(logs, 'h_matmul0', h_matmul0_latency, self.H_matmul0.stats, launch_overhead)
         print(f"h_matmul0 latency: {h_matmul0_latency}, compute latency: {self.H_matmul0.stats.compute_latency}, io overhead: {self.H_matmul0.stats.io_latency}, kernel launch overhead: {device.compute_module.overhead.matmul}")
 
         print("simulating h1_matmul1")
@@ -843,11 +897,13 @@ class TransformerBlockAutoRegressionTP(Operator):
             self.H_matmul1.compile_and_simulate(device, compile_mode=compile_mode, strategy=h1_matmul1_mapping)
             + device.compute_module.overhead.matmul
         )
-        logs['h1_matmul1'] = {}
-        logs['h1_matmul1']['latency'] = h1_matmul1_latency
-        logs['h1_matmul1']['compute_latency'] = self.H_matmul1.stats.compute_latency
-        logs['h1_matmul1']['io_latency'] = self.H_matmul1.stats.io_latency
-        logs['h1_matmul1']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['h1_matmul1'] = {}
+        # logs['h1_matmul1']['latency'] = h1_matmul1_latency
+        # logs['h1_matmul1']['compute_latency'] = self.H_matmul1.stats.compute_latency
+        # logs['h1_matmul1']['io_latency'] = self.H_matmul1.stats.io_latency
+        # logs['h1_matmul1']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+
+        logs = dump_log(logs, 'h1_matmul1', h1_matmul1_latency, self.H_matmul1.stats, launch_overhead)
         print(f"h1_matmul1 latency: {h1_matmul1_latency}, compute latency: {self.H_matmul1.stats.compute_latency}, io overhead: {self.H_matmul1.stats.io_latency}, kernel launch overhead: {device.compute_module.overhead.matmul}")
 
         print("simulating h2_matmul2")
@@ -855,11 +911,13 @@ class TransformerBlockAutoRegressionTP(Operator):
             self.H_matmul2.compile_and_simulate(device, compile_mode=compile_mode, strategy=h2_matmul2_mapping)
             + device.compute_module.overhead.matmul
         )
-        logs['h2_matmul2'] = {}
-        logs['h2_matmul2']['latency'] = h2_matmul2_latency
-        logs['h2_matmul2']['compute_latency'] = self.H_matmul2.stats.compute_latency
-        logs['h2_matmul2']['io_latency'] = self.H_matmul2.stats.io_latency
-        logs['h2_matmul2']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+        # logs['h2_matmul2'] = {}
+        # logs['h2_matmul2']['latency'] = h2_matmul2_latency
+        # logs['h2_matmul2']['compute_latency'] = self.H_matmul2.stats.compute_latency
+        # logs['h2_matmul2']['io_latency'] = self.H_matmul2.stats.io_latency
+        # logs['h2_matmul2']['kernel_launch_overhead'] = device.compute_module.overhead.matmul
+
+        logs = dump_log(logs, 'h2_matmul2', h2_matmul2_latency, self.H_matmul2.stats, launch_overhead)
         print(f"h2_matmul2 latency: {h2_matmul2_latency}, compute latency: {self.H_matmul2.stats.compute_latency}, io overhead: {self.H_matmul2.stats.io_latency}, kernel launch overhead: {device.compute_module.overhead.matmul}")
         print("finish matmul simulation")
 
@@ -905,32 +963,44 @@ class TransformerBlockAutoRegressionTP(Operator):
             allreduce_total_latency = 0
 
         #log latencies to a csv file
-        with open('transformer_decode_latency_log.csv', mode='w', newline='') as file:
+        with open('transformer_decode_profile_log.csv', mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow([
+            writer.writerow(['Entry',
                 'Q_K_V', 'Q_mul_k', 'A_mul_V', 
                 'Wo_proj', 'W1_proj', 'W2_proj', 
                 'Softmax', 'Layernorm', 
                 'GeLU', 'Allreduce'
             ])
-            writer.writerow([
-                qkv_latency, q_mul_k_latency, a_mul_v_latency, 
-                h_matmul0_latency, h1_matmul1_latency, h2_matmul2_latency, 
-                softmax_latency, layernorm_latency,
-                gelu_latency, allreduce_latency
-            ])
-            writer.writerow([
-                logs['qkv']['compute_latency'], logs['q_mul_k']['compute_latency'], logs['a_mul_v']['compute_latency'],
-                logs['h_matmul0']['compute_latency'], logs['h1_matmul1']['compute_latency'], logs['h2_matmul2']['compute_latency']
-            ])
-            writer.writerow([
-                logs['qkv']['io_latency'], logs['q_mul_k']['io_latency'], logs['a_mul_v']['io_latency'],
-                logs['h_matmul0']['io_latency'], logs['h1_matmul1']['io_latency'], logs['h2_matmul2']['io_latency']
-            ])
-            writer.writerow([
-                logs['qkv']['kernel_launch_overhead'], logs['q_mul_k']['kernel_launch_overhead'], logs['a_mul_v']['kernel_launch_overhead'],
-                logs['h_matmul0']['kernel_launch_overhead'], logs['h1_matmul1']['kernel_launch_overhead'], logs['h2_matmul2']['kernel_launch_overhead']
-            ])
+            # writer.writerow(['End2End Latency',
+            #     qkv_latency, q_mul_k_latency, a_mul_v_latency, 
+            #     h_matmul0_latency, h1_matmul1_latency, h2_matmul2_latency, 
+            #     softmax_latency, layernorm_latency,
+            #     gelu_latency, allreduce_latency
+            # ])
+            keys = ['entry','qkv', 'q_mul_k', 'a_mul_v', 'h_matmul0', 'h1_matmul1', 'h2_matmul2']
+
+            logs['entry'] = {'latency':'latency','compute_latency': 'compute_latency', 'io_latency': 'io_latency', 
+                             'kernel_launch_overhead': 'kernel_launch_overhead', 'tiling_utilization': 'tiling_utilization',
+                             'simd_utilization': 'simd_utilization', 'capacity_utilization': 'capacity_utilization'}
+            
+
+
+            latency_row = [logs[key]['latency'] for key in keys]
+            compute_latency_row = [logs[key]['compute_latency'] for key in keys]
+            io_latency_row = [logs[key]['io_latency'] for key in keys]
+            launch_overhead_row = [logs[key]['kernel_launch_overhead'] for key in keys]
+            simd_utilization_row = [logs[key]['simd_utilization'] for key in keys]
+            capacity_utilization_row = [logs[key]['capacity_utilization'] for key in keys]
+            tiling_utilization_row = [logs[key]['tiling_utilization'] for key in keys]
+
+            writer.writerow(latency_row)
+            writer.writerow(compute_latency_row)
+            writer.writerow(io_latency_row)
+            writer.writerow(launch_overhead_row)
+            writer.writerow(simd_utilization_row)
+            writer.writerow(capacity_utilization_row)
+            writer.writerow(tiling_utilization_row)
+
         # others
 
         # print
@@ -948,7 +1018,7 @@ class TransformerBlockAutoRegressionTP(Operator):
             + gelu_latency
             + allreduce_total_latency
         )
-        self.simluate_log = f"{qkv_latency}, {q_mul_k_latency}, {a_mul_v_latency}, {h_matmul0_latency}, {h1_matmul1_latency}, {h2_matmul2_latency}, {softmax_latency}, {layernorm_latency}, {layernorm_latency}, {gelu_latency}, {allreduce_latency}, {allreduce_latency}"
+        self.simulate_log = f"{qkv_latency}, {q_mul_k_latency}, {a_mul_v_latency}, {h_matmul0_latency}, {h1_matmul1_latency}, {h2_matmul2_latency}, {softmax_latency}, {layernorm_latency}, {layernorm_latency}, {gelu_latency}, {allreduce_latency}, {allreduce_latency}"
         return self.latency
     
     def compile_and_simulate_gpu(self, system: System, compile_mode: str):

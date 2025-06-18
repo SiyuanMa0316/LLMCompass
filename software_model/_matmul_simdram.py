@@ -41,59 +41,14 @@ def get_tile_dram_io_bandwidth(pcb_module: Device, dup: list, simd_utilization:d
             #for example, if data occupies "AB", the bandwidth is reduced by the utilization of A and B
             bandwidth *= simd_utilization[key]
 
-    # if 'A' in dup:
-    #     bandwidth /= pcb_module.compute_module.bank.arr_count
-    # if 'B' in dup:
-    #     bandwidth /= pcb_module.compute_module.bank_count
-    # if 'D' in dup:
-    #     bandwidth /= pcb_module.compute_module.bank.device_count
-    # if 'R' in dup:
-    #     bandwidth /= pcb_module.compute_module.rank_count
-    # if 'C' in dup:
-    #     bandwidth /= pcb_module.compute_module.channel_count
+
     return bandwidth
 
 def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2: int, word_size: float, dup: list, simd_utilization:dict) -> float:
-    # array_per_device_bank = pcb_module.compute_module.bank.arr_count
-    # device = pcb_module.compute_module.bank.device_count
-    # bank = pcb_module.compute_module.bank_count
-    # rank = pcb_module.compute_module.rank_count
-    # channel = pcb_module.compute_module.channel_count
-
-    # array_broadcast_enable = False
-    # bank_broadcast_enable = False
-    # rank_broadcast_enable = False
-    # channel_broadcast_enable = False
-    # latency = 0
-    # if 'A' in broad_cast:
-    #     array_broadcast_enable = True
-    # if 'B' in broad_cast:
-    #     bank_broadcast_enable = True
-    # if 'R' in broad_cast:
-    #     rank_broadcast_enable = True
-    # if 'C' in broad_cast:
-    #     channel_broadcast_enable = True
-    
-    # latency = tile_1 * tile_2 * word_size  / pcb_module.compute_module.bandwidth
-    # latency = tile_1 * tile_2 * word_size  / get_tile_io_bandwidth(pcb_module, dup)
+   
     data_volume, dup = data_duplication(pcb_module, tile_1, tile_2, word_size, dup, broad_cast, simd_utilization)
     latency = data_volume / get_tile_dram_io_bandwidth(pcb_module, dup, simd_utilization)
-    # # print(f"latency {latency} = {tile_1} * {tile_2} * {word_size} / {pcb_module.compute_module.bandwidth}")
-    # if 'A' in dup and not array_broadcast_enable:
-    #     # duplicate tile to every device
-    #     latency *= array_per_device_bank
-    # if 'B' in dup and not bank_broadcast_enable:
-    #     # duplicate tile to every bank
-    #     latency *= bank
-    # if 'D' in dup:
-    #     # duplicate tile to every device
-    #     latency *= device
-    # if 'R' in dup and not rank_broadcast_enable:
-    #     # duplicate tile to every rank
-    #     latency *= rank
-    # if 'C' in dup and not channel_broadcast_enable:
-    #     # duplicate tile to every channel
-    #     latency *= channel
+
     return latency
    
 
@@ -223,8 +178,10 @@ def get_arr_tile_latency(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_t
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_M / row_per_arr
         # if debug:
         #     print(f"get_arr_tile_latency: arr_tile_M={arr_tile_M}, arr_tile_N={arr_tile_N}, arr_tile_K={arr_tile_K}, arr_mapping={arr_mapping}, latency={arr_latency}=({arr_tile_M} * {mul_reduce_op_latency} + {acc_op_latency}) * 1e-9, parallelism_utilization={arr_tile_K/col_per_arr}, capacity_utilization={arr_tile_M*arr_tile_N/row_per_arr}")
-    self.stats.simd_utilization = max(self.stats.simd_utilization, simd_utilization)
     self.stats.capacity_utilization = max(self.stats.capacity_utilization, capacity_utilization)
+    self.stats.used_simd_lane += simd_utilization * col_per_arr
+    self.stats.total_simd_lane += col_per_arr
+    self.stats.simd_utilization = self.stats.used_simd_lane / self.stats.total_simd_lane
     # if debug:
     #     print(f"simd utilization: {simd_utilization}, capacity utilization: {capacity_utilization}")
     return arr_latency
@@ -258,28 +215,9 @@ def find_tile_size(self, pcb_module: Device, tiling, arr_tile_M, arr_tile_N, arr
     return tile_size
 
 def get_tile_latency(self, pcb_module: Device, strategy:Mapping, tile_size, debug=False):
-    # num_array = pcb_module.compute_module.bank.arr_count
-    # num_bank = pcb_module.compute_module.bank_count
-    # num_device = pcb_module.compute_module.bank.device_count
-    # num_rank = pcb_module.compute_module.rank_count
-    # num_channel = pcb_module.compute_module.channel_count
-    tiling = strategy.tile_mapping
-    # arr_tile_size = {'M': tile_size['M'], 'K': tile_size['K'], 'N': tile_size['N']}
-    # for key in tiling.keys():
-    #     val = tiling[key]
-    #     if val:
-    #         for c in val:
-    #             if c == 'A':
-    #                 arr_tile_size[key] = ceil(arr_tile_size[key] / num_array)
-    #             if c == 'B':
-    #                 arr_tile_size[key] = ceil(arr_tile_size[key] / num_bank)
-    #             if c == 'D':
-    #                 arr_tile_size[key] = ceil(arr_tile_size[key] / num_device)
-    #             if c == 'R':
-    #                 arr_tile_size[key] = ceil(arr_tile_size[key] / num_rank)
-    #             if c == 'C':
-    #                 arr_tile_size[key] = ceil(arr_tile_size[key] / num_channel)
 
+    tiling = strategy.tile_mapping
+    
     #extract duplication of matrices
     parallelisms = pcb_module.compute_module.parallelisms
     K_N_dup = []
@@ -309,49 +247,16 @@ def get_tile_latency(self, pcb_module: Device, strategy:Mapping, tile_size, debu
                     if c == dimension:
                         tiling_utilization[c] = min(1, arr_tile_size[key] / parallelisms[dimension])
                         arr_tile_size[key] = ceil(arr_tile_size[key] / parallelisms[dimension])
-                # if c == 'A':
-                #     tiling_utilization[c] = min(1, arr_tile_size[key] / num_array)
-                #     arr_tile_size[key] = ceil(arr_tile_size[key] / num_array)
-                #     # if debug: print(f"tiling_utilization[{c}]={tiling_utilization[c]}: {arr_tile_size[key]}, num_array: {num_array}")
-                # if c == 'B':
-                #     tiling_utilization[c] = min(1, arr_tile_size[key] / num_bank)
-                #     arr_tile_size[key] = ceil(arr_tile_size[key] / num_bank)
-                #     # if debug: print(f"tiling_utilization[{c}]={tiling_utilization[c]}: {arr_tile_size[key]}, num_bank: {num_bank}")
-                # if c == 'D':
-                #     tiling_utilization[c] = min(1, arr_tile_size[key] / num_device)
-                #     arr_tile_size[key] = ceil(arr_tile_size[key] / num_device)
-                #     # if debug: print(f"tiling_utilization[{c}]={tiling_utilization[c]}: {arr_tile_size[key]}, num_device: {num_device}")
-                # if c == 'R':
-                #     tiling_utilization[c] = min(1, arr_tile_size[key] / num_rank)
-                #     arr_tile_size[key] = ceil(arr_tile_size[key] / num_rank)
-                #     # if debug: print(f"tiling_utilization[{c}]={tiling_utilization[c]}: {arr_tile_size[key]}, num_rank: {num_rank}")
-                # if c == 'C':
-                #     tiling_utilization[c] = min(1, arr_tile_size[key] / num_channel)
-                #     arr_tile_size[key] = ceil(arr_tile_size[key] / num_channel)
-                    # if debug: print(f"tiling_utilization[{c}]={tiling_utilization[c]}: {arr_tile_size[key]}, num_channel: {num_channel}")
+               
     arr_mapping = strategy.arr_mapping
     arr_latency = get_arr_tile_latency(self, pcb_module, arr_tile_size['M'], arr_tile_size['N'], arr_tile_size['K'], arr_mapping, debug)
     MN_volumn_before_reduction = data_duplication(pcb_module, tile_size['M'], tile_size['N'], self.data_type.word_size, M_N_dup, '', tiling_utilization)[0]
-    # for c in parallelisms:
-    #     if c in tiling['K']:
-    #         if c == 'A':
-    #             MN_volumn_before_reduction *= num_array
-    #         if c == 'B':
-    #             MN_volumn_before_reduction *= num_bank
-    #         if c == 'D':
-    #             MN_volumn_before_reduction *= num_device
-    #         if c == 'R':
-    #             MN_volumn_before_reduction *= num_rank
-    #         if c == 'C':
-    #             MN_volumn_before_reduction *= num_channel
+
     K_reduction_latency =  MN_volumn_before_reduction / get_tile_dram_io_bandwidth(pcb_module, '', tiling_utilization) #each device contains M_tike*N_tile partial sum data, load all these to host and reduce. Can always use full bandwidth as data before reduction is across all parallelism dimensions.
     # K_reduction_latency =  tile_size['M'] * tile_size['N'] * self.data_type.word_size / get_tile_io_bandwidth(pcb_module, M_N_dup) #each device contains M_tike*N_tile partial sum data, load all these to host and reduce
     
     tile_compute_latency =  arr_latency + K_reduction_latency
 
-    # self.stats.total_compute_latency += tile_compute_latency
-    # self.stats.total_array_latency += arr_latency
-    # self.stats.total_reduction_latency += K_reduction_latency
     #compute io latencies
     if strategy.input_resident:
         # if input resident, we don't need to load M_K tile
