@@ -1,6 +1,25 @@
 from software_model.mapping import Mapping
 from hardware_model.device import Device
-
+class TileStats:
+    def __init__(self, tile_size=None, arr_tile_size=None, M_K_io_latency=None, K_N_io_latency=None, M_N_io_latency=None, tile_compute_latency=None, arr_latency=None, K_reduction_latency=None, tiling_utilization=None, col_utilization=None, capacity_utilization=None) -> None:
+        self.tile_size = tile_size
+        self.arr_tile_size = arr_tile_size
+        self.M_N_io_latency = M_N_io_latency
+        self.M_K_io_latency = M_K_io_latency
+        self.K_N_io_latency = K_N_io_latency
+        
+        self.arr_latency = arr_latency
+        self.K_reduction_latency = K_reduction_latency
+        if M_K_io_latency is not None and K_N_io_latency is not None and M_N_io_latency is not None and tile_compute_latency is not None and K_reduction_latency is not None:
+            self.latency = M_K_io_latency + K_N_io_latency + M_N_io_latency + tile_compute_latency + K_reduction_latency
+        self.compute_latency = tile_compute_latency
+        self.array_latency = arr_latency
+        self.reduction_latency = K_reduction_latency
+        if M_K_io_latency is not None and K_N_io_latency is not None and M_N_io_latency is not None:
+            self.io_latency = M_K_io_latency + K_N_io_latency + M_N_io_latency
+        self.col_utilization = col_utilization
+        self.tiling_utilization = tiling_utilization
+        self.capacity_utilization = capacity_utilization
 class Stats:
     def __init__ (self, device:Device,  strategy:Mapping) -> None:
         self.strategy = strategy
@@ -8,7 +27,6 @@ class Stats:
         self.arr_tile_size = {'M': 0, 'N': 0, 'K': 0}
         self.latency = 0
         self.compute_latency = 0
-        self.total_compute_latency = 0
         self.total_array_latency = 0
         self.total_reduction_latency = 0
         self.io_latency = 0

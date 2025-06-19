@@ -204,7 +204,7 @@ class TransformerBlockInitComputationTP(Operator):
         )
         return self.roofline_latency
     
-    def compile_and_simulate_simdram(self, system: System, compile_mode: str):
+    def compile_and_simulate_simdram(self, system: System, compile_mode: str, debug: bool = False):
         device = system.device
         interconnect = system.interconnect
        
@@ -228,7 +228,7 @@ class TransformerBlockInitComputationTP(Operator):
         launch_overhead = device.compute_module.overhead.matmul
         print(f"simulating qkv: ")
         qkv_latency = 3 * (
-            self.Q_proj.compile_and_simulate(device, compile_mode=compile_mode, strategy=qkv_mapping)
+            self.Q_proj.compile_and_simulate(device, compile_mode=compile_mode, strategy=qkv_mapping, debug=debug)
             + launch_overhead
         )
         logs['qkv'] = {}
@@ -244,7 +244,7 @@ class TransformerBlockInitComputationTP(Operator):
 
         print("simulating q_mul_k")
         q_mul_k_latency = (
-            self.Q_mul_K.compile_and_simulate(device, compile_mode=compile_mode, strategy=q_mul_k_mapping, debug=False)
+            self.Q_mul_K.compile_and_simulate(device, compile_mode=compile_mode, strategy=q_mul_k_mapping, debug=debug)
             + launch_overhead
         )
         # logs['q_mul_k'] = {}
@@ -258,7 +258,7 @@ class TransformerBlockInitComputationTP(Operator):
 
         print("simulating a_mul_v")
         a_mul_v_latency = (
-            self.A_mul_V.compile_and_simulate(device, compile_mode=compile_mode, strategy=a_mul_v_mapping)
+            self.A_mul_V.compile_and_simulate(device, compile_mode=compile_mode, strategy=a_mul_v_mapping, debug=debug)
             + launch_overhead
         )
         # logs['a_mul_v'] = {}
@@ -272,7 +272,7 @@ class TransformerBlockInitComputationTP(Operator):
 
         print("simulating h_matmul0")
         h_matmul0_latency = (
-            self.H_matmul0.compile_and_simulate(device, compile_mode=compile_mode, strategy=h_matmul0_mapping)
+            self.H_matmul0.compile_and_simulate(device, compile_mode=compile_mode, strategy=h_matmul0_mapping, debug=debug)
             + launch_overhead
         )
         # logs['h_matmul0'] = {}
@@ -286,7 +286,7 @@ class TransformerBlockInitComputationTP(Operator):
 
         print("simulating h1_matmul1")
         h1_matmul1_latency = (
-            self.H_matmul1.compile_and_simulate(device, compile_mode=compile_mode, strategy=h1_matmul1_mapping)
+            self.H_matmul1.compile_and_simulate(device, compile_mode=compile_mode, strategy=h1_matmul1_mapping, debug=debug)
             + launch_overhead
         )
         # logs['h1_matmul1'] = {}
@@ -302,7 +302,7 @@ class TransformerBlockInitComputationTP(Operator):
 
         print("simulating h2_matmul2")
         h2_matmul2_latency = (
-            self.H_matmul2.compile_and_simulate(device, compile_mode=compile_mode, strategy=h2_matmul2_mapping)
+            self.H_matmul2.compile_and_simulate(device, compile_mode=compile_mode, strategy=h2_matmul2_mapping, debug=debug)
             + launch_overhead
         )
         # logs['h2_matmul2'] = {}
@@ -528,10 +528,10 @@ class TransformerBlockInitComputationTP(Operator):
         )
         self.simulate_log = f"{qkv_latency}, {q_mul_k_latency}, {a_mul_v_latency}, {h_matmul0_latency}, {h1_matmul1_latency}, {h2_matmul2_latency}, {softmax_latency}, {layernorm_latency}, {layernorm_latency}, {gelu_latency}, {allreduce_latency}, {allreduce_latency}"
         return self.latency
-    def compile_and_simulate(self, system: System, compile_mode: str = "exhaustive"):
+    def compile_and_simulate(self, system: System, compile_mode: str = "exhaustive", debug: bool = False):
         device = system.device
         if device.type == "simdram":
-            return self.compile_and_simulate_simdram(system, compile_mode)
+            return self.compile_and_simulate_simdram(system, compile_mode, debug)
         else:
             return self.compile_and_simulate_gpu(system, compile_mode)
 

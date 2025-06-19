@@ -315,13 +315,19 @@ class Matmul(Operator):
     def generate_possible_mappings(self, parallelisms, dims):
         # Generate all possible mappings
         all_distributions = []
-
+        print(parallelisms)
+        parallelism_keys = list([key for key in parallelisms.keys() if parallelisms[key]>1])
+        fake_parallelism_keys = [key for key in parallelisms.keys() if key not in parallelism_keys]
+        # print(f"parallelism_keys: {parallelism_keys}")
+        # print(f"fake_parallelism_keys: {fake_parallelism_keys}")
         # Generate all assignments: one bucket index per item
-        for assignment in itertools.product(range(len(dims)), repeat=len(parallelisms)):
+        for assignment in itertools.product(range(len(dims)), repeat=len(parallelism_keys)):
+            #print(f"Assignment: {assignment}")
             # Create empty buckets
             buckets = [[] for _ in range(len(dims))]
-            for item, bucket_index in zip(parallelisms, assignment):
+            for item, bucket_index in zip(parallelism_keys, assignment):
                 buckets[bucket_index].append(item)
+            buckets[len(dims)-1] += fake_parallelism_keys
             all_distributions.append(buckets)
 
         mappings = []
@@ -339,7 +345,7 @@ class Matmul(Operator):
         best_mapping = None
         # construct tile mapping list for all possible tile mapping
         tile_mapping_list = []
-        parallelisms = pcb_module.compute_module.parallelisms.keys()
+        parallelisms = pcb_module.compute_module.parallelisms
         dims = ['M', 'N', 'K']
         tile_mapping_list = self.generate_possible_mappings(parallelisms, dims)
         # print(f"tile_mapping_list: {tile_mapping_list}")

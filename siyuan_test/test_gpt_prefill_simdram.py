@@ -22,7 +22,7 @@ model_prefill = TransformerBlockInitComputationTP(
 _ = model_prefill(
 	Tensor([bs, seq_len, 12288], data_type_dict["int8"])
 )
-prefill_latency_simulated = model_prefill.compile_and_simulate(system, compile_mode = "specific")
+prefill_latency_simulated = model_prefill.compile_and_simulate(system, compile_mode = "specific", debug=True)
 
 E2E_prefill_latency = prefill_latency_simulated * layers
 print(f"GPT-3 {layers} layers prefill latency: {E2E_prefill_latency}")
