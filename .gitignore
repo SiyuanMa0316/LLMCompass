@@ -9,3 +9,6 @@ transformer_latency_log.csv
 supply_chain_model*
 cost_model/
 *.log
+*.png
+*.pdf
+*.csv
