@@ -4,8 +4,12 @@ from software_model.transformer import (
     TransformerBlockAutoRegressionTP,
 )
 from software_model.utils import data_type_dict, Tensor
+import argparse
+parser = argparse.ArgumentParser(description="Test GPT-3-175B on DRAM PIM")
+parser.add_argument("--config", type=str, help="Path to the config file")
+args = parser.parse_args()
 
-specs = read_architecture_template("configs/SIMDRAM_96x.json")
+specs = read_architecture_template(args.config)
 system = template_to_system(specs)
 simdram = system.device
 print(simdram.info())

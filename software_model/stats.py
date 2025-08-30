@@ -20,6 +20,22 @@ class TileStats:
         self.col_utilization = col_utilization
         self.tiling_utilization = tiling_utilization
         self.capacity_utilization = capacity_utilization
+
+    def __str__(self):
+        return (f"Tile Size: {self.tile_size}, Arr Tile Size: {self.arr_tile_size}, "
+                f"M_K IO Latency: {self.M_K_io_latency}, K_N IO Latency: {self.K_N_io_latency}, "
+                f"M_N IO Latency: {self.M_N_io_latency}, Tile Compute Latency: {self.compute_latency}, "
+                f"Array Latency: {self.array_latency}, K Reduction Latency: {self.reduction_latency}, "
+                f"Total Latency: {self.latency}, Col Utilization: {self.col_utilization}, "
+                f"Tiling Utilization: {self.tiling_utilization}, Capacity Utilization: {self.capacity_utilization}")
+    def get_csv_header(self):
+        return ['tile_size', 'arr_tile_size', 'M_K_io_latency', 'K_N_io_latency', 'M_N_io_latency',
+                'compute_latency', 'array_latency', 'reduction_latency', 'latency',
+                'col_utilization', 'tiling_utilization', 'capacity_utilization']
+    def toCSV(self):
+        return [self.tile_size, self.arr_tile_size, self.M_K_io_latency, self.K_N_io_latency, self.M_N_io_latency,
+                self.compute_latency, self.array_latency, self.reduction_latency, self.latency,
+                self.col_utilization, self.tiling_utilization, self.capacity_utilization]
 class Stats:
     def __init__ (self, device:Device,  strategy:Mapping) -> None:
         self.strategy = strategy

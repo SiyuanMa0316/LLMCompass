@@ -3,19 +3,21 @@
     "type": "simdram",
 
     "compute_module":{
-        "channel_count": 16,
-        "rank_count": 16,
+        "host_channel_count": 10,
+        "channel_count": 10,
+        "rank_count": 64,
         "bank_count": 16,
         "bank": {
-            "device_count": 8,
+            "device_count": 16,
             "array_count": 64,
-            "subarray_count": 32,
-            "array_cols": 128,
+            "subarray_count": 1,
+            "array_cols": 256,
             "array_rows": 131072,
             "device_data_width": 8,
             "device_frequency_Hz": 3200e6
         },
-        "with_PE": true
+        "with_PE": true,
+        "bit_parallel": false
     },
 
     "io": {

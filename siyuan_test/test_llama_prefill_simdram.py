@@ -5,8 +5,12 @@ from software_model.transformer_Llama import (
 )
 from software_model.transformer_hyper import Transformer_hyper
 from software_model.utils import data_type_dict, Tensor
+import argparse
+parser = argparse.ArgumentParser(description="Test Llama on DRAM PIM")
+parser.add_argument("--config", type=str, help="Path to the config file")
+args = parser.parse_args()
 
-specs = read_architecture_template("configs/SIMDRAM_96x_arr512.json")
+specs = read_architecture_template(args.config)
 system = template_to_system(specs)
 simdram = system.device
 print(simdram.info())

@@ -25,6 +25,9 @@ class Bank:
         self.total_data_width = device_data_width * device_count
         self.effective_freq = effective_freq
         self.bandwidth = self.effective_freq * self.total_data_width / 8
+        self.capacity = (
+            self.device_count * self.arr_count * self.arr_cols * self.arr_rows / 8
+        )  # in bytes
 
 
 
@@ -56,6 +59,7 @@ overhead_dict = {
 class ComputeModuleSIMDRAM:
     def __init__(
         self,
+        host_channel_count: int,
         channel_count,
         rank_count,
         bank: Bank,
@@ -70,7 +74,7 @@ class ComputeModuleSIMDRAM:
         self.bank_count = bank_count
         self.clock_freq = bank.effective_freq
         self.overhead = overhead
-        self.bandwidth = bank.bandwidth * bank_count * rank_count * channel_count
+        self.bandwidth = bank.bandwidth * bank_count * rank_count * host_channel_count
         self.with_PE = with_PE
         self.bit_parallel = bit_parallel
         # if with_PE:
@@ -89,12 +93,14 @@ class ComputeModuleSIMDRAM:
         self.parallelisms['A'] = self.bank.arr_count
         self.parallelisms['S'] = self.bank.subarr_count
         self.parallelisms['D'] = self.bank.device_count
+        self.capacity = self.bank.capacity * self.bank_count * self.rank_count * self.channel_count
         
 
     def info(self):
         info_str = (f"simdram config: {self.channel_count}channels x {self.rank_count}ranks x {self.bank_count}banks x {self.bank.arr_count}arrays x {self.bank.subarr_count}subarrays x {self.bank.subarr_rows}subarr_rows x {self.bank.arr_cols}cols x {self.bank.device_count}devices, with_PE: {self.with_PE}\n"
                     f"simdram bw: {self.bandwidth/1e9}GB/s\n"
                     f"simdram ops: {self.gops/1e3}Tops\n"
+                    f"memory capacity: {self.capacity / 1024 / 1024 / 1024}GB\n"
                     )
         return info_str
 
@@ -103,11 +109,13 @@ compute_module_simdram_dict = {
     "simdram_standard": ComputeModuleSIMDRAM(
         1,
         1,
+        1,
         bank_dict["Bank_ddr4_2400"],
         16,
         overhead_dict["SIMDRAM"],
     ),
     "simdram_96x": ComputeModuleSIMDRAM(
+        12,
         12,
         8,
         bank_dict["Bank_ddr4_2400"],

@@ -3,16 +3,26 @@ from software_model.utils import data_type_dict, Tensor
 from software_model.mapping import Mapping
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
-M=1024
-K=12288
-N=12288
+import argparse
+parser = argparse.ArgumentParser(description="Test GEMM on DRAM PIM")
+parser.add_argument("--config", type=str, help="Path to the config file")
+parser.add_argument("-M", type=int, default=1024, help="Matrix A rows")
+parser.add_argument("-K", type=int, default=12288, help="Matrix A columns / Matrix B rows")
+parser.add_argument("-N", type=int, default=12288, help="Matrix B columns")
+args = parser.parse_args()
+
+
+M = args.M
+K = args.K
+N = args.N
 model = Matmul(data_type=data_type_dict["int8"])
 _ = model(
     Tensor([M, K], data_type_dict["int8"]),
     Tensor([K, N], data_type_dict["int8"]),
 )
 
-specs = read_architecture_template("configs/SIMDRAM_96x.json")
+
+specs = read_architecture_template(args.config)
 system = template_to_system(specs)
 
 simdram = system.device
@@ -51,7 +61,7 @@ csv_data.insert(0, csv_header)
 with open('test_gemm_simdram.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerows(csv_data)
-print(f"GEMM latency: {latency}ms")
+print(f"GEMM latency: {latency}s")
 
 
 # latency = model.compile_and_simulate(simdram, compile_mode="exhaustive", debug=False)

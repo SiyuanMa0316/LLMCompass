@@ -261,7 +261,7 @@ class TransformerBlock(Operator):
         print(f"skipping v_proj simulation, using k_proj")
         v_proj_latency = k_proj_latency
         self.V_proj.stats = self.K_proj.stats
-        logs = dump_log(logs, 'v_proj', v_proj_latency, self.v_proj.stats, launch_overhead)
+        logs = dump_log(logs, 'v_proj', v_proj_latency, self.V_proj.stats, launch_overhead)
         print(f"v_proj latency: {v_proj_latency}, compute latency: {self.V_proj.stats.compute_latency}, io overhead: {self.V_proj.stats.io_latency}")
 
         print(f"simulating q_mul_k: Batched_Matmul BS={self.Q_mul_K.bs} M={self.Q_mul_K.M}, K={self.Q_mul_K.K}, N={self.Q_mul_K.N}")
@@ -363,7 +363,7 @@ class TransformerBlock(Operator):
             #     softmax_latency, layernorm_latency,
             #     gelu_latency, allreduce_latency
             # ])
-            keys = ['entry','q_proj', 'k_proj', 'v_proj', 'q_mul_k', 'a_mul_v', 'h_matmul0', 'h1_matmul1', 'h2_matmul2']
+            keys = ['q_proj', 'k_proj', 'v_proj', 'q_mul_k', 'a_mul_v', 'h_matmul0', 'h1_matmul1', 'h2_matmul2']
 
             logs['entry'] = {'compute_latency': 'compute_latency', 'io_latency': 'io_latency', 
                              'kernel_launch_overhead': 'kernel_launch_overhead', 'tiling_utilization': 'tiling_utilization',

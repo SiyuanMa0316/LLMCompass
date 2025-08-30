@@ -12,7 +12,7 @@ _ = model(
     Tensor([K, N], data_type_dict["int8"]),
 )
 
-specs = read_architecture_template("configs/SIMDRAM_STD.json")
+specs = read_architecture_template("configs/ddr5.json")
 system = template_to_system(specs)
 
 simdram = system.device

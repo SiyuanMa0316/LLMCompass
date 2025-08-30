@@ -5,6 +5,7 @@ from software_model.utils import find_closest_divisor
 from software_model.mapping import Mapping
 from software_model.stats import Stats, TileStats
 import numpy as np
+import csv
 
 class MatmulTile:
     """
@@ -23,7 +24,7 @@ class MatmulTile:
     def get_tile_latency(self):
         return 0
 
-def data_duplication(pcb_module: Device, tile_1: int, tile_2: int, word_size: float, dup:list, broadcast: str, simd_utilization:dict) -> tuple:
+def data_duplication(pcb_module: Device, tile_1: int, tile_2: int, word_size: float, dup:list, broadcast: str, simd_utilization:dict, debug=False) -> tuple:
     """
     Calculate the data duplicated data volume based on the tile size and the duplication string, broadcast string.
     For example, if data is duplicated across arrays and banks, but bank_broadcast is enabled, then the data volume will be multiplied by number of arrays only.
@@ -32,8 +33,11 @@ def data_duplication(pcb_module: Device, tile_1: int, tile_2: int, word_size: fl
     The updated dup string indicates dimensions data needs to be duplicated implicitly by hardware.
     In the previous example, dup string AB will be updated to B
     """
+    data_volume = tile_1 * tile_2 * word_size
+    if debug:
+        print(f"{data_volume} = {tile_1} * {tile_2} * {word_size}")
     for key in pcb_module.compute_module.parallelisms.keys():
-        data_volume = tile_1 * tile_2 * word_size
+        
         # print(key, dup, broadcast)
         if key in dup and key not in broadcast:
             data_volume *= pcb_module.compute_module.parallelisms[key] * simd_utilization[key]
@@ -61,10 +65,14 @@ def get_tile_dram_io_bandwidth(pcb_module: Device, dup: list, simd_utilization:d
 
     return bandwidth
 
-def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2: int, word_size: float, dup: list, simd_utilization:dict) -> float:
+def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2: int, word_size: float, dup: list, simd_utilization:dict, debug=False) -> float:
    
-    data_volume, dup = data_duplication(pcb_module, tile_1, tile_2, word_size, dup, broad_cast, simd_utilization)
+    data_volume, dup = data_duplication(pcb_module, tile_1, tile_2, word_size, dup, broad_cast, simd_utilization, debug)
+    if debug: 
+        print(f"get_tile_io_latency: data_volume={data_volume}, dup={dup}, simd_utilization={simd_utilization}")
     latency = data_volume / get_tile_dram_io_bandwidth(pcb_module, dup, simd_utilization)
+    if debug:
+        print(f"get_tile_io_latency: latency={latency} = {data_volume} / {get_tile_dram_io_bandwidth(pcb_module, dup, simd_utilization)}")
 
     return latency
    
@@ -136,6 +144,8 @@ def find_arr_tile(self, pcb_module: Device, strategy:Mapping, debug=False):
         
     elif arr_mapping['C'] == 'NK' or arr_mapping['C'] == 'KN':
         arr_tile_N = min(arr_tile_max['N'], find_closest_divisor(col_per_arr))
+        if debug:
+            print(f"find_arr_tile: {arr_tile_N} = min({arr_tile_max['N']}, {find_closest_divisor(col_per_arr)})")
         arr_tile_K = col_per_arr // arr_tile_N
         arr_tile_M = (row_elem_per_arr-1) // 2
 
@@ -175,6 +185,9 @@ def get_arr_tile_stats(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_til
     elif arr_mapping['C'] == 'K':
         mul_reduce_latency = arr_tile_M * arr_tile_N * mul_reduce_op_latency * 1e-9
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
+        if debug:
+            print(f"get_arr_tile_stats: {mul_reduce_latency} = {arr_tile_M} * {arr_tile_N} * {mul_reduce_op_latency} * 1e-9")
+            print(f"get_arr_tile_stats: {arr_latency} = {mul_reduce_latency} + {acc_op_latency} * 1e-9")
         simd_utilization = arr_tile_K / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * arr_tile_M * arr_tile_N / row_per_arr
     elif arr_mapping['C'] == 'MN' or arr_mapping['C'] == 'NM':
@@ -199,6 +212,8 @@ def get_arr_tile_stats(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_til
     self.stats.used_simd_lane += simd_utilization * col_per_arr
     self.stats.total_simd_lane += col_per_arr
     self.stats.simd_utilization = self.stats.used_simd_lane / self.stats.total_simd_lane
+    if debug:
+        print(f"get_arr_tile_stats: arr_latency={arr_latency}, capacity_utilization={capacity_utilization}")
     # if debug:
     #     print(f"simd utilization: {simd_utilization}, capacity utilization: {capacity_utilization}")
     return arr_latency, simd_utilization, capacity_utilization
@@ -232,7 +247,6 @@ def find_tile_size(self, pcb_module: Device, tiling, arr_tile_M, arr_tile_N, arr
     return tile_size
 
 def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=False):
-
     tiling = strategy.tile_mapping
     
     #extract duplication of matrices
@@ -270,6 +284,8 @@ def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=
     MN_volumn_before_reduction = data_duplication(pcb_module, tile_size['M'], tile_size['N'], self.data_type.word_size, M_N_dup, '', tiling_utilization)[0]
 
     K_reduction_latency =  MN_volumn_before_reduction / get_tile_dram_io_bandwidth(pcb_module, '', tiling_utilization) #each device contains M_tike*N_tile partial sum data, load all these to host and reduce. Can always use full bandwidth as data before reduction is across all parallelism dimensions.
+    if debug:
+        print(f"get_tile_stats: K_reduction_latency: {K_reduction_latency} = {MN_volumn_before_reduction} / {get_tile_dram_io_bandwidth(pcb_module, '', tiling_utilization)}")
     # K_reduction_latency =  tile_size['M'] * tile_size['N'] * self.data_type.word_size / get_tile_io_bandwidth(pcb_module, M_N_dup) #each device contains M_tike*N_tile partial sum data, load all these to host and reduce
     
     tile_compute_latency =  arr_latency + K_reduction_latency
@@ -279,7 +295,10 @@ def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=
         # if input resident, we don't need to load M_K tile
         M_K_io_latency = 0
     else:
-        M_K_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['M'], tile_size['K'], self.data_type.word_size, M_K_dup, tiling_utilization)
+        if debug:
+            print(tiling['M'], tiling['K'], M_K_dup, tiling_utilization)
+            #print(f"get_tile_io_latency: M_K tile size: {tile_size['M']} x {tile_size['K']}, word size: {self.data_type.word_size}, M_K_dup: {M_K_dup}, tiling_utilization: {tiling_utilization}")
+        M_K_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['M'], tile_size['K'], self.data_type.word_size, M_K_dup, tiling_utilization, debug=debug)
     if strategy.weight_resident:
         # if weight resident, we don't need to load K_N tile
         K_N_io_latency = 0
@@ -292,6 +311,9 @@ def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=
         # M_N_io_latency = tile_size['M'] * tile_size['N'] * self.data_type.word_size / pcb_module.io_module.bandwidth
         M_N_data_volume = tile_size['M'] * tile_size['N'] * self.data_type.word_size
         M_N_io_latency = M_N_data_volume / get_tile_dram_io_bandwidth(pcb_module, M_N_dup, tiling_utilization)
+        if debug:
+            print(M_N_dup)
+            print(f"{M_N_io_latency} = {M_N_data_volume} / {get_tile_dram_io_bandwidth(pcb_module, M_N_dup, tiling_utilization)}")
 
     #update stats
     self.stats.tile_size['M'] = max(self.stats.tile_size['M'], tile_size['M'])
@@ -388,6 +410,18 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: Mapping, de
     # M_tilexK_tile is moved from somewhere else to compute-enabled DRAM and duplicated across banks to enable N tiling
     # K_tilexN_tile is already in compute-enabled DRAM and already duplicated across arrays to enable M tiling
     # M_tilexN_tile is moved from somewhere else to compute-enabled DRAM, does not need any duplication across K dimension (mapped to devices) as K is reduction axis
+
+    self.stats.tile_stats = tile_stats
+    if debug == True:
+        with open("tile_stats.csv", "w", newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['m', 'n', 'k']+ tile_stats[0, 0, 0].get_csv_header())
+            for m in range(ceil(self.M / M_tile)):
+                for n in range(ceil(self.N / N_tile)):
+                    for k in range(ceil(self.K / K_tile)):
+                        # print(tile_stats[m, n, k])
+                        csv_row = [m,n,k] + tile_stats[m, n, k].toCSV()
+                        writer.writerow(csv_row)
 
     ################ Simulate Loops #################
     for m, n, k in self.generate_tile_loops(
