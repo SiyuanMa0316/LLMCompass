@@ -352,12 +352,12 @@ class Matmul(Operator):
         
         # tile_mapping_list = ['MANBCKDR', 'MABNCKDR', 'MNABCKDR', 'MDNCKABR'] # TODO: try more design space
         arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
+        # arr_mapping_list = ['RKNCM']
         if self.M == 1 or self.N == 1:
             # tile_mapping_list = ['MNABCKDR', 'MNACKBDR', 'MNCKABDR']
             dims = ['N', 'K']
             tile_mapping_list = self.generate_possible_mappings(parallelisms, dims)
             tile_mapping_list = ['M'+mapping for mapping in tile_mapping_list]
-            arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
         self.dse_csv_data = []
         for tile_mapping_str in tile_mapping_list:
             for arr_mapping_str in arr_mapping_list:

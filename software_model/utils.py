@@ -3,13 +3,16 @@ from utils import size
 
 
 class DataType:
-    def __init__(self, name: str, word_size: int) -> None:
+    def __init__(self, name: str, word_size: float) -> None:
         self.name = name
         # self.word_size:int = word_size
         #Siyuan: add support for int4 or lower
-        self.word_size = word_size
+        self.word_size = word_size #bytes
+        self.bits = word_size * 8 #bits
 
-rcd = 14.167
+# rcd = 14.167
+rcd = 12.2 #ddr5 6400  https://de.wikipedia.org/wiki/DDR-SDRAM
+faw=13.312#https://www.igorslab.de/en/intel-vs-jedec-ddr5-timings-in-extreme-technical-practice-test/
 data_type_dict = {"int4": DataType("int4", 0.5), "int8": DataType("int8", 1), "fp16": DataType("fp16", 2), "fp32": DataType("fp32", 4)}
 simdram_op_latency_dict = {
     DataType("int8", 1).name: {"add": 3121, "mul": 31815, 'add_reduce':3121+8*rcd, 'mul_reduce':31815+16*rcd},

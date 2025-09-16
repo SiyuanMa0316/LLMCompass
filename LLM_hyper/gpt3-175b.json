@@ -1,0 +1,7 @@
+{
+    "name" : "gpt3-6.7B",
+    "num_layers": 96,
+    "model_dimension": 12288,
+    "num_attention_heads": 96,
+    "activation_function": "silu"
+}

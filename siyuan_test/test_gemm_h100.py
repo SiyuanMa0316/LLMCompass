@@ -3,9 +3,9 @@ from software_model.utils import data_type_dict, Tensor
 from hardware_model.device import device_dict
 from design_space_exploration.dse import template_to_system, read_architecture_template
 
-M=1024*16
-K=12288*16
-N=12288*16
+M=1
+K=12288*2
+N=12288*2
 precision = "int8"
 model = Matmul(data_type=data_type_dict[precision])
 _ = model(

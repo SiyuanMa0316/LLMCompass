@@ -1,6 +1,6 @@
 from hardware_model.device import Device
 from math import ceil
-from software_model.utils import simdram_op_latency_dict, simdram_PE_op_latency_dict
+from software_model.utils import simdram_op_latency_dict, simdram_PE_op_latency_dict, rcd
 from software_model.utils import find_closest_divisor
 from software_model.mapping import Mapping
 from software_model.stats import Stats, TileStats
@@ -172,37 +172,45 @@ def get_arr_tile_stats(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_til
     
     if arr_mapping['C'] == 'M':
         macs = arr_tile_N * arr_tile_K
-        mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        # mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        mac_latency = macs * (self.data_type.bits * 2 * rcd + (self.data_type.bits + self.data_type.bits*2) * rcd)
         arr_latency = mac_latency + acc_op_latency * 1e-9
         simd_utilization = arr_tile_M / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * arr_tile_N * arr_tile_K / row_per_arr
     elif arr_mapping['C'] == 'N':
         macs = arr_tile_M * arr_tile_K
-        mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        # mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        mac_latency = macs * (self.data_type.bits * 2 * rcd + (self.data_type.bits + self.data_type.bits*2) * rcd)
         arr_latency = mac_latency + acc_op_latency * 1e-9
         simd_utilization = arr_tile_N / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * arr_tile_M * arr_tile_K / row_per_arr
     elif arr_mapping['C'] == 'K':
         mul_reduce_latency = arr_tile_M * arr_tile_N * mul_reduce_op_latency * 1e-9
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
-        if debug:
-            print(f"get_arr_tile_stats: {mul_reduce_latency} = {arr_tile_M} * {arr_tile_N} * {mul_reduce_op_latency} * 1e-9")
-            print(f"get_arr_tile_stats: {arr_latency} = {mul_reduce_latency} + {acc_op_latency} * 1e-9")
+        # if debug:
+        #     print(f"get_arr_tile_stats: {mul_reduce_latency} = {arr_tile_M} * {arr_tile_N} * {mul_reduce_op_latency} * 1e-9")
+        #     print(f"get_arr_tile_stats: {arr_latency} = {mul_reduce_latency} + {acc_op_latency} * 1e-9")
         simd_utilization = arr_tile_K / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * arr_tile_M * arr_tile_N / row_per_arr
     elif arr_mapping['C'] == 'MN' or arr_mapping['C'] == 'NM':
         macs = arr_tile_K
-        mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        # mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
+        #c kept in buffer, each multiply add only requires activating 8 + 8 rows for operands, accumulated results takes 16 row activations after all multiply adds
+        mac_latency = macs * (2* self.data_type.bits * rcd) + self.data_type.bits * 2 * rcd
         arr_latency = mac_latency + acc_op_latency * 1e-9
         simd_utilization = arr_tile_M * arr_tile_N / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_K / row_per_arr
     elif arr_mapping['C'] == 'MK' or arr_mapping['C'] == 'KM':
-        mul_reduce_latency = arr_tile_N * mul_reduce_op_latency * 1e-9
+        # mul_reduce_latency = arr_tile_N * mul_reduce_op_latency * 1e-9
+        # a kept in buffer, each mul_reduce activates 8 rows for operand b and 16 rows for c
+        mul_reduce_latency = arr_tile_N * (self.data_type.bits + self.data_type.bits*2) * rcd
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
         simd_utilization = arr_tile_M * arr_tile_K / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_N / row_per_arr
     elif arr_mapping['C'] == 'NK' or arr_mapping['C'] == 'KN':
-        mul_reduce_latency = arr_tile_M * mul_reduce_op_latency * 1e-9
+        # mul_reduce_latency = arr_tile_M * mul_reduce_op_latency * 1e-9
+        # b kept in buffer, each mul_reduce activates 8 rows for operand a and 16 rows for c
+        mul_reduce_latency = arr_tile_M * (self.data_type.bits + self.data_type.bits*2) * rcd
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
         simd_utilization = arr_tile_N * arr_tile_K / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_M / row_per_arr

@@ -4,9 +4,16 @@ from software_model.transformer import (
     TransformerBlockAutoRegressionTP,
 )
 from software_model.utils import data_type_dict, Tensor
+from software_model.transformer_hyper import Transformer_hyper
+import argparse
+parser = argparse.ArgumentParser(description="Test GPT-3 on H100")
+# parser.add_argument("--config", type=str, help="Path to the config file")
+parser.add_argument("--model", type=str, help="Path to model hyperparameter file")
+args = parser.parse_args()
 
-
-layers = 96
+llm_hyper = Transformer_hyper()
+llm_hyper.read_from_json(args.model)
+layers = llm_hyper.num_layers
 bs=1
 seq_len=1024
 precision = "int8"
@@ -15,13 +22,13 @@ system = template_to_system(specs)
 print(f"memory bandwidth: {system.device.io_module.bandwidth}B/s")
 print(f"flops: {system.device.compute_module.total_systolic_array_flops/1e12}TFLOPS")
 model_prefill = TransformerBlockInitComputationTP(
-        d_model=12288,
-        n_heads=96,
+        d_model=llm_hyper.d_model,
+        n_heads=llm_hyper.num_heads,
         device_count=1,
         data_type=data_type_dict[precision],
     )
 _ = model_prefill(
-	Tensor([bs, seq_len, 12288], data_type_dict[precision])
+	Tensor([bs, seq_len, llm_hyper.d_model], data_type_dict[precision])
 )
 prefill_latency_simulated = model_prefill.compile_and_simulate(
 	system, "heuristic-GPU"
@@ -32,13 +39,13 @@ print(f"GPT-3 {layers} layers prefill latency: {E2E_prefill_latency}")
 
 output_len = 2048
 model_decode = TransformerBlockAutoRegressionTP(
-        d_model=12288,
-        n_heads=96,
+        d_model=llm_hyper.d_model,
+        n_heads=llm_hyper.num_heads,
         device_count=1,
         data_type=data_type_dict[precision],
     )
 _ = model_decode(
-    Tensor([bs, 1, 12288], data_type_dict[precision]), seq_len
+    Tensor([bs, 1, llm_hyper.d_model], data_type_dict[precision]), seq_len
 )
 decode_latency_simulated = model_decode.compile_and_simulate(
     system, "heuristic-GPU"

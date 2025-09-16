@@ -7,7 +7,7 @@ from software_model.transformer_hyper import Transformer_hyper
 from software_model.utils import data_type_dict, Tensor
 
 llm_hyper = Transformer_hyper()
-llm_hyper.read_from_json("LLM_hyper/llama-3.1-70b.json")
+llm_hyper.read_from_json("LLM_hyper/llama-3.1-8b.json")
 layers = llm_hyper.num_layers
 bs=1
 seq_len=1024

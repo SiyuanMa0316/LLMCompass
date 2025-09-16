@@ -65,7 +65,7 @@ for x in ["x4", "x8", "x16"]:
                     csv_data.append([simdram.compute_module.parallelisms, simdram.compute_module.bank.arr_cols, latency, model.stats.tiling_utilization, model.stats.simd_utilization, model.stats.capacity_utilization, simdram.compute_module.capacity / 1024 / 1024 / 1024])  # capacity in GB
         
 
-with open('test_gemm_simdram_dse_ddr5_jeeho.csv', 'w', newline='') as file:
+with open('test_gemm_simdram_dse_ddr5_jeeho_operandocality.csv', 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(csv_header)
         writer.writerows(csv_data)
