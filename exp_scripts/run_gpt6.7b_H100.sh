@@ -1,0 +1,1 @@
+python3 -m experiments.test_llm --config configs/H100x1_sxm5_int8.json --model llm_model/gpt3-6.7b.json --prefill

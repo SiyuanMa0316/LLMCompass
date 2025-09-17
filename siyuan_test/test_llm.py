@@ -5,6 +5,7 @@ from software_model.transformer_Llama import (
 )
 from software_model.transformer_hyper import Transformer_hyper
 from software_model.utils import data_type_dict, Tensor
+import argparse
 
 llm_hyper = Transformer_hyper()
 llm_hyper.read_from_json("LLM_hyper/llama-3.1-70b.json")
