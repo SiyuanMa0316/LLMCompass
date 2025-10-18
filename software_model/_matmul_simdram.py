@@ -2,17 +2,19 @@ from hardware_model.device import Device
 from math import ceil
 from software_model.utils import simdram_op_latency_dict, simdram_PE_op_latency_dict, rcd
 from software_model.utils import find_closest_divisor
-from software_model.mapping import Mapping
+from software_model.strategy import Strategy
 from software_model.stats import Stats, TileStats
 import numpy as np
 import csv
+
+from software_model.arr_dup import get_dup_in_arr
 
 class MatmulTile:
     """
     MatmulTile class is used to represent a tile in the matmul operation.
     It contains the tile size, arr_tile size, and the latency of the tile.
     """
-    def __init__(self, device: Device, mapping: Mapping):
+    def __init__(self, device: Device, mapping: Strategy):
         self.M = 0
         self.N = 0
         self.K = 0
@@ -53,11 +55,11 @@ def get_tile_dram_io_bandwidth(pcb_module: Device, dup: list, simd_utilization:d
     """
     bandwidth = pcb_module.compute_module.bandwidth
     for key in pcb_module.compute_module.parallelisms.keys():
-        if key != 'S' and key in dup:
+        if key != 'S' and key !='A' and key in dup:
             #we don't need to divide total bandwidth by subarray count as external bandwidth does not change with subarray count
             #We assume row copying/broadcasting across subarrays has hidden latency
             bandwidth /= pcb_module.compute_module.parallelisms[key]
-        if key != 'S' and key not in dup:
+        if key != 'S' and key !='A' and key not in dup:
             #for dimensions not in dup, these dimensions are occupied by data. However may bot be fully occupied
             #for example, if data occupies "AB", the bandwidth is reduced by the utilization of A and B
             bandwidth *= simd_utilization[key]
@@ -77,7 +79,7 @@ def get_tile_io_latency(pcb_module: Device, broad_cast: str, tile_1: int, tile_2
     return latency
    
 
-def find_arr_tile_max(self, pcb_module: Device, strategy:Mapping, debug=False):
+def find_arr_tile_max(self, pcb_module: Device, strategy:Strategy, debug=False):
     parallelisms = pcb_module.compute_module.parallelisms
 
     tiling = strategy.tile_mapping
@@ -98,12 +100,12 @@ def find_arr_tile_max(self, pcb_module: Device, strategy:Mapping, debug=False):
         print(f'Maximum Array Tile Size: {arr_tile_max}')
     return arr_tile_max
 
-def find_arr_tile(self, pcb_module: Device, strategy:Mapping, debug=False):
+def find_arr_tile(self, pcb_module: Device, strategy:Strategy, debug=False):
     arr_tile_max = find_arr_tile_max(self, pcb_module, strategy, debug)
     col_per_arr = pcb_module.compute_module.bank.arr_cols
     row_per_arr = pcb_module.compute_module.bank.subarr_rows
     arr_mapping = strategy.arr_mapping
-    row_elem_per_arr = row_per_arr // (self.data_type.word_size * 8)
+    row_elem_per_arr = row_per_arr // (int)(self.data_type.word_size * 8)
     if arr_mapping['C'] == 'M':
         arr_tile_M = col_per_arr
         storage_limit = row_elem_per_arr
@@ -158,34 +160,34 @@ def get_arr_tile_stats(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_til
     ################ Compute Latencies #################
     #add and mul latency
     if pcb_module.compute_module.with_PE:
-        add_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['add']
-        mul_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['mul']
-        acc_op_latency = simdram_PE_op_latency_dict['int32']['add']
-        add_reduce_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['add_reduce']
-        mul_reduce_op_latency = simdram_PE_op_latency_dict[self.data_type.name]['mul_reduce']
+        acc_op_latency = self.data_type.bits*4 * rcd #assume accumulation is done in int32 if data type is int8
     else:
-        add_op_latency = simdram_op_latency_dict[self.data_type.name]['add']
-        mul_op_latency = simdram_op_latency_dict[self.data_type.name]['mul']
-        acc_op_latency = simdram_op_latency_dict['int32']['add']
-        add_reduce_op_latency = simdram_op_latency_dict[self.data_type.name]['add_reduce']
-        mul_reduce_op_latency = simdram_op_latency_dict[self.data_type.name]['mul_reduce']
+        raise NotImplementedError("SIMDRAM without PE is not implemented yet")
+        acc_op_latency = self.data_type.bits*4 * rcd  #assume accumulation is done in int32 if data type is int8
     
+    ablation_buffer = True
     if arr_mapping['C'] == 'M':
         macs = arr_tile_N * arr_tile_K
         # mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
-        mac_latency = macs * (self.data_type.bits * 2 * rcd + (self.data_type.bits + self.data_type.bits*2) * rcd)
+        mac_latency = macs * (self.data_type.bits * 2 * rcd + (self.data_type.bits + self.data_type.bits*2) * rcd) * 1e-9
+        if ablation_buffer:
+            mac_latency = macs * (self.data_type.bits*2+1)*self.data_type.bits*rcd  * 1e-9 #each mul needs to activate 8 rows for operand 1 and 8 bits for operand 3 and 1 bit for operand 2 for each bit of operand 2
         arr_latency = mac_latency + acc_op_latency * 1e-9
         simd_utilization = arr_tile_M / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * arr_tile_N * arr_tile_K / row_per_arr
     elif arr_mapping['C'] == 'N':
         macs = arr_tile_M * arr_tile_K
         # mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
-        mac_latency = macs * (self.data_type.bits * 2 * rcd + (self.data_type.bits + self.data_type.bits*2) * rcd)
+        mac_latency = macs * (self.data_type.bits * 2 * rcd + (self.data_type.bits + self.data_type.bits*2) * rcd)* 1e-9
+        if ablation_buffer:
+            mac_latency = macs * (self.data_type.bits*2+1)*self.data_type.bits*rcd  * 1e-9
         arr_latency = mac_latency + acc_op_latency * 1e-9
         simd_utilization = arr_tile_N / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * arr_tile_M * arr_tile_K / row_per_arr
     elif arr_mapping['C'] == 'K':
-        mul_reduce_latency = arr_tile_M * arr_tile_N * mul_reduce_op_latency * 1e-9
+        mul_reduce_latency = arr_tile_M * arr_tile_N * (self.data_type.bits + self.data_type.bits+1)*rcd * 1e-9#assume horizontal layout for accumulated data from popcount adder to row buffer (1 cycle to write back to dram). need to have 32bit adder at each popcount adder tree to add 26bit (16+log1024) results from 1 tile to 32bit result accumulated from other tiles in 1 cycle
+        if ablation_buffer:
+            mul_reduce_latency = arr_tile_M * arr_tile_N * (self.data_type.bits*2+1)*self.data_type.bits*rcd  * 1e-9
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
         # if debug:
         #     print(f"get_arr_tile_stats: {mul_reduce_latency} = {arr_tile_M} * {arr_tile_N} * {mul_reduce_op_latency} * 1e-9")
@@ -196,21 +198,27 @@ def get_arr_tile_stats(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_til
         macs = arr_tile_K
         # mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9
         #c kept in buffer, each multiply add only requires activating 8 + 8 rows for operands, accumulated results takes 16 row activations after all multiply adds
-        mac_latency = macs * (2* self.data_type.bits * rcd) + self.data_type.bits * 2 * rcd
+        mac_latency = (macs * (2* self.data_type.bits * rcd) + self.data_type.bits * 2 * rcd) * 1e-9
+        if ablation_buffer:
+            mac_latency = macs * (self.data_type.bits*2+1)*self.data_type.bits*rcd  * 1e-9
         arr_latency = mac_latency + acc_op_latency * 1e-9
         simd_utilization = arr_tile_M * arr_tile_N / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_K / row_per_arr
     elif arr_mapping['C'] == 'MK' or arr_mapping['C'] == 'KM':
         # mul_reduce_latency = arr_tile_N * mul_reduce_op_latency * 1e-9
         # a kept in buffer, each mul_reduce activates 8 rows for operand b and 16 rows for c
-        mul_reduce_latency = arr_tile_N * (self.data_type.bits + self.data_type.bits*2) * rcd
+        mul_reduce_latency = arr_tile_N * (self.data_type.bits + self.data_type.bits*2) * rcd * 1e-9
+        if ablation_buffer:
+            mul_reduce_latency = arr_tile_N * (self.data_type.bits*2+1)*self.data_type.bits*rcd  * 1e-9
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
         simd_utilization = arr_tile_M * arr_tile_K / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_N / row_per_arr
     elif arr_mapping['C'] == 'NK' or arr_mapping['C'] == 'KN':
         # mul_reduce_latency = arr_tile_M * mul_reduce_op_latency * 1e-9
         # b kept in buffer, each mul_reduce activates 8 rows for operand a and 16 rows for c
-        mul_reduce_latency = arr_tile_M * (self.data_type.bits + self.data_type.bits*2) * rcd
+        mul_reduce_latency = arr_tile_M * (self.data_type.bits + self.data_type.bits*2) * rcd * 1e-9
+        if ablation_buffer:
+            mul_reduce_latency = arr_tile_M * (self.data_type.bits*2+1)*self.data_type.bits*rcd  * 1e-9
         arr_latency = mul_reduce_latency + acc_op_latency*1e-9
         simd_utilization = arr_tile_N * arr_tile_K / col_per_arr
         capacity_utilization = (self.data_type.word_size * 8) * 2 * arr_tile_M / row_per_arr
@@ -254,7 +262,7 @@ def find_tile_size(self, pcb_module: Device, tiling, arr_tile_M, arr_tile_N, arr
     #     print(f"find_tile_size: {tile_size}")
     return tile_size
 
-def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=False):
+def get_tile_stats(self, pcb_module: Device, strategy:Strategy, tile_size, debug=False):
     tiling = strategy.tile_mapping
     
     #extract duplication of matrices
@@ -298,6 +306,7 @@ def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=
     
     tile_compute_latency =  arr_latency + K_reduction_latency
 
+    MK_dup, KN_dup, MN_dup = get_dup_in_arr(strategy.arr_mapping, arr_tile_size['M'], arr_tile_size['K'], arr_tile_size['N'])
     #compute io latencies
     if strategy.input_resident:
         # if input resident, we don't need to load M_K tile
@@ -307,11 +316,15 @@ def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=
             print(tiling['M'], tiling['K'], M_K_dup, tiling_utilization)
             #print(f"get_tile_io_latency: M_K tile size: {tile_size['M']} x {tile_size['K']}, word size: {self.data_type.word_size}, M_K_dup: {M_K_dup}, tiling_utilization: {tiling_utilization}")
         M_K_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['M'], tile_size['K'], self.data_type.word_size, M_K_dup, tiling_utilization, debug=debug)
+        if not strategy.arr_multicast:
+            M_K_io_latency *= MK_dup
     if strategy.weight_resident:
         # if weight resident, we don't need to load K_N tile
         K_N_io_latency = 0
     else:
         K_N_io_latency = get_tile_io_latency(pcb_module, strategy.broadcast, tile_size['K'], tile_size['N'], self.data_type.word_size, K_N_dup, tiling_utilization)
+        if not strategy.arr_multicast:
+            K_N_io_latency *= KN_dup
     if strategy.output_resident:
         M_N_io_latency = 0
     else:
@@ -319,11 +332,15 @@ def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=
         # M_N_io_latency = tile_size['M'] * tile_size['N'] * self.data_type.word_size / pcb_module.io_module.bandwidth
         M_N_data_volume = tile_size['M'] * tile_size['N'] * self.data_type.word_size
         M_N_io_latency = M_N_data_volume / get_tile_dram_io_bandwidth(pcb_module, M_N_dup, tiling_utilization)
-        if debug:
-            print(M_N_dup)
-            print(f"{M_N_io_latency} = {M_N_data_volume} / {get_tile_dram_io_bandwidth(pcb_module, M_N_dup, tiling_utilization)}")
+        if not strategy.arr_multicast and not strategy.col_popcount:
+            M_N_io_latency *= MN_dup
+        # if debug:
+        #     print(M_N_dup)
+        #     print(f"{M_N_io_latency} = {M_N_data_volume} / {get_tile_dram_io_bandwidth(pcb_module, M_N_dup, tiling_utilization)}")
 
     #update stats
+    self.stats.tile_mapping = tiling
+    self.stats.arr_mapping = arr_mapping
     self.stats.tile_size['M'] = max(self.stats.tile_size['M'], tile_size['M'])
     self.stats.tile_size['K'] = max(self.stats.tile_size['K'], tile_size['K'])
     self.stats.tile_size['N'] = max(self.stats.tile_size['N'], tile_size['N'])
@@ -335,11 +352,11 @@ def get_tile_stats(self, pcb_module: Device, strategy:Mapping, tile_size, debug=
    
     tile_stats = TileStats(tile_size, arr_tile_size, M_K_io_latency, K_N_io_latency, M_N_io_latency, tile_compute_latency, arr_latency, K_reduction_latency, tiling_utilization, col_utilization, capacity_utilization)
     if debug:
-        print(f"get_tile_stats: tile_size: {tile_size}, arr_tile_size: {arr_tile_size}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency} = {arr_latency}(arr_latency) + {K_reduction_latency}(K_reduction_latency)")
+        print(f"get_tile_stats: tile_size: {tile_size}, arr_tile_size: {arr_tile_size}, MK_dup: {MK_dup}, KN_dup:{KN_dup}, MN_dup:{MN_dup}, M_K_io_latency: {M_K_io_latency}, K_N_io_latency: {K_N_io_latency}, M_N_io_latency: {M_N_io_latency}, tile_compute_latency:{tile_compute_latency} = {arr_latency}(arr_latency) + {K_reduction_latency}(K_reduction_latency)")
     return tile_stats
 
 
-def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: Mapping, debug=False):
+def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: Strategy, debug=False):
     '''
     M->array
     N->bank
@@ -539,7 +556,7 @@ def heuristic_simdram_broadcast (self, pcb_module: Device, strategy: Mapping, de
 def compile_and_simulate_simdram(
     self,
     pcb_module: Device,
-    strategy: Mapping,
+    strategy: Strategy,
     debug: bool
 ):
 
@@ -555,3 +572,22 @@ def compile_and_simulate(
 ):
     assert pcb_module.type == 'simdram'
     return compile_and_simulate_simdram(self,pcb_module, compile_mode, debug)
+
+def roofline_model_simdram(
+    self,
+    pcb_module: Device,
+    strategy: Strategy,
+    debug: bool = False
+):
+    assert pcb_module.type == 'simdram'
+    total_ops = 2 * self.M * self.N * self.K
+    total_data_movement = (self.M * self.K + self.M * self.N) * self.data_type.word_size #in bytes
+    peak_flops = pcb_module.compute_module.gops * 1e9 #in flops
+    bandwidth = pcb_module.compute_module.bandwidth
+    if debug:
+        print(f"roofline_model_simdram: total_ops={total_ops}, total_data_movement={total_data_movement}, peak_flops={peak_flops}, bandwidth={bandwidth}")
+    compute_bound_time = total_ops / peak_flops
+    memory_bound_time = total_data_movement / bandwidth
+    if debug:
+        print(f"roofline_model_simdram: compute_bound_time={compute_bound_time}, memory_bound_time={memory_bound_time}")
+    return max(compute_bound_time, memory_bound_time)

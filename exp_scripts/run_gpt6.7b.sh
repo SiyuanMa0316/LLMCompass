@@ -1,1 +1,2 @@
-python -m siyuan_test.test_llm_drampim --config configs/x16\{\'C\'\:\ 10\,\ \'R\'\:\ 64\,\ \'B\'\:\ 16\,\ \'A\'\:\ 16\,\ \'S\'\:\ 1\,\ \'D\'\:\ 8\}32768x1024.json --model LLM_hyper/gpt3-6.7b.json --prefill
+# python -m experiments.test_llm --config configs/x16\{\'C\'\:\ 10\,\ \'R\'\:\ 32\,\ \'B\'\:\ 16\,\ \'A\'\:\ 32\,\ \'S\'\:\ 1\,\ \'D\'\:\ 8\}16384x512_ddr5.json --model LLM_hyper/gpt3-6.7b.json --prefill
+python -m experiments.test_llm --config configs/x16\{\'C\'\:\ 10\,\ \'R\'\:\ 32\,\ \'B\'\:\ 16\,\ \'A\'\:\ 32\,\ \'S\'\:\ 1\,\ \'D\'\:\ 8\}16384x512_ddr5.json --model LLM_hyper/gpt3-6.7b.json --decode

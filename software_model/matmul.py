@@ -2,7 +2,7 @@ from utils import size
 from hardware_model.device import Device
 from software_model.operators import Operator
 from software_model.utils import Tensor, DataType, simdram_op_latency_dict
-from software_model.mapping import Mapping
+from software_model.strategy import Strategy
 
 from math import ceil, log2, floor
 import torch
@@ -16,7 +16,7 @@ import copy
 from pimsab_exp.run_pimsab_gemm import run_gemm
 from pimsab_kernel.gemm import gemm_tiled_compute
 from software_model._matmul_pimsab import compile_and_simulate_pimsab
-from software_model._matmul_simdram import compile_and_simulate_simdram
+from software_model._matmul_simdram import compile_and_simulate_simdram, roofline_model_simdram
 import itertools
 
 
@@ -46,21 +46,24 @@ class BatchedMatmul(Operator):
         return output
 
     def roofline_model(self, pcb_module: Device):
-        matmul = Matmul(self.data_type)
-        _ = matmul(Tensor([self.M, self.K]), Tensor([self.K, self.N]))
-        matmul_latency = matmul.roofline_model(pcb_module)
-        self.roofline_latency = matmul_latency * self.bs
-        
-        self.roofline_latency = max (
-            self.flop_count / pcb_module.compute_module.total_systolic_array_flops,
-            self.io_count * self.data_type.word_size
-            / min(
-                pcb_module.io_module.bandwidth,
-                pcb_module.compute_module.l2_bandwidth_per_cycle * pcb_module.compute_module.clock_freq,
-            ),
-        )
-        
-        return self.roofline_latency
+        if pcb_module.type=="systolic":
+            matmul = Matmul(self.data_type)
+            _ = matmul(Tensor([self.M, self.K]), Tensor([self.K, self.N]))
+            matmul_latency = matmul.roofline_model(pcb_module)
+            self.roofline_latency = matmul_latency * self.bs
+            
+            self.roofline_latency = max (
+                self.flop_count / pcb_module.compute_module.total_systolic_array_flops,
+                self.io_count * self.data_type.word_size
+                / min(
+                    pcb_module.io_module.bandwidth,
+                    pcb_module.compute_module.l2_bandwidth_per_cycle * pcb_module.compute_module.clock_freq,
+                ),
+            )
+            
+            return self.roofline_latency
+        elif pcb_module.type=="simdram":
+            raise NotImplementedError
 
     # def compile_and_simulate(self, pcb_module: Device, compile_mode: str):
     #     matmul = Matmul(self.data_type)
@@ -71,16 +74,23 @@ class BatchedMatmul(Operator):
     #     )
     #     self.latency = matmul_latency * self.bs  # + pcb_module.io_module.latency * 2
     #     return self.latency
-    def compile_and_simulate(self, pcb_module: Device, compile_mode: str, strategy:Mapping=None, debug=False):
+    def compile_and_simulate(self, pcb_module: Device, compile_mode: str, strategy:Strategy=None, debug=False):
         print(f"Batched Matmul: M={self.M}, K={self.K}, N={self.N}, BS={self.bs}")
-        matmul_latency1 = (
-            self.matmul.compile_and_simulate(pcb_module, compile_mode=compile_mode, strategy=strategy, debug=debug) * self.bs
-        )
-        if pcb_module.type == "simdram":
+        if pcb_module.type == "simdram": 
+            pcb_module_per_batch = copy.deepcopy(pcb_module)
+            pcb_module_per_batch.compute_module.channel_count = 1
+            pcb_module_per_batch.compute_module.rank_count = 1
+            matmul_latency1 = (
+                self.matmul.compile_and_simulate(pcb_module_per_batch, compile_mode=compile_mode, strategy=strategy, debug=debug)
+            )
             self.stats = self.matmul.stats
-            self.stats.compute_latency *= self.bs
-            self.stats.io_latency *= self.bs
-            self.stats.latency *= self.bs
+            # self.stats.compute_latency *= self.bs
+            # self.stats.io_latency *= self.bs
+            # self.stats.latency *= self.bs
+        else:
+            matmul_latency1 = (
+                self.matmul.compile_and_simulate(pcb_module, compile_mode=compile_mode, strategy=strategy, debug=debug) * self.bs
+            )
         # matmul = Matmul(self.data_type)
         # _ = matmul(
         #     Tensor([self.M, self.K * self.bs],self.data_type), Tensor([self.K * self.bs, self.N],self.data_type)
@@ -176,30 +186,27 @@ class Matmul(Operator):
         # print(f'{self.M}, {self.N}, {self.K}')
         return output
 
-    def roofline_model(self, pcb_module: Device):
-        if self.M ==1 or self.N == 1:
+    def roofline_model(self, pcb_module: Device, strategy:Strategy=None):
+        if pcb_module.type == "systolic":
             vector_flops = (pcb_module.compute_module.core.vector_unit.total_vector_flops_per_cycle
-                    * pcb_module.compute_module.core_count
-                    * pcb_module.compute_module.clock_freq)
-            compute_latency = (
-                    self.flop_count
-                    / pcb_module.compute_module.core.vector_unit.total_vector_flops_per_cycle
-                    / pcb_module.compute_module.core_count
-                    / pcb_module.compute_module.clock_freq
+                        * pcb_module.compute_module.core_count
+                        * pcb_module.compute_module.clock_freq)
+            tensor_flops = pcb_module.compute_module.total_systolic_array_flops
+            if self.M ==1 or self.N == 1:
+                compute_latency = self.flop_count/vector_flops
+            else:
+                compute_latency = self.flop_count / tensor_flops
+            io_latency = (self.io_count * self.data_type.word_size
+                / min(
+                    pcb_module.io_module.bandwidth,
+                    pcb_module.compute_module.l2_bandwidth_per_cycle
+                    * pcb_module.compute_module.clock_freq,
                 )
-        else:
-            compute_latency = self.flop_count / pcb_module.compute_module.total_systolic_array_flops
-        self.roofline_latency = max(
-            compute_latency,
-            #Siyuan bug fix:
-            self.io_count * self.data_type.word_size
-            / min(
-                pcb_module.io_module.bandwidth,
-                pcb_module.compute_module.l2_bandwidth_per_cycle
-                * pcb_module.compute_module.clock_freq,
-            ),
-        )
-        print(f"  flop_count:{self.flop_count}, compute_flops:{pcb_module.compute_module.total_systolic_array_flops},  io_count:{self.io_count}, io_bw:{pcb_module.io_module.bandwidth}, l2_bw:{pcb_module.compute_module.l2_bandwidth_per_cycle * pcb_module.compute_module.clock_freq}, latency: {self.roofline_latency}")
+            )
+            self.roofline_latency = max(compute_latency, io_latency)
+            print(f"  roofline model: vector flops: {vector_flops/1e12}Tflops, tensor flops: {tensor_flops/1e12}Tflops latency: {self.roofline_latency}, compute_latency: {compute_latency}, io_latency: {io_latency}")
+        elif pcb_module.type == "simdram":
+            self.roofline_latency = roofline_model_simdram(self, pcb_module, strategy, debug=True)
         return self.roofline_latency
 
     def print_latency(self):
@@ -315,7 +322,7 @@ class Matmul(Operator):
     def generate_possible_mappings(self, parallelisms, dims):
         # Generate all possible mappings
         all_distributions = []
-        print(parallelisms)
+        # print(parallelisms)
         parallelism_keys = list([key for key in parallelisms.keys() if parallelisms[key]>1])
         fake_parallelism_keys = [key for key in parallelisms.keys() if key not in parallelism_keys]
         # print(f"parallelism_keys: {parallelism_keys}")
@@ -361,13 +368,16 @@ class Matmul(Operator):
         self.dse_csv_data = []
         for tile_mapping_str in tile_mapping_list:
             for arr_mapping_str in arr_mapping_list:
-                tile_mapping = Mapping.tile_mapping_extraction(pcb_module, tile_mapping_str)
-                arr_mapping = Mapping.arr_mapping_extraction(arr_mapping_str)
+                tile_mapping = Strategy.tile_mapping_extraction(pcb_module, tile_mapping_str)
+                arr_mapping = Strategy.arr_mapping_extraction(arr_mapping_str)
                 with_PE = True
                 broadcast = 'AB'
+                arr_multicast = False
+                col_popcount = True
                 loop_order = 'mkn' 
-                strategy = Mapping(tile_mapping, arr_mapping, loop_order, with_PE, broadcast, weight_resident=True)
+                strategy = Strategy(tile_mapping, arr_mapping, loop_order, with_PE, broadcast, arr_multicast, col_popcount, weight_resident=True)
                 latency = self.compile_and_simulate(pcb_module=pcb_module, compile_mode="specific", strategy=strategy, debug=False)
+                # print(f"Tile mapping: {tile_mapping_str}, arr_mapping: {arr_mapping_str}, latency: {latency}")
                 if latency < min_latency:
                     min_latency = latency
                     best_mapping = strategy

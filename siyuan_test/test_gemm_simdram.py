@@ -1,6 +1,6 @@
 from software_model.matmul import Matmul
 from software_model.utils import data_type_dict, Tensor
-from software_model.mapping import Mapping
+from software_model.strategy import Strategy
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
 M=1024
@@ -26,14 +26,14 @@ arr_mapping_list = ['RKNCM','RMKCN','RMNCK','RNCMK', 'RMCKN', 'RKCMN']
 # arr_map_list = ['RKNCM']
 for tile_mapping_str in tile_mapping_list[0:1]:
     for arr_mapping_str in arr_mapping_list[0:1]:
-        tile_mapping = Mapping.tile_mapping_extraction(simdram, tile_mapping_str)
-        arr_mapping = Mapping.arr_mapping_extraction(arr_mapping_str)
+        tile_mapping = Strategy.tile_mapping_extraction(simdram, tile_mapping_str)
+        arr_mapping = Strategy.arr_mapping_extraction(arr_mapping_str)
         with_PE = True
         broadcast = 'AB'
         loop_order = 'mkn' 
 
 
-        strategy = Mapping(tile_mapping, arr_mapping, loop_order, with_PE, broadcast, weight_resident=True)
+        strategy = Strategy(tile_mapping, arr_mapping, loop_order, with_PE, broadcast, weight_resident=True)
 
         latency = model.compile_and_simulate(simdram, compile_mode="specific", strategy=strategy, debug=True)
         # print(model.stats)

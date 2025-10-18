@@ -1,6 +1,6 @@
 from hardware_model.compute_module import ComputeModule, compute_module_dict
 from hardware_model.compute_module_pimsab import ComputeModulePIMSAB, compute_module_pimsab_dict
-from hardware_model.compute_module_simdram import ComputeModuleSIMDRAM, compute_module_simdram_dict
+from hardware_model.compute_module_simdram import ComputeModuleSIMDRAM
 from hardware_model.io_module import IOModule, IO_module_dict
 from hardware_model.memory_module import MemoryModule, memory_module_dict
 from typing import Union
@@ -19,8 +19,18 @@ class Device:
         self.memory_module = memory_module
 
     def info(self):
-        return self.compute_module.info() + "\n" + self.memory_module.info()
-        
+        info_str = ""
+        info_str = info_str + "compute module:\n" + self.compute_module.info()
+        if self.memory_module:
+            info_str = info_str + "\nmemory module:\n" + self.memory_module.info()
+        else:
+            info_str = info_str + "\n" + "memory module: N/A"
+        if self.io_module:
+            info_str = info_str + "\nio module:\n" + self.io_module.info()
+        else:
+            info_str = info_str + "\n" + "io module: N/A"
+        return info_str
+
 device_dict = {
     "A100_80GB_fp16": Device(
         "systolic",
@@ -64,10 +74,10 @@ device_dict = {
         IO_module_dict["PIMSAB"],
         memory_module_dict["PIMSAB"],
     ),
-    "SIMDRAM_STD": Device(
-        "simdram",
-        compute_module_simdram_dict["simdram_standard"],
-        IO_module_dict["SIMDRAM"],
-        memory_module_dict["SIMDRAM"],
-    ),
+    # "SIMDRAM_STD": Device(
+    #     "simdram",
+    #     compute_module_simdram_dict["simdram_standard"],
+    #     IO_module_dict["SIMDRAM"],
+    #     memory_module_dict["SIMDRAM"],
+    # ),
 }

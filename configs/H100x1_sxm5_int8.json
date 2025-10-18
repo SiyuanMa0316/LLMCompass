@@ -16,11 +16,11 @@
         "topology": "FC"
     },
     "device": {
-        "frequency_Hz": 1620e6,
+        "frequency_Hz": 1830e6,
         "compute_chiplet_count": 1,
         "compute_chiplet": {
-            "physical_core_count": 128,
-            "core_count": 128,
+            "physical_core_count": 132,
+            "core_count": 132,
             "process_node": "7nm",
             "core": {
                 "sublane_count": 4,

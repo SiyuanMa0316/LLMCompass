@@ -1,0 +1,33 @@
+{
+    "name": "SIMDRAM",
+    "type": "simdram",
+
+    "compute_module":{
+        "host_channel_count": 1,
+        "channel_count": 1,
+        "rank_count":2,
+        "bank_count": 16,
+        "bank": {
+            "device_count": 8,
+            "array_count": 16,
+            "subarray_count": 1,
+            "array_cols": 1024,
+            "array_rows": 16384,
+            "device_data_width": 16,
+            "device_frequency_Hz": 3200e6
+        },
+        "with_PE": true,
+        "bit_parallel": false
+    },
+
+    "io": {
+        "memory_channel_physical_count": 6,
+        "memory_channel_active_count": 5,
+        "pin_count_per_channel": 1024,
+        "bandwidth_per_pin_bit": 3.2e9
+    },
+    "memory": {
+        "total_capacity_GB": 80
+    }
+
+}

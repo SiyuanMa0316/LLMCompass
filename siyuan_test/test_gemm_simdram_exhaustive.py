@@ -1,6 +1,6 @@
 from software_model.matmul import Matmul
 from software_model.utils import data_type_dict, Tensor
-from software_model.mapping import Mapping
+from software_model.strategy import Strategy
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
 import argparse

@@ -1,0 +1,714 @@
+Using config: configs/x16_base_config.json
+Running GEMM tests...
+Test 1: M=1024, K=12288, N=12288
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+Running mapping search...
+find_simdram_mapping: Best mapping: Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M: RB  N: A  K: CDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+Running simulation...
+--- Input Matmul Size --- M:1024, K:12288, N:12288
+Maximum Array Tile Size: {'M': 2, 'K': 192, 'N': 768}
+get_arr_tile_stats: arr_latency=0.00016884799999999998, capacity_utilization=0.375
+get_tile_stats: K_reduction_latency: 3.072e-05 = 402653184.0 / 13107200000000.0
+RB CDS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+6291456.0 = 1024 * 12288 * 0.5
+get_tile_io_latency: data_volume=6291456.0, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=4.8e-07 = 6291456.0 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 1024, 'K': 12288, 'N': 12288}, arr_tile_size: {'M': 2, 'K': 192, 'N': 768}, MK_dup: 1, KN_dup:1, MN_dup:192, M_K_io_latency: 4.8e-07, K_N_io_latency: 0, M_N_io_latency: 9.215999999999998e-05, tile_compute_latency:0.00019956799999999998 = 0.00016884799999999998(arr_latency) + 3.072e-05(K_reduction_latency)
+================ Strategy Summary ================
+Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M: RB  N: A  K: CDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+
+---------------- Tile Sizes ----------------------
+| Tile_M      | Tile_N      | Tile_K      |
+|-------------|-------------|-------------|
+| 1024        | 12288       | 12288       |
+
+| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
+|-------------|-------------|-------------|
+| 2           | 768         | 192         |
+
+--------------- Utilization ----------------------
+| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
+|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| 0.375       | 0.1875      | 1           | 1           | 1           | 1           | 1           |
+
+------------------ Latency -----------------------
+| Total Latency        | 0.00038436799999999995 cycles|
+| Total Compute Latency | 0.00019956799999999998 cycles|
+| Total Array Latency  | 0.00016884799999999998 cycles|
+| Total Reduction Latency| 3.072e-05              cycles|
+| IO Latency           | 0.00018479999999999997 cycles|
+
+----------- Hardware Requirements ---------------
+| col_multicast        | False                 |
+| col_broadcast        | False                 |
+| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': True, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+==================================================
+
+---------------- Debug Info -----------------------
+| Remaining Tiles       |                         |
+|-----------------------|-------------------------|
+| M_remain              | 0                      |
+| N_remain              | 0                      |
+| K_remain              | 0                      |
+
+| Fully Partitioned #Tiles |                       |
+|-------------------------|-----------------------|
+| M_t                   | 1                      |
+| N_t                   | 1                      |
+| K_t                   | 1                      |
+
+|------------------------|------------------------|
+==================================================
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 0.1875
+Capacity utilization: 0.375
+GEMM 1024x12288x12288 latency: 0.00038436799999999995s
+simulated latency: GEMM_1024x12288x12288 0.00038436799999999995
+roofline_model_simdram: total_ops=309237645312, total_data_movement=12582912.0, peak_flops=2368722311934701.0, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=0.0001305504, memory_bound_time=9.6e-07
+GEMM roofline latency: 0.0001305504ms
+Results written to test_gemm_x16_base_config.json_1024_12288_12288_simdram_ddr5_operandocality.csv
+Test 2: M=2048, K=24576, N=24576
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+Running mapping search...
+find_simdram_mapping: Best mapping: Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M: R  N: BA  K: CDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+Running simulation...
+--- Input Matmul Size --- M:2048, K:24576, N:24576
+Maximum Array Tile Size: {'M': 64, 'K': 384, 'N': 96}
+get_arr_tile_stats: arr_latency=0.0004358816, capacity_utilization=0.96875
+get_tile_stats: K_reduction_latency: 7.936e-05 = 1040187392.0 / 13107200000000.0
+R CDS ['B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+25165824.0 = 2048 * 24576 * 0.5
+get_tile_io_latency: data_volume=25165824.0, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=3.072e-05 = 25165824.0 / 819200000000.0
+get_tile_stats: tile_size: {'M': 2048, 'K': 24576, 'N': 15872}, arr_tile_size: {'M': 64, 'K': 384, 'N': 62}, MK_dup: 1, KN_dup:1, MN_dup:384, M_K_io_latency: 3.072e-05, K_N_io_latency: 0, M_N_io_latency: 0.00047616, tile_compute_latency:0.0005152416 = 0.0004358816(arr_latency) + 7.936e-05(K_reduction_latency)
+get_arr_tile_stats: arr_latency=0.00023912, capacity_utilization=0.53125
+get_tile_stats: K_reduction_latency: 4.352e-05 = 570425344.0 / 13107200000000.0
+R CDS ['B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+25165824.0 = 2048 * 24576 * 0.5
+get_tile_io_latency: data_volume=25165824.0, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=3.072e-05 = 25165824.0 / 819200000000.0
+get_tile_stats: tile_size: {'M': 2048, 'K': 24576, 'N': 8704}, arr_tile_size: {'M': 64, 'K': 384, 'N': 34}, MK_dup: 1, KN_dup:1, MN_dup:384, M_K_io_latency: 3.072e-05, K_N_io_latency: 0, M_N_io_latency: 0.00026112, tile_compute_latency:0.00028264 = 0.00023912(arr_latency) + 4.352e-05(K_reduction_latency)
+================ Strategy Summary ================
+Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M: R  N: BA  K: CDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+
+---------------- Tile Sizes ----------------------
+| Tile_M      | Tile_N      | Tile_K      |
+|-------------|-------------|-------------|
+| 2048        | 15872       | 24576       |
+
+| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
+|-------------|-------------|-------------|
+| 64          | 62          | 384         |
+
+--------------- Utilization ----------------------
+| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
+|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| 0.96875     | 0.375       | 1           | 1           | 1           | 1           | 1           |
+
+------------------ Latency -----------------------
+| Total Latency        | 0.0018270016000000002  cycles|
+| Total Compute Latency | 0.0007978816000000001  cycles|
+| Total Array Latency  | 0.0006750015999999999  cycles|
+| Total Reduction Latency| 0.00012288             cycles|
+| IO Latency           | 0.0010291200000000001  cycles|
+
+----------- Hardware Requirements ---------------
+| col_multicast        | False                 |
+| col_broadcast        | False                 |
+| broadcast            | {'C': False, 'R': False, 'B': True, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': True, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+==================================================
+
+---------------- Debug Info -----------------------
+| Remaining Tiles       |                         |
+|-----------------------|-------------------------|
+| M_remain              | 0                      |
+| N_remain              | 8704                   |
+| K_remain              | 0                      |
+
+| Fully Partitioned #Tiles |                       |
+|-------------------------|-----------------------|
+| M_t                   | 1                      |
+| N_t                   | 1                      |
+| K_t                   | 1                      |
+
+|------------------------|------------------------|
+==================================================
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 0.375
+Capacity utilization: 0.96875
+GEMM 2048x24576x24576 latency: 0.0018270016000000002s
+simulated latency: GEMM_2048x24576x24576 0.0018270016000000002
+roofline_model_simdram: total_ops=2473901162496, total_data_movement=50331648.0, peak_flops=2368722311934701.0, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=0.0010444032, memory_bound_time=3.84e-06
+GEMM roofline latency: 0.0010444032ms
+Results written to test_gemm_x16_base_config.json_2048_24576_24576_simdram_ddr5_operandocality.csv
+Test 3: M=1, K=12288, N=12288
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+Running mapping search...
+find_simdram_mapping: Best mapping: Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+Running simulation...
+--- Input Matmul Size --- M:1, K:12288, N:12288
+Maximum Array Tile Size: {'M': 1, 'K': 96, 'N': 3}
+get_arr_tile_stats: arr_latency=5.246e-07, capacity_utilization=0.000732421875
+get_tile_stats: K_reduction_latency: 6e-08 = 786432.0 / 13107200000000.0
+ BDS ['C', 'R', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+6144.0 = 1 * 12288 * 0.5
+get_tile_io_latency: data_volume=1572864.0, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=1.2e-07 = 1572864.0 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 1, 'K': 12288, 'N': 12288}, arr_tile_size: {'M': 1, 'K': 96, 'N': 3}, MK_dup: 1, KN_dup:1, MN_dup:96, M_K_io_latency: 1.2e-07, K_N_io_latency: 0, M_N_io_latency: 4.499999999999999e-08, tile_compute_latency:5.846e-07 = 5.246e-07(arr_latency) + 6e-08(K_reduction_latency)
+================ Strategy Summary ================
+Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+
+---------------- Tile Sizes ----------------------
+| Tile_M      | Tile_N      | Tile_K      |
+|-------------|-------------|-------------|
+| 1           | 12288       | 12288       |
+
+| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
+|-------------|-------------|-------------|
+| 1           | 3           | 96          |
+
+--------------- Utilization ----------------------
+| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
+|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| 0.000732421875 | 0.09375     | 1           | 1           | 1           | 1           | 1           |
+
+------------------ Latency -----------------------
+| Total Latency        | 7.946e-07              cycles|
+| Total Compute Latency | 5.846e-07              cycles|
+| Total Array Latency  | 5.246e-07              cycles|
+| Total Reduction Latency| 6e-08                  cycles|
+| IO Latency           | 2.0999999999999997e-07 cycles|
+
+----------- Hardware Requirements ---------------
+| col_multicast        | False                 |
+| col_broadcast        | False                 |
+| broadcast            | {'C': True, 'R': True, 'B': False, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': True}|
+==================================================
+
+---------------- Debug Info -----------------------
+| Remaining Tiles       |                         |
+|-----------------------|-------------------------|
+| M_remain              | 0                      |
+| N_remain              | 0                      |
+| K_remain              | 0                      |
+
+| Fully Partitioned #Tiles |                       |
+|-------------------------|-----------------------|
+| M_t                   | 1                      |
+| N_t                   | 1                      |
+| K_t                   | 1                      |
+
+|------------------------|------------------------|
+==================================================
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 0.09375
+Capacity utilization: 0.000732421875
+GEMM 1x12288x12288 latency: 7.946e-07s
+simulated latency: GEMM_1x12288x12288 7.946e-07
+roofline_model_simdram: total_ops=301989888, total_data_movement=12288.0, peak_flops=2368722311934701.0, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=1.27490625e-07, memory_bound_time=9.375e-10
+GEMM roofline latency: 1.27490625e-07ms
+Results written to test_gemm_x16_base_config.json_1_12288_12288_simdram_ddr5_operandocality.csv
+Test 4: M=1, K=24576, N=24576
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+Running mapping search...
+find_simdram_mapping: Best mapping: Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+Running simulation...
+--- Input Matmul Size --- M:1, K:24576, N:24576
+Maximum Array Tile Size: {'M': 1, 'K': 192, 'N': 6}
+get_arr_tile_stats: arr_latency=8.54e-07, capacity_utilization=0.00146484375
+get_tile_stats: K_reduction_latency: 1.2e-07 = 1572864.0 / 13107200000000.0
+ BDS ['C', 'R', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+12288.0 = 1 * 24576 * 0.5
+get_tile_io_latency: data_volume=3145728.0, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=2.4e-07 = 3145728.0 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 1, 'K': 24576, 'N': 24576}, arr_tile_size: {'M': 1, 'K': 192, 'N': 6}, MK_dup: 1, KN_dup:1, MN_dup:192, M_K_io_latency: 2.4e-07, K_N_io_latency: 0, M_N_io_latency: 1.7999999999999997e-07, tile_compute_latency:9.74e-07 = 8.54e-07(arr_latency) + 1.2e-07(K_reduction_latency)
+================ Strategy Summary ================
+Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+
+---------------- Tile Sizes ----------------------
+| Tile_M      | Tile_N      | Tile_K      |
+|-------------|-------------|-------------|
+| 1           | 24576       | 24576       |
+
+| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
+|-------------|-------------|-------------|
+| 1           | 6           | 192         |
+
+--------------- Utilization ----------------------
+| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
+|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| 0.00146484375 | 0.1875      | 1           | 1           | 1           | 1           | 1           |
+
+------------------ Latency -----------------------
+| Total Latency        | 1.5739999999999999e-06 cycles|
+| Total Compute Latency | 9.74e-07               cycles|
+| Total Array Latency  | 8.54e-07               cycles|
+| Total Reduction Latency| 1.2e-07                cycles|
+| IO Latency           | 6e-07                  cycles|
+
+----------- Hardware Requirements ---------------
+| col_multicast        | False                 |
+| col_broadcast        | False                 |
+| broadcast            | {'C': True, 'R': True, 'B': False, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': True}|
+==================================================
+
+---------------- Debug Info -----------------------
+| Remaining Tiles       |                         |
+|-----------------------|-------------------------|
+| M_remain              | 0                      |
+| N_remain              | 0                      |
+| K_remain              | 0                      |
+
+| Fully Partitioned #Tiles |                       |
+|-------------------------|-----------------------|
+| M_t                   | 1                      |
+| N_t                   | 1                      |
+| K_t                   | 1                      |
+
+|------------------------|------------------------|
+==================================================
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 0.1875
+Capacity utilization: 0.00146484375
+GEMM 1x24576x24576 latency: 1.5739999999999999e-06s
+simulated latency: GEMM_1x24576x24576 1.5739999999999999e-06
+roofline_model_simdram: total_ops=1207959552, total_data_movement=24576.0, peak_flops=2368722311934701.0, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=5.099625e-07, memory_bound_time=1.875e-09
+GEMM roofline latency: 5.099625e-07ms
+Results written to test_gemm_x16_base_config.json_1_24576_24576_simdram_ddr5_operandocality.csv
+Running LLM tests...
+Testing GPT-3 175B model prefill
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+LLM model: gpt3-175B
+simulating qkv: Matmul M=1024, K=12288, N=12288
+qkv latency: 0.001216104, compute latency: 0.00019956799999999998, io overhead: 0.00018479999999999997
+simulating q_mul_k: Batched Matmul BS=96 M=1024, K=128, N=1024
+Batched Matmul: M=1024, K=128, N=1024, BS=96
+BatchedMatmul latency: 0.00034483200000000005
+q_mul_k latency: 0.00036583200000000007, compute latency: 0.00021811200000000002, io overhead: 0.00012672
+simulating a_mul_v: Batched Matmul BS=96 M=1024, K=1024, N=128
+Batched Matmul: M=1024, K=1024, N=128, BS=96
+BatchedMatmul latency: 0.0001529856
+a_mul_v latency: 0.0001739856, compute latency: 0.00011842559999999999, io overhead: 3.456e-05
+simulating h_matmul0: Matmul M=1024, K=12288, N=12288
+h_matmul0 latency: 0.00040536799999999997, compute latency: 0.00019956799999999998, io overhead: 0.00018479999999999997
+simulating h1_matmul1: Matmul M=1024, K=12288, N=49152
+h1_matmul1 latency: 0.0012294767999999998, compute latency: 0.0007980767999999999, io overhead: 0.0004104
+simulating h2_matmul2: Matmul M=1024, K=49152, N=12288
+h2_matmul2 latency: 0.000640456, compute latency: 0.00039913599999999997, io overhead: 0.00022031999999999998
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 0.0038632224
+matmul total latency: 0.0040312224
+weighted avg simd utilization: 0.1949475858737042
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 1.0, 'S': 1.0, 'D': 1.0}
+gpt3-175B 96 layers prefill latency: 0.40110935039999995
+simulated latency: gpt3-175B_prefill 0.40110935039999995
+Testing GPT-3 175B model decode
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+simulating qkv: Matmul M=1, K=12288, N=12288
+qkv latency: 6.53838e-05, compute latency: 1.7538e-06, io overhead: 6.299999999999999e-07, kernel launch overhead: 6.3e-05
+simulating q_mul_k:BatchedMatmul BS=96 M=1, K=128, N=1025
+Batched Matmul: M=1, K=128, N=1025, BS=96
+BatchedMatmul latency: 2.9775249023437503e-05
+q_mul_k latency: 5.0775249023437505e-05, compute latency: 2.9520234375e-05, io overhead: 2.550146484375e-07, kernel launch overhead: 2.1e-05
+simulating a_mul_v: BatchedMatmul BS=96 M=1, K=1025, N=128
+Batched Matmul: M=1, K=1025, N=128, BS=96
+BatchedMatmul latency: 2.9881992187499997e-05
+a_mul_v latency: 5.0881992187499996e-05, compute latency: 2.976e-05, io overhead: 1.219921875e-07, kernel launch overhead: 2.1e-05
+simulating h_matmul0: Matmul M=1, K=12288, N=12288
+h_matmul0 latency: 2.17946e-05, compute latency: 5.846e-07, io overhead: 2.0999999999999997e-07, kernel launch overhead: 2.1e-05
+simulating h1_matmul1: Matmul M=1, K=12288, N=49152
+h1_matmul1 latency: 2.2933999999999998e-05, compute latency: 9.74e-07, io overhead: 9.6e-07, kernel launch overhead: 2.1e-05
+simulating h2_matmul2: Matmul M=1, K=49152, N=12288
+h2_matmul2 latency: 2.2394e-05, compute latency: 9.74e-07, io overhead: 4.1999999999999995e-07, kernel launch overhead: 2.1e-05
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 6.616364121093748e-05
+matmul total latency: 0.00023416364121093747
+weighted avg simd utilization: 0.07204587446623678
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 0.660850917924407, 'S': 1.0, 'D': 1.0}
+gpt3-175B decode latency per token: 0.0003811636412109375
+gpt3-175B decode total latency for 2048 tokens: 0.816833683115039
+simulated latency: gpt3-175B_decode 0.816833683115039
+Testing GPT-3 6.7B model prefill
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+LLM model: gpt3-6.7B
+simulating qkv: Matmul M=1024, K=4096, N=4096
+qkv latency: 0.000286632, compute latency: 3.3424000000000004e-05, io overhead: 4.112e-05
+simulating q_mul_k: Batched Matmul BS=32 M=1024, K=128, N=1024
+Batched Matmul: M=1024, K=128, N=1024, BS=32
+BatchedMatmul latency: 0.00011494400000000002
+q_mul_k latency: 0.000135944, compute latency: 7.2704e-05, io overhead: 4.224e-05
+simulating a_mul_v: Batched Matmul BS=32 M=1024, K=1024, N=128
+Batched Matmul: M=1024, K=1024, N=128, BS=32
+BatchedMatmul latency: 5.0995199999999996e-05
+a_mul_v latency: 7.199519999999999e-05, compute latency: 3.94752e-05, io overhead: 1.152e-05
+simulating h_matmul0: Matmul M=1024, K=4096, N=4096
+h_matmul0 latency: 9.5544e-05, compute latency: 3.3424000000000004e-05, io overhead: 4.112e-05
+simulating h1_matmul1: Matmul M=1024, K=4096, N=16384
+h1_matmul1 latency: 0.0002976656, compute latency: 0.0001333056, io overhead: 0.00014335999999999998
+simulating h2_matmul2: Matmul M=1024, K=16384, N=4096
+h2_matmul2 latency: 0.0001702128, compute latency: 6.66528e-05, io overhead: 8.256e-05
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 0.0008899936000000002
+matmul total latency: 0.0010579936000000001
+weighted avg simd utilization: 0.12467691203425045
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 1.0, 'S': 1.0, 'D': 1.0}
+gpt3-6.7B 32 layers prefill latency: 0.038559795200000004
+simulated latency: gpt3-6.7B_prefill 0.038559795200000004
+Testing GPT-3 6.7B model decode
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+simulating qkv: Matmul M=1, K=4096, N=4096
+qkv latency: 6.4125e-05, compute latency: 9.75e-07, io overhead: 1.5e-07, kernel launch overhead: 6.3e-05
+simulating q_mul_k:BatchedMatmul BS=32 M=1, K=128, N=1025
+Batched Matmul: M=1, K=128, N=1025, BS=32
+BatchedMatmul latency: 9.925083007812501e-06
+q_mul_k latency: 3.09250830078125e-05, compute latency: 9.840078125e-06, io overhead: 8.50048828125e-08, kernel launch overhead: 2.1e-05
+simulating a_mul_v: BatchedMatmul BS=32 M=1, K=1025, N=128
+Batched Matmul: M=1, K=1025, N=128, BS=32
+BatchedMatmul latency: 9.960664062499999e-06
+a_mul_v latency: 3.09606640625e-05, compute latency: 9.92e-06, io overhead: 4.0664062499999994e-08, kernel launch overhead: 2.1e-05
+simulating h_matmul0: Matmul M=1, K=4096, N=4096
+h_matmul0 latency: 2.1374999999999998e-05, compute latency: 3.25e-07, io overhead: 5e-08, kernel launch overhead: 2.1e-05
+simulating h1_matmul1: Matmul M=1, K=4096, N=16384
+h1_matmul1 latency: 2.16148e-05, compute latency: 4.548e-07, io overhead: 1.6e-07, kernel launch overhead: 2.1e-05
+simulating h2_matmul2: Matmul M=1, K=16384, N=4096
+h2_matmul2 latency: 2.1524999999999998e-05, compute latency: 3.25e-07, io overhead: 2e-07, kernel launch overhead: 2.1e-05
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 2.252554707031249e-05
+matmul total latency: 0.00019052554707031248
+weighted avg simd utilization: 0.03587075699210323
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 0.7462433320142606, 'S': 1.0, 'D': 1.0}
+gpt3-6.7B decode latency per token: 0.00033752554707031253
+gpt3-6.7B decode total latency for 2048 tokens: 0.7017156123591797
+simulated latency: gpt3-6.7B_decode 0.7017156123591797
+Testing LLaMA 3.1 70B model prefill
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+LLM model: Llama-3.1-70B
+simulating q_proj: Matmul M=1024, K=8192, N=8192
+q_proj latency: 0.00023635039999999997, compute latency: 0.0001331104, io overhead: 8.224e-05
+simulating k_proj: Matmul M=1024, K=8192, N=1024
+k_proj latency: 4.83696e-05, compute latency: 1.68096e-05, io overhead: 1.056e-05
+simulating v_proj: Matmul M=1024, K=8192, N=1024
+skipping v_proj simulation, using k_proj
+v_proj latency: 4.83696e-05, compute latency: 1.68096e-05, io overhead: 1.056e-05
+simulating q_mul_k: Batched_Matmul BS=64 M=1024, K=128, N=1024
+Batched Matmul: M=1024, K=128, N=1024, BS=64
+BatchedMatmul latency: 0.00022988800000000003
+q_mul_k latency: 0.00025088800000000005, compute latency: 0.000145408, io overhead: 8.448e-05
+simulating a_mul_v: Batched_Matmul BS=64 M=1024, K=1024, N=128
+Batched Matmul: M=1024, K=1024, N=128, BS=64
+BatchedMatmul latency: 0.00010199039999999999
+a_mul_v latency: 0.0001229904, compute latency: 7.89504e-05, io overhead: 2.304e-05
+simulating h_matmul0: Matmul M=1024, K=8192, N=8192
+h_matmul0 latency: 0.00023635039999999997, compute latency: 0.0001331104, io overhead: 8.224e-05
+simulating h1_matmul1: Matmul M=1024, K=8192, N=28672
+h1_matmul1 latency: 0.0006526736, compute latency: 0.0004655936, io overhead: 0.00016607999999999998
+simulating h2_matmul2: Matmul M=1024, K=28672, N=8192
+h2_matmul2 latency: 0.00043058080000000007, compute latency: 0.0002662208, io overhead: 0.00014336
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 0.0018585728000000002
+matmul total latency: 0.0020265728
+weighted avg simd utilization: 0.12568871199692405
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 1.0, 'S': 1.0, 'D': 1.0}
+Llama-3.1-70B 80 layers prefill latency: 0.17388582400000002
+simulated latency: Llama-3.1-70B_prefill 0.17388582400000002
+Testing LLaMA 3.1 70B model decode
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+simulating q_proj: Matmul M=1, K=8192, N=8192
+q_proj latency: 2.1564999999999998e-05, compute latency: 3.25e-07, io overhead: 2.4e-07
+simulating k_proj: Matmul M=1, K=8192, N=1024
+k_proj latency: 2.134625e-05, compute latency: 3.25e-07, io overhead: 2.1250000000000002e-08
+simulating v_proj: Matmul M=1, K=8192, N=1024
+skipping v_proj simulation, using k_proj
+v_proj latency: 2.134625e-05, compute latency: 3.25e-07, io overhead: 2.1250000000000002e-08
+simulating q_mul_k: Batched_Matmul BS=64 M=1, K=128, N=1025
+Batched Matmul: M=1, K=128, N=1025, BS=64
+BatchedMatmul latency: 1.9850166015625002e-05
+q_mul_k latency: 4.0850166015625e-05, compute latency: 1.968015625e-05, io overhead: 1.70009765625e-07
+simulating a_mul_v: Batched_Matmul BS=64 M=1, K=1025, N=128
+Batched Matmul: M=1, K=1025, N=128, BS=64
+BatchedMatmul latency: 1.9921328124999998e-05
+a_mul_v latency: 4.0921328125e-05, compute latency: 1.984e-05, io overhead: 8.132812499999999e-08
+simulating h_matmul0: Matmul M=1, K=8192, N=8192
+h_matmul0 latency: 2.1564999999999998e-05, compute latency: 3.25e-07, io overhead: 2.4e-07
+simulating h1_matmul1: Matmul M=1, K=8192, N=28672
+h1_matmul1 latency: 2.2144399999999998e-05, compute latency: 7.044e-07, io overhead: 4.4e-07
+simulating h2_matmul2: Matmul M=1, K=28672, N=8192
+h2_matmul2 latency: 2.18748e-05, compute latency: 4.548e-07, io overhead: 4.2000000000000006e-07
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 4.361319414062498e-05
+matmul total latency: 0.00021161319414062497
+weighted avg simd utilization: 0.06507719340431074
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 0.6981201657067118, 'S': 1.0, 'D': 1.0}
+Llama-3.1-70B decode latency per token: 0.000358613194140625
+Llama-3.1-70B decode total latency for 2048 tokens: 0.7627702639371093
+simulated latency: Llama-3.1-70B_decode 0.7627702639371093
+Testing LLaMA 3.1 8B model prefill
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+LLM model: Llama-3.1-8B
+simulating q_proj: Matmul M=1024, K=4096, N=4096
+q_proj latency: 9.5544e-05, compute latency: 3.3424000000000004e-05, io overhead: 4.112e-05
+simulating k_proj: Matmul M=1024, K=4096, N=1024
+k_proj latency: 3.99024e-05, compute latency: 8.5024e-06, io overhead: 1.04e-05
+simulating v_proj: Matmul M=1024, K=4096, N=1024
+skipping v_proj simulation, using k_proj
+v_proj latency: 3.99024e-05, compute latency: 8.5024e-06, io overhead: 1.04e-05
+simulating q_mul_k: Batched_Matmul BS=32 M=1024, K=128, N=1024
+Batched Matmul: M=1024, K=128, N=1024, BS=32
+BatchedMatmul latency: 0.00011494400000000002
+q_mul_k latency: 0.000135944, compute latency: 7.2704e-05, io overhead: 4.224e-05
+simulating a_mul_v: Batched_Matmul BS=32 M=1024, K=1024, N=128
+Batched Matmul: M=1024, K=1024, N=128, BS=32
+BatchedMatmul latency: 5.0995199999999996e-05
+a_mul_v latency: 7.199519999999999e-05, compute latency: 3.94752e-05, io overhead: 1.152e-05
+simulating h_matmul0: Matmul M=1024, K=4096, N=4096
+h_matmul0 latency: 9.5544e-05, compute latency: 3.3424000000000004e-05, io overhead: 4.112e-05
+simulating h1_matmul1: Matmul M=1024, K=4096, N=14336
+h1_matmul1 latency: 0.0002656912, compute latency: 0.0001166912, io overhead: 0.00012800000000000002
+simulating h2_matmul2: Matmul M=1024, K=14336, N=4096
+h2_matmul2 latency: 0.0001598928, compute latency: 6.66528e-05, io overhead: 7.224e-05
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 0.000736416
+matmul total latency: 0.000904416
+weighted avg simd utilization: 0.11767098879276792
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 1.0, 'S': 1.0, 'D': 1.0}
+Llama-3.1-8B 32 layers prefill latency: 0.033645312
+simulated latency: Llama-3.1-8B_prefill 0.033645312
+Testing LLaMA 3.1 8B model decode
+Simulate Running on DRAM PIM
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 2368.7223119347013Tops
+memory capacity: 1024.0GB
+peripheral area: 2113.579418320765mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+simulating q_proj: Matmul M=1, K=4096, N=4096
+q_proj latency: 2.1374999999999998e-05, compute latency: 3.25e-07, io overhead: 5e-08
+simulating k_proj: Matmul M=1, K=4096, N=1024
+k_proj latency: 2.1335624999999998e-05, compute latency: 3.25e-07, io overhead: 1.0625000000000001e-08
+simulating v_proj: Matmul M=1, K=4096, N=1024
+skipping v_proj simulation, using k_proj
+v_proj latency: 2.1335624999999998e-05, compute latency: 3.25e-07, io overhead: 1.0625000000000001e-08
+simulating q_mul_k: Batched_Matmul BS=32 M=1, K=128, N=1025
+Batched Matmul: M=1, K=128, N=1025, BS=32
+BatchedMatmul latency: 9.925083007812501e-06
+q_mul_k latency: 3.09250830078125e-05, compute latency: 9.840078125e-06, io overhead: 8.50048828125e-08
+simulating a_mul_v: Batched_Matmul BS=32 M=1, K=1025, N=128
+Batched Matmul: M=1, K=1025, N=128, BS=32
+BatchedMatmul latency: 9.960664062499999e-06
+a_mul_v latency: 3.09606640625e-05, compute latency: 9.92e-06, io overhead: 4.0664062499999994e-08
+simulating h_matmul0: Matmul M=1, K=4096, N=4096
+h_matmul0 latency: 2.1374999999999998e-05, compute latency: 3.25e-07, io overhead: 5e-08
+simulating h1_matmul1: Matmul M=1, K=4096, N=14336
+h1_matmul1 latency: 2.15998e-05, compute latency: 4.498e-07, io overhead: 1.5000000000000002e-07
+simulating h2_matmul2: Matmul M=1, K=14336, N=4096
+h2_matmul2 latency: 2.1499999999999997e-05, compute latency: 3.25e-07, io overhead: 1.75e-07
+finish matmul simulation
+matmul total overhead: 0.000168
+matmul total latency w/o overhead: 2.2406797070312492e-05
+matmul total latency: 0.00019040679707031248
+weighted avg simd utilization: 0.028842075623717076
+weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 0.7460850729353466, 'S': 1.0, 'D': 1.0}
+Llama-3.1-8B decode latency per token: 0.0003374067970703125
+Llama-3.1-8B decode total latency for 2048 tokens: 0.7014687311091796
+simulated latency: Llama-3.1-8B_decode 0.7014687311091796

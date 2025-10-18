@@ -6,6 +6,7 @@ import argparse
 parser = argparse.ArgumentParser(description="Test GPT-3 on DRAM PIM")
 parser.add_argument("--config", type=str, help="Path to the config file")
 parser.add_argument("--model", type=str, help="Path to model hyperparameter file")
+parser.add_argument("--precision", type=str, default="int8", help="Data precision")
 parser.add_argument("--prefill", action='store_true', help="Run prefill phase")
 parser.add_argument("--decode", action='store_true', help="Run decode phase")
 parser.add_argument("--pipelined", action='store_true', help="Run pipelined simulation for decode phase")
@@ -14,8 +15,10 @@ args = parser.parse_args()
 specs = read_architecture_template(args.config)
 if "NVIDIA" in specs["name"]:
     isGPU = True
+    print("Simulate Running on GPU")
 else:
     isGPU = False
+    print("Simulate Running on DRAM PIM")
 if isGPU and args.pipelined:
     raise ValueError("Pipelined decode is not supported for GPU")
 system = template_to_system(specs)
@@ -39,13 +42,14 @@ elif "Llama" in llm_hyper.name:
 layers = llm_hyper.num_layers
 bs=1
 seq_len=1024
-precision = "int8"
+precision = args.precision
 
 # Prefill phase create model and simulate
 if args.prefill:
     print(f"LLM model: {llm_hyper.name}")
     if "gpt" in llm_hyper.name:
         model_prefill = TransformerBlockInitComputationTP(
+            model_name=llm_hyper.name,
             d_model=llm_hyper.d_model,
             n_heads=llm_hyper.num_heads,
             device_count=1,
@@ -53,6 +57,7 @@ if args.prefill:
         )
     elif "Llama" in llm_hyper.name:
         model_prefill = TransformerBlockInitComputationTP(
+            model_name=llm_hyper.name,
             d_model=llm_hyper.d_model,
             n_kv_heads=llm_hyper.num_kv_heads,
             n_heads=llm_hyper.num_heads,
@@ -69,7 +74,8 @@ if args.prefill:
         prefill_latency_simulated = model_prefill.compile_and_simulate(system, compile_mode = "specific")
 
     E2E_prefill_latency = prefill_latency_simulated * layers
-    print(f"GPT-3 {layers} layers prefill latency: {E2E_prefill_latency}")
+    print(f"{llm_hyper.name} {layers} layers prefill latency: {E2E_prefill_latency}")
+    print(f"simulated latency: {llm_hyper.name}_prefill {E2E_prefill_latency}")
 
 # Decode phase create model and simulate
 if args.decode:
@@ -79,6 +85,7 @@ if args.decode:
     output_len = 2048
     if "gpt" in llm_hyper.name:
         model_decode = TransformerBlockAutoRegressionTP(
+                model_name=llm_hyper.name,
                 d_model=llm_hyper.d_model,
                 n_heads=llm_hyper.num_heads,
                 device_count=1,
@@ -86,6 +93,7 @@ if args.decode:
             )
     elif "Llama" in llm_hyper.name:
         model_decode = TransformerBlockAutoRegressionTP(
+                model_name=llm_hyper.name,
                 d_model=llm_hyper.d_model,
                 n_kv_heads=llm_hyper.num_kv_heads,
                 n_heads=llm_hyper.num_heads,
@@ -100,12 +108,13 @@ if args.decode:
         decode_latency_simulated = model_decode.compile_and_simulate(system, "heuristic-GPU")
     else:
         decode_latency_simulated = model_decode.compile_and_simulate(system, "specific")
-    print(f"GPT-3 decode latency per token: {decode_latency_simulated}")
+    print(f"{llm_hyper.name} decode latency per token: {decode_latency_simulated}")
     if args.pipelined:
         decode_total_latency = decode_latency_simulated * layers + decode_latency_simulated * (output_len-1)
     else:
         decode_total_latency = decode_latency_simulated * layers * output_len
-    print(f"GPT-3 decode total latency for {output_len} tokens: {decode_total_latency}")
+    print(f"{llm_hyper.name} decode total latency for {output_len} tokens: {decode_total_latency}")
+    print(f"simulated latency: {llm_hyper.name}_decode {decode_total_latency}")
 
 # output_len = 2048
 # model_decode = TransformerBlockAutoRegressionTP(

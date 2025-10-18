@@ -1,0 +1,19 @@
+{
+    "tile_mapping": {
+        "M": "RB",
+        "N": "CD",
+        "K": "AS"
+    },
+    "arr_mapping": {
+        "R": "MN",
+        "C": "K"
+    },
+    "loop_order": "mkn",
+    "with_PE": true,
+    "broadcast": "AB",
+    "arr_multicast": false,
+    "col_popcount": true,
+    "weight_resident": true,
+    "input_resident": false,
+    "output_resident": false
+}

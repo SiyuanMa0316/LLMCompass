@@ -1,4 +1,4 @@
-from software_model.mapping import Mapping
+from software_model.strategy import Strategy
 from hardware_model.device import Device
 class TileStats:
     def __init__(self, tile_size=None, arr_tile_size=None, M_K_io_latency=None, K_N_io_latency=None, M_N_io_latency=None, tile_compute_latency=None, arr_latency=None, K_reduction_latency=None, tiling_utilization=None, col_utilization=None, capacity_utilization=None) -> None:
@@ -37,7 +37,7 @@ class TileStats:
                 self.compute_latency, self.array_latency, self.reduction_latency, self.latency,
                 self.col_utilization, self.tiling_utilization, self.capacity_utilization]
 class Stats:
-    def __init__ (self, device:Device,  strategy:Mapping) -> None:
+    def __init__ (self, device:Device,  strategy:Strategy) -> None:
         self.strategy = strategy
         self.tile_size = {'M': 0, 'N': 0, 'K': 0}
         self.arr_tile_size = {'M': 0, 'N': 0, 'K': 0}

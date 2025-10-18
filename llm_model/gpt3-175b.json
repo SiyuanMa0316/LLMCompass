@@ -1,5 +1,5 @@
 {
-    "name" : "gpt3-6.7B",
+    "name" : "gpt3-175B",
     "num_layers": 96,
     "model_dimension": 12288,
     "num_attention_heads": 96,

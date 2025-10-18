@@ -110,18 +110,20 @@ def template_to_system_simdram(arch_specs):
     bank = Bank(device_count=bank_specs["device_count"] , arr_count=bank_specs["array_count"], subarr_count=bank_specs["subarray_count"], arr_cols=bank_specs["array_cols"], arr_rows=bank_specs["array_rows"], device_data_width=bank_specs["device_data_width"], effective_freq=bank_specs["device_frequency_Hz"]/bank_count)
     compute_module_simdram = ComputeModuleSIMDRAM(host_channel_count, channel_count, rank_count, bank, bank_count, with_PE, bit_parallel, overhead_dict["SIMDRAM"])
     # io module (bandwidth of normal memory)
-    io_specs = arch_specs["io"]
-    io_module = IOModule(
-        io_specs["memory_channel_active_count"]
-        * io_specs["pin_count_per_channel"]
-        * io_specs["bandwidth_per_pin_bit"]
-        // 8,
-        1e-6,
-    )
+    # io_specs = arch_specs["io"]
+    # io_module = IOModule(
+    #     io_specs["memory_channel_active_count"]
+    #     * io_specs["pin_count_per_channel"]
+    #     * io_specs["bandwidth_per_pin_bit"]
+    #     // 8,
+    #     1e-6,
+    # )
+    io_module = None
     # memory module (normal memory)
-    memory_module = MemoryModule(
-        arch_specs["memory"]["total_capacity_GB"] * 1024 * 1024 * 1024
-    )
+    # memory_module = MemoryModule(
+    #     arch_specs["memory"]["total_capacity_GB"] * 1024 * 1024 * 1024
+    # )
+    memory_module = None
     device = Device(type, compute_module_simdram, io_module, memory_module)
     system = System(device, None)
     return system
@@ -137,9 +139,8 @@ def template_to_system_systolic(arch_specs):
     # vector unit
     vector_unit_specs = core_specs["vector_unit"]
     vector_unit = VectorUnit(
-        sublane_count
-        * vector_unit_specs["vector_width"]
-        * vector_unit_specs["flop_per_cycle"],
+        vector_unit_specs["vector_width"]
+        * vector_unit_specs["flop_per_cycle"]*2,
         int(re.search(r"(\d+)", vector_unit_specs["data_type"]).group(1)) // 8,
         35,
         vector_unit_specs["vector_width"],

@@ -1,6 +1,6 @@
 from software_model.matmul import Matmul
 from software_model.utils import data_type_dict, Tensor
-from software_model.mapping import Mapping
+from software_model.strategy import Strategy
 from design_space_exploration.dse import template_to_system, read_architecture_template
 import csv
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -12,6 +12,8 @@ parser.add_argument("--dse", action='store_true', help="Run DSE. This will overw
 parser.add_argument("--M", type=int, default=1024, help="Matrix M dimension")
 parser.add_argument("--K", type=int, default=12288, help="Matrix K dimension")
 parser.add_argument("--N", type=int, default=12288, help="Matrix N dimension")
+parser.add_argument("--log_strategy", type=str, default=None, help="Path to the log strategy file")
+parser.add_argument("--use_strategy", type=str, default=None, help="Path to the strategy file to use")
 args = parser.parse_args()
 M = args.M
 K = args.K
@@ -105,7 +107,16 @@ if __name__ == "__main__":  # required for Windows
             system = template_to_system(specs)
             simdram = system.device
             print(simdram.info())
-            strategy = model.find_simdram_mapping(simdram, debug=True)
+            if args.use_strategy:
+                print(f"Using strategy from {args.use_strategy}")
+                strategy = Strategy.get_mapping_from_json(args.use_strategy)
+            else:
+                print("Running mapping search...")
+                strategy = model.find_simdram_mapping(simdram, debug=True)
+            if args.log_strategy:
+                print(f"Logging strategy to {args.log_strategy}")
+                strategy.to_json(args.log_strategy)
+            print("Running simulation...")
             latency = model.compile_and_simulate(
                 simdram, compile_mode="specific", strategy=strategy, debug=True
             )

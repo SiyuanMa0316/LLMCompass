@@ -35,6 +35,7 @@ if args.prefill:
     print(llm_hyper.name)
     if "gpt" in llm_hyper.name:
         model_prefill = TransformerBlockInitComputationTP(
+            model_name=llm_hyper.name,
             d_model=llm_hyper.d_model,
             n_heads=llm_hyper.num_heads,
             device_count=1,

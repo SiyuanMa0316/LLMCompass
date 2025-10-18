@@ -1,0 +1,2 @@
+# python -m experiments.test_llm --config configs/x16\{\'C\'\:\ 10\,\ \'R\'\:\ 32\,\ \'B\'\:\ 16\,\ \'A\'\:\ 32\,\ \'S\'\:\ 1\,\ \'D\'\:\ 8\}16384x512_ddr5.json --model llm_model/llama-3.1-70b.json --prefill
+python -m experiments.test_llm --config configs/x16\{\'C\'\:\ 10\,\ \'R\'\:\ 32\,\ \'B\'\:\ 16\,\ \'A\'\:\ 32\,\ \'S\'\:\ 1\,\ \'D\'\:\ 8\}16384x512_ddr5.json --model llm_model/llama-3.1-70b.json --decode --pipelined

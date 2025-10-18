@@ -113,7 +113,7 @@ overhead_dict = {
     "TPUv3": Overhead(11e-5, 30e-5, 14e-5, 10e-5),
     "MI210": Overhead(3.4e-5, 2.2e-5, 2.8e-5, 2.1e-5),
     "PIMSAB": Overhead(2.1e-5, 1.2e-5, 4.5e-5, 4.5e-5),
-    "SIMDRAM": Overhead(2.1e-5, 1.2e-5, 4.5e-5, 4.5e-5),
+    "SIMDRAM": Overhead(0, 0, 0, 0),
 }
 
 
@@ -146,6 +146,9 @@ class ComputeModule:
             * clock_freq
         )
         self.overhead = overhead
+
+    def info(self):
+        return f"core count: {self.core_count}, clock freq: {self.clock_freq/1e6}MHz, L2 size: {self.l2_size/1024/1024}MB, L2 bandwidth: {self.l2_bandwidth_per_cycle*self.clock_freq/1000/1000/1000}GB/s, total vector flops: {self.total_vector_flops/1e12}TFLOPS, total systolic array flops: {self.total_systolic_array_flops/1e12}TFLOPS"
 
 
 compute_module_dict = {

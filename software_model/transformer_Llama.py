@@ -29,11 +29,14 @@ def dump_log(logs: dict, name: str, e2e_latency, stats, overhead):
     logs[name]['simd_utilization'] = stats.simd_utilization
     logs[name]['tiling_utilization'] = stats.tiling_utilization
     logs[name]['capacity_utilization'] = stats.capacity_utilization
+    logs[name]['tile_mapping'] = stats.strategy.tile_mapping
+    logs[name]['arr_mapping'] = stats.strategy.arr_mapping
     return logs
 
 class TransformerBlock(Operator):
-    def __init__(self, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type: DataType):
+    def __init__(self, model_name, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type: DataType):
         super().__init__(0, 0, 0, 0, data_type)
+        self.model_name = model_name
         self.d_model = d_model
         self.n_heads = n_heads
         self.head_dim = d_model // n_heads
@@ -254,7 +257,7 @@ class TransformerBlock(Operator):
             self.K_proj.compile_and_simulate(device, compile_mode=compile_mode, strategy=k_proj_mapping)
             + launch_overhead
         )
-        logs = dump_log(logs, 'k_proj', q_proj_latency, self.K_proj.stats, launch_overhead)
+        logs = dump_log(logs, 'k_proj', k_proj_latency, self.K_proj.stats, launch_overhead)
         print(f"k_proj latency: {k_proj_latency}, compute latency: {self.K_proj.stats.compute_latency}, io overhead: {self.K_proj.stats.io_latency}")
 
         print(f"simulating v_proj: Matmul M={self.V_proj.M}, K={self.V_proj.K}, N={self.V_proj.N}")
@@ -349,9 +352,9 @@ class TransformerBlock(Operator):
             allreduce_total_latency = 0
 
         #log latencies to a csv file
-        with open('transformerLlama_prefill_profile.csv', mode='w', newline='') as file:
+        with open(f'{self.model_name}_transformer_log.csv', mode='w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(['Entry'
+            writer.writerow(['Entry',
                 'Q_proj', 'K_proj', 'V_proj', 'Q_mul_k', 'A_mul_V', 
                 'Wo_proj', 'W1_proj', 'W2_proj', 
                 'Softmax', 'Layernorm', 
@@ -363,11 +366,11 @@ class TransformerBlock(Operator):
             #     softmax_latency, layernorm_latency,
             #     gelu_latency, allreduce_latency
             # ])
-            keys = ['q_proj', 'k_proj', 'v_proj', 'q_mul_k', 'a_mul_v', 'h_matmul0', 'h1_matmul1', 'h2_matmul2']
+            keys = ['entry', 'q_proj', 'k_proj', 'v_proj', 'q_mul_k', 'a_mul_v', 'h_matmul0', 'h1_matmul1', 'h2_matmul2']
 
-            logs['entry'] = {'compute_latency': 'compute_latency', 'io_latency': 'io_latency', 
+            logs['entry'] = {'latency':'latency', 'compute_latency': 'compute_latency', 'io_latency': 'io_latency', 
                              'kernel_launch_overhead': 'kernel_launch_overhead', 'tiling_utilization': 'tiling_utilization',
-                             'simd_utilization': 'simd_utilization', 'capacity_utilization': 'capacity_utilization'}
+                             'simd_utilization': 'simd_utilization', 'capacity_utilization': 'capacity_utilization', 'tile_mapping': 'tile_mapping', 'arr_mapping': 'arr_mapping'}
             
 
 
@@ -379,6 +382,14 @@ class TransformerBlock(Operator):
             simd_utilization_row = [logs[key]['simd_utilization'] for key in keys]
             capacity_utilization_row = [logs[key]['capacity_utilization'] for key in keys]
             tiling_utilization_row = [logs[key]['capacity_utilization'] for key in keys]
+            tile_mapping_row = [logs[key]['tile_mapping'] for key in keys]
+            arr_mapping_row = [logs[key]['arr_mapping'] for key in keys]
+            total_latency = sum([logs[key]['latency'] for key in keys if key != 'entry'])
+            avg_weighted_simd_utilization = sum([logs[key]['simd_utilization'] * logs[key]['latency'] for key in keys if key != 'entry']) / total_latency
+            print(f"weighted avg simd utilization: {avg_weighted_simd_utilization}")
+            parallelisms = device.compute_module.parallelisms
+            avg_weighted_tiling_utilization = {parallelism : sum([logs[key]['tiling_utilization'][parallelism] * logs[key]['latency'] for key in keys if key != 'entry']) / total_latency for parallelism in parallelisms}
+            print(f"weighted avg tiling utilization: {avg_weighted_tiling_utilization}")
 
             writer.writerow(latency_row)
             writer.writerow(compute_latency_row)
@@ -387,6 +398,8 @@ class TransformerBlock(Operator):
             writer.writerow(simd_utilization_row)
             writer.writerow(capacity_utilization_row)
             writer.writerow(tiling_utilization_row)
+            writer.writerow(tile_mapping_row)
+            writer.writerow(arr_mapping_row)
 
 
         # others
@@ -619,13 +632,13 @@ class TransformerBlock(Operator):
             return self.compile_and_simulate_gpu(system, compile_mode)
 
 class TransformerBlockInitComputationTP(TransformerBlock):
-    def __init__(self, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type: DataType):
-        super().__init__(d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type)
+    def __init__(self, model_name, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type: DataType):
+        super().__init__(model_name, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type)
 
 
 class TransformerBlockAutoRegressionTP(TransformerBlock):
-    def __init__(self, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type: DataType, core_count_per_block=1):
-        super().__init__(d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type)
+    def __init__(self, model_name, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type: DataType, core_count_per_block=1):
+        super().__init__(model_name, d_model, n_heads, n_kv_heads, ffn_dim, device_count, data_type)
         self.K_concat = Concat(data_type)
         self.V_concat = Concat(data_type)
 
