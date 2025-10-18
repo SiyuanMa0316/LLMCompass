@@ -1,0 +1,54 @@
+# backprop — Rodinia Benchmark (Baseline & PIM Variants)
+
+## Benchmark Source
+
+Rodinia Benchmark Suite 3.1  
+===========================
+
+Contact (for original code):  
+Ke Wang: kw5na@virginia.edu  
+Shuai Che: sc5nf@cs.virginia.edu  
+Kevin Skadron: skadron@cs.virginia.edu
+
+Rodinia wiki:  
+http://lava.cs.virginia.edu/wiki/rodinia
+
+---
+
+## Build
+
+Run:
+
+```bash
+make
+```
+
+This produces two executables:
+
+- `backprop_baseline.exe` — baseline code  
+- `backprop_pim.exe` — modified PIM code
+
+---
+
+## Input & Run
+
+The applications take as input the **number of input elements**. Example:
+
+```bash
+./backprop_baseline.exe 134217728
+./backprop_pim.exe      134217728
+```
+
+---
+
+## PIM Output
+
+The PIM variant (`backprop_pim.exe`) generates:
+
+- **`bbop_statistics.csv`** — execution time and energy consumption for each PIM system (bbop instruction), i.e., **SIMDRAM** and **Proteus**.
+
+---
+
+## Notes
+
+- To change the number of **OpenMP threads**, modify `NUM_THREAD` in `backprop.h`.

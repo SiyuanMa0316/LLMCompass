@@ -1,0 +1,54 @@
+# 2mm — PolyBench/C Kernel (Baseline & PIM Variants)
+
+## Benchmark Source
+
+```
+* * * * * * * * * * * * * * *
+* PolyBench/C 4.2.1 (beta)  *
+* * * * * * * * * * * * * * *
+```
+Copyright (c) 2011–2016 The Ohio State University.
+
+Contact (for original code):  
+- Louis-Noel Pouchet <pouchet@cse.ohio-state.edu>  
+- Tomofumi Yuki <tomofumi.yuki@inria.fr>
+
+---
+
+## Build
+
+Run:
+
+```bash
+make
+```
+
+This produces three executables:
+
+- `2mm_baseline.exe` — baseline code  
+- `2mm_pim.exe` — modified PIM code  
+- `2mm_pim_int4.exe` — modified PIM code using **int4** datatype
+
+---
+
+## Dataset Selection
+
+Dataset size/type can be changed using the flags within `2mm.h`.
+
+---
+
+## Run
+
+```bash
+./2mm_baseline.exe
+./2mm_pim.exe
+./2mm_pim_int4.exe
+```
+
+---
+
+## PIM Output
+
+The PIM variants (`2mm_pim.exe`, `2mm_pim_int4.exe`) generate:
+
+- **`bbop_statistics.csv`** — execution time and energy consumption for each PIM system (bbop instruction), i.e., **SIMDRAM** and **Proteus**.

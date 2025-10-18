@@ -1,0 +1,57 @@
+# heartwall — Rodinia Benchmark (Baseline & PIM Variants)
+
+## Benchmark Source
+
+Rodinia Benchmark Suite 3.1  
+===========================
+
+Contact (for original code):  
+Ke Wang: kw5na@virginia.edu  
+Shuai Che: sc5nf@cs.virginia.edu  
+Kevin Skadron: skadron@cs.virginia.edu
+
+Rodinia wiki:  
+http://lava.cs.virginia.edu/wiki/rodinia
+
+---
+
+## Build
+
+Run:
+
+```bash
+make
+```
+
+This produces two executables:
+
+- `heartwall_baseline.exe` — baseline code  
+- `heartwall_pim.exe` — modified PIM code
+
+> Note: The build will also compile the small AVI helper library located in `./AVI`.
+
+---
+
+## Input & Run
+
+**Usage:**  
+```
+./heartwall_*.exe <inputfile> <num_frames> <num_threads>
+```
+- `inputfile`: path to an AVI file (a sample `test.avi` is provided).
+- `num_frames`: number of frames to process.
+- `num_threads`: number of OpenMP threads to use.
+
+**Example:**
+
+```bash
+./heartwall_pim.exe test.avi 20 8
+```
+
+---
+
+## PIM Output
+
+The PIM variant (`heartwall_pim.exe`) generates:
+
+- **`bbop_statistics.csv`** — execution time and energy consumption for each PIM system (bbop instruction), i.e., **SIMDRAM** and **Proteus**.

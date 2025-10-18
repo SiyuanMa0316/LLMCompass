@@ -1,0 +1,59 @@
+# covariance — PolyBench/C Kernel (Baseline & PIM Variant)
+
+**Workload:** Covariance Computation.
+
+## Benchmark Source
+
+```
+* * * * * * * * * * * * * * *
+* PolyBench/C 4.2.1 (beta)  *
+* * * * * * * * * * * * * * *
+```
+Copyright (c) 2011–2016 The Ohio State University.
+
+Contact (for original code):  
+- Louis-Noel Pouchet <pouchet@cse.ohio-state.edu>  
+- Tomofumi Yuki <tomofumi.yuki@inria.fr>
+
+---
+
+## Build
+
+Run:
+
+```bash
+make
+```
+
+This produces two executables:
+
+- `covariance_baseline.exe` — baseline code  
+- `covariance_pim.exe` — modified PIM code
+
+> Tip: You can override the compiler if needed, e.g.:
+> ```bash
+> make CC=gcc-15
+> ```
+
+---
+
+## Dataset Selection
+
+Dataset size/type can be changed using the flags within `covariance.h`.
+
+---
+
+## Run
+
+```bash
+./covariance_baseline.exe
+./covariance_pim.exe
+```
+
+---
+
+## PIM Output
+
+The PIM variant (`covariance_pim.exe`) generates:
+
+- **`bbop_statistics.csv`** — execution time and energy consumption for each PIM system (bbop instruction), i.e., **SIMDRAM** and **Proteus**.

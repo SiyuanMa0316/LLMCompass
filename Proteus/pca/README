@@ -1,0 +1,58 @@
+# pca — Phoenix Benchmark (Baseline & PIM Variants)
+
+**Application:** Principal Component Analysis (PCA) — computes the mean vector and covariance matrix of a randomly generated matrix (first step of PCA).
+
+## Benchmark Source
+
+The Phoenix source code is distributed with a BSD license. The copyright is held by Stanford University. Phoenix is provided "as is" without any guarantees of any kind.
+
+Please contact Christos Kozyrakis (kozyraki@stanford.edu) for further information.
+
+Repository: https://github.com/kozyraki/phoenix/
+
+---
+
+## Build
+
+Run:
+
+```bash
+make
+```
+
+This produces two executables:
+
+- `pca_baseline.exe` — baseline code  
+- `pca_pim.exe` — modified PIM code
+
+> Tip: You can override the compiler if needed, e.g.:
+> ```bash
+> make CC=gcc-15
+> ```
+
+---
+
+## Usage
+
+The applications accept:
+```
+-r <num_rows>  -c <num_cols>  [-s <max_value>]
+```
+Where `-s` (optional) sets the maximum random value used to initialize the matrix.
+
+### Examples
+
+```bash
+./pca_baseline.exe -r 16000 -c 16000
+./pca_pim.exe      -r 16000 -c 16000
+# Optional max value:
+# ./pca_pim.exe -r 16000 -c 16000 -s 1000
+```
+
+---
+
+## PIM Output
+
+The PIM variant (`pca_pim.exe`) generates:
+
+- **`bbop_statistics.csv`** — execution time and energy consumption for each PIM system (bbop instruction), i.e., **SIMDRAM** and **Proteus**.
