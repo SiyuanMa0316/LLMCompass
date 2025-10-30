@@ -1,7 +1,7 @@
 import csv
 import argparse
 parser = argparse.ArgumentParser(description="Extract latencies from simulation output")
-parser.add_argument("--input", type=str, default="run_all_output_10-3", help="Path to the input log file")
+parser.add_argument("--input", type=str, default="run_gemv_output", help="Path to the input log file")
 
 args = parser.parse_args()
 

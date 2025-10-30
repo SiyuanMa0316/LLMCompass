@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # === Input CSV ===
-csv_file = "latencies_output.csv"  # replace with your filename
+csv_file = "latencies_run_gemv_output.csv"  # replace with your filename
 df = pd.read_csv(csv_file, header=None)
 
 # === Parse data ===
