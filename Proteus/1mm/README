@@ -1,0 +1,61 @@
+# gemm — PolyBench/C Kernel (Baseline & PIM Variants)
+
+**Workload:** Matrix-multiply `C = α · A · B + β · C`.
+
+## Benchmark Source
+
+```
+* * * * * * * * * * * * * * *
+* PolyBench/C 4.2.1 (beta)  *
+* * * * * * * * * * * * * * *
+```
+Copyright (c) 2011–2016 The Ohio State University.
+
+Contact (for original code):  
+- Louis-Noel Pouchet <pouchet@cse.ohio-state.edu>  
+- Tomofumi Yuki <tomofumi.yuki@inria.fr>
+
+---
+
+## Build
+
+Run:
+
+```bash
+make
+```
+
+This produces three executables:
+
+- `gemm_baseline.exe` — baseline code  
+- `gemm_pim.exe` — modified PIM code  
+- `gemm_pim_int4.exe` — modified PIM code using **int4** datatype
+
+> Tip: You can override the compiler if needed, e.g.:
+> ```bash
+> make CC=gcc-15
+> ```
+
+---
+
+## Dataset Selection
+
+Dataset size/type can be changed using the flags within `gemm.h`.
+
+---
+
+## Run
+
+```bash
+./gemm_baseline.exe
+./gemm_pim.exe
+./gemm_pim_int4.exe
+```
+
+---
+
+## PIM Output
+
+The PIM variants (`gemm_pim.exe`, `gemm_pim_int4.exe`) generate:
+
+- **`bbop_statistics.csv`** — execution time and energy consumption for each PIM system (bbop instruction), i.e., **SIMDRAM** and **Proteus**.

@@ -15,7 +15,7 @@ rows = []
 with open(csv_file, "r", newline='') as f:
     reader = csv.reader(f)
     for row in reader:
-        rows.append([cell.replace("GEMM_1x", "GEMV_1x") for cell in row])
+        rows.append([cell.replace("GEMM_1x", "GEMV_1x").replace("1024x12288x12288","small").replace("2048x24576x24576","large").replace("1x12288x12288","small").replace("1x24576x24576","large") for cell in row])
 with open(csv_file, "w", newline='') as f:
     writer = csv.writer(f)
     writer.writerows(rows)

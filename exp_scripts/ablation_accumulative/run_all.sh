@@ -1,8 +1,9 @@
 #!/bin/bash
 # config="configs/x16{'C': 10, 'R': 32, 'B': 16, 'A': 16, 'S': 1, 'D': 8}16384x1024.json"
 # config="configs/x16{'C': 8, 'R': 64, 'B': 16, 'A': 16, 'S': 1, 'D': 8}4096x1024.json"
+cd ../..
 config="configs/x16_base_config.json"
-precision="int2"
+precision="int8"
 echo "Using config: $config"
 # Run GEMM tests
 echo "Running GEMM tests..."
@@ -32,3 +33,4 @@ echo "Testing LLaMA 3.1 8B model prefill"
 python -m experiments.test_llm --config "$config" --model llm_model/llama-3.1-8b.json --precision "$precision" --prefill
 echo "Testing LLaMA 3.1 8B model decode"
 python -m experiments.test_llm --config "$config" --model llm_model/llama-3.1-8b.json  --precision "$precision" --decode
+cd -

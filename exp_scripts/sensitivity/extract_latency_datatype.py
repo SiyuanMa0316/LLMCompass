@@ -6,8 +6,8 @@ parser = argparse.ArgumentParser(description="Extract latencies from simulation 
 args = parser.parse_args()
 
 # input_file = args.input
-input_files = ['run_all_output_base', "run_all_output_int4", "run_all_output_256g", "run_all_output_64g", "run_all_output_8g"]
-output_file = f"latencies_sensitivity_capacity.csv"
+input_files = ['run_all_output_base', "run_all_output_int4", "run_all_output_int2"]
+output_file = f"latencies_sensitivity_datatype.csv"
 
 workloads = []
 
@@ -23,6 +23,7 @@ for input_file in input_files:
                 if len(parts) == 2:
                     workload = parts[0]
                     latency = parts[1]
+                    workload = workload.replace("GEMM_1x", "GEMV_1x").replace("1024x12288x12288","small").replace("2048x24576x24576","large").replace("1x12288x12288","small").replace("1x24576x24576","large")
                     workloads.append(workload)
                     latencies.append(latency)
     ablation_data.append(latencies)

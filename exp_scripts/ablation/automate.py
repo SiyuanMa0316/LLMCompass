@@ -1,12 +1,16 @@
 import subprocess
-import argparse
+# import argparse
 import csv
-# python calculate_perf_per_area.py --input ../comparison/latencies_run_all_output_10-3.csv 
-result_shell = subprocess.run(f"python calculate_perf_per_area.py --input ../comparison/latencies_run_all_output_10-9.csv", shell=True, capture_output=True, text=True)
+# parser = argparse.ArgumentParser(description="Automate running comparison experiments")
+# parser.add_argument("--input", type=str, help="Path to the input log file")
+# args = parser.parse_args()
+
+#extract latencies
+result_shell = subprocess.run(f"python extract_latency.py", shell=True, capture_output=True, text=True)
 print(result_shell.stdout)
 
 #replace GEMM_1 with GEMV_1 in the first row of the csv
-csv_file = f"../comparison/latencies_run_all_output_10-9.csv"
+csv_file = f"latencies_ablation.csv"
 rows = []
 with open(csv_file, "r", newline='') as f:
     reader = csv.reader(f)
@@ -16,5 +20,7 @@ with open(csv_file, "w", newline='') as f:
     writer = csv.writer(f)
     writer.writerows(rows)
 
-result_shell = subprocess.run(f"python plot_simple.py --input perf_per_area_run_all_output_10-9.csv", shell=True, capture_output=True, text=True)
+#plot speedup
+result_shell = subprocess.run(f"python plot.py latencies_ablation.csv", shell=True, capture_output=True, text=True)
+
 print(result_shell.stdout)

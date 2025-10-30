@@ -19,13 +19,17 @@ def main():
     # === Load CSV ===
     df = pd.read_csv(input_file)
     h100 = df.iloc[0].values
-    pim = df.iloc[1].values
-    proteus = df.iloc[2].values
+    pim = df.iloc[2].values
+    proteus = df.iloc[1].values
     workloads = df.columns.tolist()
 
     # === Compute relative improvements ===
     improv_pim = pim / h100
     improv_proteus = proteus / h100
+    improv_pim_against_proteus = pim / proteus
+    #calculate geomean of improv_pim_against_proteus
+    geo_mean_improv = np.exp(np.mean(np.log(improv_pim_against_proteus)))
+    print(f"Geometric mean of PIM vs Proteus perf/area improvement: {geo_mean_improv:.2f}×")
     pim_delta = improv_pim - 1
     proteus_delta = improv_proteus - 1
 

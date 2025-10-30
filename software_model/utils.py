@@ -13,7 +13,7 @@ class DataType:
 # rcd = 14.167
 rcd = 12.2 #ddr5 6400  https://de.wikipedia.org/wiki/DDR-SDRAM
 faw=13.312#https://www.igorslab.de/en/intel-vs-jedec-ddr5-timings-in-extreme-technical-practice-test/
-data_type_dict = {"int4": DataType("int4", 0.5), "int8": DataType("int8", 1), "fp16": DataType("fp16", 2), "fp32": DataType("fp32", 4)}
+data_type_dict = {"int1": DataType("int1", 0.125), "int2": DataType("int2", 0.25), "int4": DataType("int4", 0.5), "int8": DataType("int8", 1), "fp16": DataType("fp16", 2), "fp32": DataType("fp32", 4)}
 simdram_op_latency_dict = {
     DataType("int8", 1).name: {"add": 3121, "mul": 31815, 'add_reduce':3121+8*rcd, 'mul_reduce':31815+16*rcd},
     DataType("int16", 1).name: {"add": 6193, "mul": 131135, 'add_reduce':6193+16*rcd, 'mul_reduce':131135+32*rcd},
