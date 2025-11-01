@@ -47,10 +47,10 @@ h100, pim, no_subarray_broadcast, no_popcount_reduction, no_locality_buffer = da
 
 # Compute relative performance vs PIM (baseline = 1.0)
 rel = {
-    "Base Configuration": np.ones_like(pim),
-    "+w/o Locality Buffer": pim / no_subarray_broadcast,
-    "+w/o Popcount Reduction": pim / no_popcount_reduction,
-    "+w/o Broadcasting Units": pim / no_locality_buffer,
+    "Complete Configuration": np.ones_like(pim),
+    "LB Removed ": pim / no_subarray_broadcast,
+    "LB & PR Removed": pim / no_popcount_reduction,
+    "LB & PR & BU Removed": pim / no_locality_buffer,
 }
 
 # --- Compact academic style ---
@@ -67,24 +67,37 @@ plt.rcParams.update({
 fig_width = 3.4   # one-column width
 fig_height = 2.5  # slightly taller for clarity
 fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-
-x = np.arange(len(labels))
 series_names = list(rel.keys())
 series_values = [rel[name] for name in series_names]
 n_series = len(series_names)
 bar_width = 0.18
 offsets = (np.arange(n_series) - (n_series - 1) / 2.0) * bar_width
 
+# Append geometric-mean column per series to create an aggregate bar
+geo_label = "Geomean"
+geo_values = []
+for values in series_values:
+    if np.any(values <= 0):
+        raise ValueError("Geometric mean is undefined for non-positive performance values.")
+    geo_values.append(np.exp(np.mean(np.log(values))))
+
+series_values = [np.append(values, geo) for values, geo in zip(series_values, geo_values)]
+labels = labels + [geo_label]
+
+x = np.arange(len(labels))
+
 # Draw bars
 for i, (name, values) in enumerate(zip(series_names, series_values)):
-    ax.bar(x + offsets[i], values, width=bar_width, label=name, linewidth=0.3, edgecolor="black")
+    colors = ["#EEB78F", "#E00F47", '#20B2AA', '#9932CC']
+    ax.bar(x + offsets[i], values, width=bar_width, label=name, linewidth=0.3, edgecolor="black", color=colors[i])
+
 
 # Labels and grid
 ax.set_xticks(x)
-ax.set_xticklabels(labels, rotation=35, ha='right')
-ax.set_ylabel("Relative Perf. vs Base")
-ax.set_title("Ablation Study of Architectural Components", pad=20)
-ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7)
+ax.set_xticklabels(labels, rotation=30, ha='right')
+ax.set_ylabel("Normalized performance")
+ax.set_title("Ablation Study of Added Peripheral Components", pad=28, fontsize=8)
+ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7, color = "#272329")
 
 # Legend: placed below title, above the plot, with extra spacing
 legend = ax.legend(
@@ -98,7 +111,10 @@ legend = ax.legend(
 
 # Adjust layout for title–legend spacing
 plt.tight_layout(pad=0.5)
-plt.subplots_adjust(top=0.78)  # leave ample space for title + legend
+plt.subplots_adjust(top=0.78, bottom=0.18)  # leave ample space for title + legend + caption
+
+caption = "LB: Locality Buffer, PR: Popcount Reduction, BU: Broadcasting Unit."
+fig.text(0.55, 0.79, caption, ha='center', va='bottom', fontsize=6)
 
 plt.savefig("ablation_accumulative.png", bbox_inches='tight')
 plt.show()

@@ -79,15 +79,23 @@ offsets = (np.arange(n_series) - (n_series - 1) / 2.0) * bar_width
 
 # Draw bars
 for i, (name, values) in enumerate(zip(series_names, series_values)):
-    ax.bar(x + offsets[i], values, width=bar_width, label=name, linewidth=0.3, edgecolor="black")
+    colors = ["#4E8FAB",  "#E7A138", "#1E9012","#D04B92"]
+    color = colors[i % len(colors)]
+    ax.bar(x + offsets[i], values, width=bar_width, label=name, color=color, linewidth=0.3, edgecolor="black")
+
+    # Add horizontal lines for memory capacity thresholds
+    capacities = [256, 64, 8]
+    for cap in capacities:
+        ax.axhline(y=cap/1024, color="#444244", linestyle='--', linewidth=0.3, alpha=0.5)
+        ax.text(len(labels)+0.1, cap/1024, f'{cap}GB', fontsize=5, va='bottom', color='black')
 
 # Labels and grid
 ax.set_xticks(x)
-ax.set_xticklabels(labels, rotation=35, ha='right')
-ax.set_ylabel("Relative Perf. vs Base")
-ax.set_title("Sensitivity Study: Memory Capacity", pad=10)
-ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7)
-
+ax.set_xticklabels(labels, rotation=30, ha='right')
+ax.set_ylabel("Normalized performance")
+ax.set_title("Sensitivity Study: Memory Capacity", pad=15, fontsize=8)
+# ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7, color="#716C73")
+ax.set_yscale('log')
 # Legend: placed below title, above the plot, with extra spacing
 legend = ax.legend(
     frameon=False,

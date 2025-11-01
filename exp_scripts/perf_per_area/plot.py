@@ -47,11 +47,11 @@ def main():
 
     # === Style ===
     plt.yscale("log")
-    plt.ylabel("Rel. Perf/Area (× vs H100)", fontsize=7)
+    plt.ylabel("Normalized Perf/Area", fontsize=7)
     plt.xticks(x, workloads, rotation=45, ha="right", fontsize=6)
     plt.legend(fontsize=6, frameon=False)
     plt.grid(axis="y", linestyle="--", alpha=0.4, linewidth=0.4)
-    plt.title("Perf/Area Improvement", fontsize=7, pad=3)
+    plt.title("Perf/Area Improvement", fontsize=10, pad=3)
 
     # --- Baseline at 1× ---
     plt.axhline(y=1, color="gray", linestyle="--", linewidth=0.6)

@@ -23,7 +23,7 @@ df_plot = df[df["tile_mapping"].isin(top_tiles)]
 # === Scatter plot ===
 plt.figure(figsize=(3.2, 2.4))  # fits single-column paper figure
 
-sizes = df_plot["norm_perf"] * 300  # scale dot size
+sizes = df_plot["norm_perf"] * 200  # scale dot size
 plt.scatter(
     df_plot["tile_mapping"],
     df_plot["arr_mapping"],
@@ -34,9 +34,19 @@ plt.scatter(
     linewidth=0.4,
 )
 
+# Add text annotation showing max/min ratio
+max_perf = df_plot["norm_perf"].max()
+min_perf = df_plot["norm_perf"].min()
+ratio = max_perf / min_perf
+plt.text(0.98, 0.98, f"Max/Min Ratio: {ratio:.2f}x", 
+         transform=plt.gca().transAxes, 
+         verticalalignment="top", horizontalalignment="right",
+         bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8),
+         fontsize=6)
+
 # === Aesthetics ===
 plt.xticks(rotation=90, fontsize=6)
-plt.yticks(all_arrs, fontsize=7)  # ensure all arr_mapping ticks are shown
+plt.yticks(all_arrs, fontsize=6)  # ensure all arr_mapping ticks are shown
 plt.xlabel("Tile Mapping", fontsize=8)
 plt.ylabel("Array Mapping", fontsize=8)
 plt.tight_layout(pad=0.2)

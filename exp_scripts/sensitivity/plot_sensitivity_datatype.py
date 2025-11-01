@@ -82,10 +82,10 @@ for i, (name, values) in enumerate(zip(series_names, series_values)):
 
 # Labels and grid
 ax.set_xticks(x)
-ax.set_xticklabels(labels, rotation=35, ha='right')
-ax.set_ylabel("Relative Perf. vs Base")
-ax.set_title("Sensitivity Study: Workload Precision", pad=10)
-ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7)
+ax.set_xticklabels(labels, rotation=30, ha='right')
+ax.set_ylabel("Normalized performance")
+ax.set_title("Sensitivity Study: Data Precision", pad=15, fontsize=8)
+ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7, color="#1E1C1F")
 
 # Legend: placed below title, above the plot, with extra spacing
 legend = ax.legend(

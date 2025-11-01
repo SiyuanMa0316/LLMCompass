@@ -25,9 +25,9 @@ def main():
     ap = argparse.ArgumentParser(
         description="Extract Tile/Array mappings and latencies to CSV."
     )
-    ap.add_argument("input", nargs="?", default="-",
+    ap.add_argument("input", nargs="?", default="gemm_1024_12288_12288_mapping",
                     help="Input file (default: stdin)")
-    ap.add_argument("-o", "--output", default="-",
+    ap.add_argument("-o", "--output", default="mapping_sensitivity.csv",
                     help="Output CSV file (default: stdout)")
     ap.add_argument("--no-header", action="store_true",
                     help="Do not write CSV header")
