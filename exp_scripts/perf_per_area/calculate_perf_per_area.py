@@ -20,7 +20,8 @@ proteus_latencies = df.iloc[1].values
 # print(proteus_latencies)
 # proteus_latencies = np.array(proteus_latencies)
 
-pim_peripheral_area  = 5280
+# pim_peripheral_area  = 5280
+pim_peripheral_area  = 830.6
 pim_perf_per_areas = 1E6 / pim / pim_peripheral_area
 
 h100_perf_per_areas = 1E6 / baseline / 5740 # scaled from H100 die area and flattend HBM area, scalling to 14nm 

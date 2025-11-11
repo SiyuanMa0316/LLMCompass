@@ -2,7 +2,7 @@ import subprocess
 import argparse
 import csv
 # python calculate_perf_per_area.py --input ../comparison/latencies_run_all_output_10-3.csv 
-result_shell = subprocess.run(f"python calculate_perf_per_area.py --input ../comparison/latencies_run_all_output_10-9.csv", shell=True, capture_output=True, text=True)
+result_shell = subprocess.run(f"python calculate_perf_per_area.py --input ../comparison/latencies_run_all_output_11-8.csv", shell=True, capture_output=True, text=True)
 print(result_shell.stdout)
 
 #replace GEMM_1 with GEMV_1 in the first row of the csv
@@ -16,5 +16,5 @@ with open(csv_file, "w", newline='') as f:
     writer = csv.writer(f)
     writer.writerows(rows)
 
-result_shell = subprocess.run(f"python plot_simple.py --input perf_per_area_run_all_output_10-9.csv", shell=True, capture_output=True, text=True)
+result_shell = subprocess.run(f"python plot_simple.py --input perf_per_area_run_all_output_11-8.csv", shell=True, capture_output=True, text=True)
 print(result_shell.stdout)

@@ -65,5 +65,5 @@ for bars in [bars3]:
 
         plt.text(x_geomean + width, geomean_new * 1.05, f"{geomean_new:.2f}", ha="center", va="bottom", fontsize=12)
 plt.tight_layout()
-plt.savefig("speedup_bar_chart.pdf")
+plt.savefig("speedup_bar_chart_e2e.pdf")
 plt.show()
