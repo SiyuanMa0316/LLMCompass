@@ -7,7 +7,7 @@ from matplotlib.ticker import FuncFormatter
 # =======================
 # === Constants matched to GEMV styling ===
 # =======================
-FIGSIZE = (6, 4)
+FIGSIZE = (6, 3)
 COMMON_FONT_SIZE = 10
 ANNOT_FONTSIZE = COMMON_FONT_SIZE
 XTICK_FONTSIZE = COMMON_FONT_SIZE
