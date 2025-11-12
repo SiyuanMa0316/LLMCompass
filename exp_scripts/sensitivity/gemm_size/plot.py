@@ -8,11 +8,12 @@ from matplotlib.ticker import FuncFormatter
 # === Constants matched to GEMV styling ===
 # =======================
 FIGSIZE = (6, 4)
-ANNOT_FONTSIZE = 8
-XTICK_FONTSIZE = 8
-YLABEL_FONTSIZE = 8
-XLABEL_FONTSIZE = 8
-YTICK_FONTSIZE = 7
+COMMON_FONT_SIZE = 10
+ANNOT_FONTSIZE = COMMON_FONT_SIZE
+XTICK_FONTSIZE = COMMON_FONT_SIZE
+YLABEL_FONTSIZE = COMMON_FONT_SIZE
+XLABEL_FONTSIZE = COMMON_FONT_SIZE
+YTICK_FONTSIZE = COMMON_FONT_SIZE
 EDGE_COLOR = "black"
 EDGE_LINEWIDTH = 0.4
 BASELINE_COLOR = "gray"
@@ -30,7 +31,7 @@ PE_MARKERSIZE = 2
 LATENCY_YLABEL = "Normalized Latency"
 PE_YLABEL = "Normalized PE utilization"
 WORKLOAD_YLABEL = "Normalized workload capacity"
-WORKLOAD_COLOR = "#BB5A5A"
+WORKLOAD_COLOR = "#A73030"
 
 PE_BASE_SHIFT = 6.0
 GROUP_SIZE = 3
@@ -186,9 +187,9 @@ ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=YTICK_FONTSIZE)
 
 # === Shared aesthetics ===
 ax.set_xticks(x)
-ax.set_xticklabels(workloads, rotation=90, ha="center", fontsize=XTICK_FONTSIZE)
+ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XTICK_FONTSIZE - 2)
 ax.set_ylabel(LATENCY_YLABEL, fontsize=YLABEL_FONTSIZE)
-ax.set_xlabel("Workload (MxKxN)", fontsize=XLABEL_FONTSIZE)
+# ax.set_xlabel("Workload (MxKxN)", fontsize=COMMON_FONT_SIZE)
 ax.tick_params(axis="y", labelsize=YTICK_FONTSIZE)
 ax.axhline(1.0, color=BASELINE_COLOR, linestyle=BASELINE_LS, linewidth=BASELINE_LW)
 

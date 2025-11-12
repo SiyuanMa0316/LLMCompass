@@ -10,11 +10,12 @@ from matplotlib.ticker import FuncFormatter
 # === Constants (values unchanged) ===
 # =======================
 FIGSIZE = (6, 4)          # single-column figure
-ANNOT_FONTSIZE = 8
-XTICK_FONTSIZE = 5
-YLABEL_FONTSIZE = 8
-XLABEL_FONTSIZE = 8
-YTICK_FONTSIZE = 7
+COMMON_FONT_SIZE = 10
+ANNOT_FONTSIZE = COMMON_FONT_SIZE
+XTICK_FONTSIZE = COMMON_FONT_SIZE
+YLABEL_FONTSIZE = COMMON_FONT_SIZE
+XLABEL_FONTSIZE = COMMON_FONT_SIZE
+YTICK_FONTSIZE = COMMON_FONT_SIZE
 EDGE_COLOR = "black"
 EDGE_LINEWIDTH = 0.4
 BASELINE_COLOR = "gray"
@@ -35,7 +36,7 @@ PE_YLABEL = "Normalized PE utilization"   # right-axis label
 WORKLOAD_YLABEL = "Normalized workload capacity"
 GROUP_SIZE = 3
 
-WORKLOAD_COLOR = "#01893A"
+WORKLOAD_COLOR = "#0A7C3A"
 
 # Visual upward shift in percentage points (data-space offset, labels corrected via formatter)
 PE_BASE_SHIFT = 6.0  # try 6–12 if you need more/less lift
@@ -146,14 +147,14 @@ ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=YTICK_FONTSIZE)
 
 # === Aesthetics (left axis unchanged) ===
 ax.set_xticks(x)
-ax.set_xticklabels(workloads, rotation=90, ha="center", fontsize=XTICK_FONTSIZE)
+ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XLABEL_FONTSIZE)
 ax.set_ylabel(LATENCY_YLABEL, fontsize=YLABEL_FONTSIZE)
-ax.set_xlabel("Workload (MxKxN)", fontsize=XLABEL_FONTSIZE)
+# ax.set_xlabel("Workload (MxKxN)", fontsize=COMMON_FONT_SIZE)
 ax.tick_params(axis="y", labelsize=YTICK_FONTSIZE)
 
 # Right axis 3: workloads_normalized line with offset to the right
 ax3 = ax.twinx()
-ax3.spines['right'].set_position(('outward', 30))
+ax3.spines['right'].set_position(('outward', 35))
 ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=YLABEL_FONTSIZE, color=WORKLOAD_COLOR)
 
 workload_plot_vals = workloads_normalized + PE_BASE_SHIFT
