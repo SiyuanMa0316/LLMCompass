@@ -165,7 +165,7 @@ def get_arr_tile_stats(self, pcb_module: Device, arr_tile_M, arr_tile_N, arr_til
         raise NotImplementedError("SIMDRAM without PE is not implemented yet")
         acc_op_latency = self.data_type.bits*4 * t_LB_row_fetch  #assume accumulation is done in int32 if data type is int8
     
-    ablation_buffer = True
+    ablation_buffer = False
     if arr_mapping['C'] == 'M':
         macs = arr_tile_N * arr_tile_K
         # mac_latency = macs * (add_op_latency + mul_op_latency) * 1e-9

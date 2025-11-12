@@ -372,9 +372,9 @@ class Matmul(Operator):
                 arr_mapping = Strategy.arr_mapping_extraction(arr_mapping_str)
                 with_PE = True
                 # broadcast = 'AB'
-                broadcast = ''
+                broadcast = 'AB'
                 arr_multicast = False
-                col_popcount = False
+                col_popcount = True
                 loop_order = 'mkn' 
                 strategy = Strategy(tile_mapping, arr_mapping, loop_order, with_PE, broadcast, arr_multicast, col_popcount, weight_resident=True)
                 latency = self.compile_and_simulate(pcb_module=pcb_module, compile_mode="specific", strategy=strategy, debug=False)
