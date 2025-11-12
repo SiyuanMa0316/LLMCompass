@@ -74,7 +74,7 @@ class Relayout:
         # print(f"latency {latency} = {tile_1} * {tile_2} * {word_size} / {pcb_module.compute_module.bandwidth}")
         if 'A' in M_K_dup and not array_broadcast_enable:
             # duplicate tile to every device
-            latency *= self.device.compute_module.bank.arr_count
+            latency *= self.device.compute_module.bank.logical_arr_count
         if 'B' in M_K_dup and not bank_broadcast_enable:
             # duplicate tile to every bank
             latency *= self.device.compute_module.bank_count

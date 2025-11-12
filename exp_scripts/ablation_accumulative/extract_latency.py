@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser(description="Extract latencies from simulation 
 args = parser.parse_args()
 
 # input_file = args.input
-input_files = ['run_all_output_base', "run_all_output_no_locality_buffer", "run_all_output_no_locality_buffer_no_popcount", "run_all_output_no_locality_buffer_no_popcount_no_broadcast"]
+input_files = ['run_all_output_base', "run_all_output_no_popcount", "run_all_output_no_popcount_no_broadcast", "run_all_output_no_popcount_no_broadcast_no_locality_buffer"]
 output_file = f"latencies_ablation.csv"
 
 workloads = []

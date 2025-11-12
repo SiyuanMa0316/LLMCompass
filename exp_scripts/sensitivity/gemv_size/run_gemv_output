@@ -3,11 +3,12 @@ Running GEMM tests...
 Testing M=1, K=2048, N=2048
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -24,14 +25,14 @@ find_simdram_mapping: Best mapping: Strategy(
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:2048, N:2048
-Maximum Array Tile Size: {'M': 1, 'K': 16, 'N': 8}
-get_arr_tile_stats: arr_latency=5.978e-07, capacity_utilization=0.00048828125
+Maximum Array Tile Size: {'M': 1, 'K': 16, 'N': 1}
+get_arr_tile_stats: arr_latency=3.92e-07, capacity_utilization=6.103515625e-05
 get_tile_stats: K_reduction_latency: 2e-08 = 262144 / 13107200000000.0
- BDS ['C', 'R', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 0.5, 'S': 1, 'D': 1}
+ BDS ['C', 'R', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 2048 = 1 * 2048 * 1
-get_tile_io_latency: data_volume=524288, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 0.5, 'S': 1, 'D': 1}
+get_tile_io_latency: data_volume=524288, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=4e-08 = 524288 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 2048, 'N': 2048}, arr_tile_size: {'M': 1, 'K': 16, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:16, M_K_io_latency: 4e-08, K_N_io_latency: 0, M_N_io_latency: 1.5625e-10, tile_compute_latency:6.178e-07 = 5.978e-07(arr_latency) + 2e-08(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 1, 'K': 2048, 'N': 2048}, arr_tile_size: {'M': 1, 'K': 16, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:16, M_K_io_latency: 4e-08, K_N_io_latency: 0, M_N_io_latency: 1.5625e-10, tile_compute_latency:4.1200000000000004e-07 = 3.92e-07(arr_latency) + 2e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
@@ -55,12 +56,12 @@ Strategy(
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.00048828125 | 0.015625    | 0.5         | 1           | 1           | 1           | 1           |
+| 6.103515625e-05 | 0.0625      | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 6.581125e-07           cycles|
-| Total Compute Latency | 6.178e-07              cycles|
-| Total Array Latency  | 5.978e-07              cycles|
+| Total Latency        | 4.523125000000001e-07  cycles|
+| Total Compute Latency | 4.1200000000000004e-07 cycles|
+| Total Array Latency  | 3.92e-07               cycles|
 | Total Reduction Latency| 2e-08                  cycles|
 | IO Latency           | 4.03125e-08            cycles|
 
@@ -86,23 +87,24 @@ Strategy(
 
 |------------------------|------------------------|
 ==================================================
-Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 0.5, 'S': 1, 'D': 1}
-Column utilization: 0.015625
-Capacity utilization: 0.00048828125
-GEMM 1x2048x2048 latency: 6.581125e-07s
-simulated latency: GEMM_1x2048x2048 6.581125e-07
-roofline_model_simdram: total_ops=8388608, total_data_movement=4096, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=1.5249999999999998e-09, memory_bound_time=3.125e-10
-GEMM roofline latency: 1.5249999999999998e-09ms
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 0.0625
+Capacity utilization: 6.103515625e-05
+GEMM 1x2048x2048 latency: 4.523125000000001e-07s
+simulated latency: GEMM_1x2048x2048 4.523125000000001e-07
+roofline_model_simdram: total_ops=8388608, total_data_movement=4096, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=1.2199999999999998e-08, memory_bound_time=3.125e-10
+GEMM roofline latency: 1.2199999999999998e-08ms
 Results written to test_gemm_x16_base_config.json_1_2048_2048_simdram_ddr5_operandocality.csv
 Testing M=1, K=8192, N=2048
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -112,27 +114,27 @@ find_simdram_mapping: Best mapping: Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
   Array Multicast: False
   Column Popcount: True
-  Tile Mapping:  M:   N: CBA  K: RDS  Array Mapping:  R: MN  C: K
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:8192, N:2048
-Maximum Array Tile Size: {'M': 1, 'K': 32, 'N': 1}
-get_arr_tile_stats: arr_latency=5.978e-07, capacity_utilization=0.00048828125
-get_tile_stats: K_reduction_latency: 4e-08 = 524288 / 13107200000000.0
- RDS ['C', 'B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Maximum Array Tile Size: {'M': 1, 'K': 64, 'N': 1}
+get_arr_tile_stats: arr_latency=3.92e-07, capacity_utilization=6.103515625e-05
+get_tile_stats: K_reduction_latency: 2e-08 = 262144 / 13107200000000.0
+ BDS ['C', 'R', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 8192 = 1 * 8192 * 1
-get_tile_io_latency: data_volume=65536, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=8e-08 = 65536 / 819200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 8192, 'N': 2048}, arr_tile_size: {'M': 1, 'K': 32, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:32, M_K_io_latency: 8e-08, K_N_io_latency: 0, M_N_io_latency: 1.5625e-10, tile_compute_latency:6.378000000000001e-07 = 5.978e-07(arr_latency) + 4e-08(K_reduction_latency)
+get_tile_io_latency: data_volume=2097152, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=1.6e-07 = 2097152 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 1, 'K': 8192, 'N': 2048}, arr_tile_size: {'M': 1, 'K': 64, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:64, M_K_io_latency: 1.6e-07, K_N_io_latency: 0, M_N_io_latency: 1.5625e-10, tile_compute_latency:4.1200000000000004e-07 = 3.92e-07(arr_latency) + 2e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
   Array Multicast: False
   Column Popcount: True
-  Tile Mapping:  M:   N: CBA  K: RDS  Array Mapping:  R: MN  C: K
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -145,25 +147,25 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 1           | 32          |
+| 1           | 1           | 64          |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.00048828125 | 0.03125     | 1           | 1           | 1           | 1           | 1           |
+| 6.103515625e-05 | 0.25        | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 7.181125000000001e-07  cycles|
-| Total Compute Latency | 6.378000000000001e-07  cycles|
-| Total Array Latency  | 5.978e-07              cycles|
-| Total Reduction Latency| 4e-08                  cycles|
-| IO Latency           | 8.03125e-08            cycles|
+| Total Latency        | 5.723125e-07           cycles|
+| Total Compute Latency | 4.1200000000000004e-07 cycles|
+| Total Array Latency  | 3.92e-07               cycles|
+| Total Reduction Latency| 2e-08                  cycles|
+| IO Latency           | 1.603125e-07           cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
-| broadcast            | {'C': True, 'R': False, 'B': True, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': False, 'R': True, 'B': False, 'A': False, 'S': True, 'D': True}|
+| broadcast            | {'C': True, 'R': True, 'B': False, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -182,22 +184,23 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.03125
-Capacity utilization: 0.00048828125
-GEMM 1x8192x2048 latency: 7.181125000000001e-07s
-simulated latency: GEMM_1x8192x2048 7.181125000000001e-07
-roofline_model_simdram: total_ops=33554432, total_data_movement=10240, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=6.099999999999999e-09, memory_bound_time=7.8125e-10
-GEMM roofline latency: 6.099999999999999e-09ms
+Column utilization: 0.25
+Capacity utilization: 6.103515625e-05
+GEMM 1x8192x2048 latency: 5.723125e-07s
+simulated latency: GEMM_1x8192x2048 5.723125e-07
+roofline_model_simdram: total_ops=33554432, total_data_movement=10240, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=4.8799999999999994e-08, memory_bound_time=7.8125e-10
+GEMM roofline latency: 4.8799999999999994e-08ms
 Results written to test_gemm_x16_base_config.json_1_8192_2048_simdram_ddr5_operandocality.csv
 Testing M=1, K=32768, N=2048
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -214,14 +217,14 @@ find_simdram_mapping: Best mapping: Strategy(
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:32768, N:2048
-Maximum Array Tile Size: {'M': 1, 'K': 128, 'N': 1}
-get_arr_tile_stats: arr_latency=5.978e-07, capacity_utilization=0.00048828125
+Maximum Array Tile Size: {'M': 1, 'K': 128, 'N': 2}
+get_arr_tile_stats: arr_latency=5.280000000000001e-07, capacity_utilization=0.0001220703125
 get_tile_stats: K_reduction_latency: 4e-08 = 524288 / 13107200000000.0
  RDS ['C', 'B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 32768 = 1 * 32768 * 1
 get_tile_io_latency: data_volume=262144, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=3.2e-07 = 262144 / 819200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 32768, 'N': 2048}, arr_tile_size: {'M': 1, 'K': 128, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:128, M_K_io_latency: 3.2e-07, K_N_io_latency: 0, M_N_io_latency: 1.5625e-10, tile_compute_latency:6.378000000000001e-07 = 5.978e-07(arr_latency) + 4e-08(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 1, 'K': 32768, 'N': 2048}, arr_tile_size: {'M': 1, 'K': 128, 'N': 2}, MK_dup: 1, KN_dup:1, MN_dup:128, M_K_io_latency: 3.2e-07, K_N_io_latency: 0, M_N_io_latency: 1.5625e-10, tile_compute_latency:5.680000000000001e-07 = 5.280000000000001e-07(arr_latency) + 4e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
@@ -240,17 +243,17 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 1           | 128         |
+| 1           | 2           | 128         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.00048828125 | 0.125       | 1           | 1           | 1           | 1           | 1           |
+| 0.0001220703125 | 0.5         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 9.581125000000002e-07  cycles|
-| Total Compute Latency | 6.378000000000001e-07  cycles|
-| Total Array Latency  | 5.978e-07              cycles|
+| Total Latency        | 8.883125000000002e-07  cycles|
+| Total Compute Latency | 5.680000000000001e-07  cycles|
+| Total Array Latency  | 5.280000000000001e-07  cycles|
 | Total Reduction Latency| 4e-08                  cycles|
 | IO Latency           | 3.2031250000000006e-07 cycles|
 
@@ -277,22 +280,23 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.125
-Capacity utilization: 0.00048828125
-GEMM 1x32768x2048 latency: 9.581125000000002e-07s
-simulated latency: GEMM_1x32768x2048 9.581125000000002e-07
-roofline_model_simdram: total_ops=134217728, total_data_movement=34816, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=2.4399999999999997e-08, memory_bound_time=2.65625e-09
-GEMM roofline latency: 2.4399999999999997e-08ms
+Column utilization: 0.5
+Capacity utilization: 0.0001220703125
+GEMM 1x32768x2048 latency: 8.883125000000002e-07s
+simulated latency: GEMM_1x32768x2048 8.883125000000002e-07
+roofline_model_simdram: total_ops=134217728, total_data_movement=34816, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=1.9519999999999997e-07, memory_bound_time=2.65625e-09
+GEMM roofline latency: 1.9519999999999997e-07ms
 Results written to test_gemm_x16_base_config.json_1_32768_2048_simdram_ddr5_operandocality.csv
 Testing M=1, K=2048, N=8192
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -302,27 +306,27 @@ find_simdram_mapping: Best mapping: Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
   Array Multicast: False
   Column Popcount: True
-  Tile Mapping:  M:   N: RBA  K: CDS  Array Mapping:  R: MN  C: K
+  Tile Mapping:  M:   N: CBAD  K: RS  Array Mapping:  R: MN  C: K
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:2048, N:8192
-Maximum Array Tile Size: {'M': 1, 'K': 32, 'N': 1}
-get_arr_tile_stats: arr_latency=5.978e-07, capacity_utilization=0.00048828125
-get_tile_stats: K_reduction_latency: 4e-08 = 524288 / 13107200000000.0
- CDS ['R', 'B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Maximum Array Tile Size: {'M': 1, 'K': 64, 'N': 1}
+get_arr_tile_stats: arr_latency=3.92e-07, capacity_utilization=6.103515625e-05
+get_tile_stats: K_reduction_latency: 2e-08 = 262144 / 13107200000000.0
+ RS ['C', 'B', 'A', 'D'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 2048 = 1 * 2048 * 1
-get_tile_io_latency: data_volume=65536, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=8e-08 = 65536 / 819200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 2048, 'N': 8192}, arr_tile_size: {'M': 1, 'K': 32, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:32, M_K_io_latency: 8e-08, K_N_io_latency: 0, M_N_io_latency: 6.25e-10, tile_compute_latency:6.378000000000001e-07 = 5.978e-07(arr_latency) + 4e-08(K_reduction_latency)
+get_tile_io_latency: data_volume=131072, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=1.6e-07 = 131072 / 819200000000.0
+get_tile_stats: tile_size: {'M': 1, 'K': 2048, 'N': 8192}, arr_tile_size: {'M': 1, 'K': 64, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:64, M_K_io_latency: 1.6e-07, K_N_io_latency: 0, M_N_io_latency: 6.25e-10, tile_compute_latency:4.1200000000000004e-07 = 3.92e-07(arr_latency) + 2e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
   Array Multicast: False
   Column Popcount: True
-  Tile Mapping:  M:   N: RBA  K: CDS  Array Mapping:  R: MN  C: K
+  Tile Mapping:  M:   N: CBAD  K: RS  Array Mapping:  R: MN  C: K
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -335,25 +339,25 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 1           | 32          |
+| 1           | 1           | 64          |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.00048828125 | 0.03125     | 1           | 1           | 1           | 1           | 1           |
+| 6.103515625e-05 | 0.25        | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 7.1905e-07             cycles|
-| Total Compute Latency | 6.378000000000001e-07  cycles|
-| Total Array Latency  | 5.978e-07              cycles|
-| Total Reduction Latency| 4e-08                  cycles|
-| IO Latency           | 8.124999999999999e-08  cycles|
+| Total Latency        | 5.7325e-07             cycles|
+| Total Compute Latency | 4.1200000000000004e-07 cycles|
+| Total Array Latency  | 3.92e-07               cycles|
+| Total Reduction Latency| 2e-08                  cycles|
+| IO Latency           | 1.6125e-07             cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': True, 'B': True, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': True, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+| broadcast            | {'C': True, 'R': False, 'B': True, 'A': True, 'S': False, 'D': True}|
+| reduction            | {'C': False, 'R': True, 'B': False, 'A': False, 'S': True, 'D': False}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -372,22 +376,23 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.03125
-Capacity utilization: 0.00048828125
-GEMM 1x2048x8192 latency: 7.1905e-07s
-simulated latency: GEMM_1x2048x8192 7.1905e-07
-roofline_model_simdram: total_ops=33554432, total_data_movement=10240, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=6.099999999999999e-09, memory_bound_time=7.8125e-10
-GEMM roofline latency: 6.099999999999999e-09ms
+Column utilization: 0.25
+Capacity utilization: 6.103515625e-05
+GEMM 1x2048x8192 latency: 5.7325e-07s
+simulated latency: GEMM_1x2048x8192 5.7325e-07
+roofline_model_simdram: total_ops=33554432, total_data_movement=10240, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=4.8799999999999994e-08, memory_bound_time=7.8125e-10
+GEMM roofline latency: 4.8799999999999994e-08ms
 Results written to test_gemm_x16_base_config.json_1_2048_8192_simdram_ddr5_operandocality.csv
 Testing M=1, K=8192, N=8192
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -404,14 +409,14 @@ find_simdram_mapping: Best mapping: Strategy(
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:8192, N:8192
-Maximum Array Tile Size: {'M': 1, 'K': 128, 'N': 1}
-get_arr_tile_stats: arr_latency=5.978e-07, capacity_utilization=0.00048828125
+Maximum Array Tile Size: {'M': 1, 'K': 128, 'N': 2}
+get_arr_tile_stats: arr_latency=5.280000000000001e-07, capacity_utilization=0.0001220703125
 get_tile_stats: K_reduction_latency: 4e-08 = 524288 / 13107200000000.0
  CDS ['R', 'B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 8192 = 1 * 8192 * 1
 get_tile_io_latency: data_volume=262144, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=3.2e-07 = 262144 / 819200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 8192, 'N': 8192}, arr_tile_size: {'M': 1, 'K': 128, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:128, M_K_io_latency: 3.2e-07, K_N_io_latency: 0, M_N_io_latency: 6.25e-10, tile_compute_latency:6.378000000000001e-07 = 5.978e-07(arr_latency) + 4e-08(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 1, 'K': 8192, 'N': 8192}, arr_tile_size: {'M': 1, 'K': 128, 'N': 2}, MK_dup: 1, KN_dup:1, MN_dup:128, M_K_io_latency: 3.2e-07, K_N_io_latency: 0, M_N_io_latency: 6.25e-10, tile_compute_latency:5.680000000000001e-07 = 5.280000000000001e-07(arr_latency) + 4e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
@@ -430,17 +435,17 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 1           | 128         |
+| 1           | 2           | 128         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.00048828125 | 0.125       | 1           | 1           | 1           | 1           | 1           |
+| 0.0001220703125 | 0.5         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 9.590500000000002e-07  cycles|
-| Total Compute Latency | 6.378000000000001e-07  cycles|
-| Total Array Latency  | 5.978e-07              cycles|
+| Total Latency        | 8.892500000000001e-07  cycles|
+| Total Compute Latency | 5.680000000000001e-07  cycles|
+| Total Array Latency  | 5.280000000000001e-07  cycles|
 | Total Reduction Latency| 4e-08                  cycles|
 | IO Latency           | 3.2125e-07             cycles|
 
@@ -467,22 +472,23 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.125
-Capacity utilization: 0.00048828125
-GEMM 1x8192x8192 latency: 9.590500000000002e-07s
-simulated latency: GEMM_1x8192x8192 9.590500000000002e-07
-roofline_model_simdram: total_ops=134217728, total_data_movement=16384, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=2.4399999999999997e-08, memory_bound_time=1.25e-09
-GEMM roofline latency: 2.4399999999999997e-08ms
+Column utilization: 0.5
+Capacity utilization: 0.0001220703125
+GEMM 1x8192x8192 latency: 8.892500000000001e-07s
+simulated latency: GEMM_1x8192x8192 8.892500000000001e-07
+roofline_model_simdram: total_ops=134217728, total_data_movement=16384, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=1.9519999999999997e-07, memory_bound_time=1.25e-09
+GEMM roofline latency: 1.9519999999999997e-07ms
 Results written to test_gemm_x16_base_config.json_1_8192_8192_simdram_ddr5_operandocality.csv
 Testing M=1, K=32768, N=8192
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -499,14 +505,14 @@ find_simdram_mapping: Best mapping: Strategy(
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:32768, N:8192
-Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 2}
-get_arr_tile_stats: arr_latency=8.051999999999999e-07, capacity_utilization=0.0009765625
+Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 4}
+get_arr_tile_stats: arr_latency=8e-07, capacity_utilization=0.000244140625
 get_tile_stats: K_reduction_latency: 8e-08 = 1048576 / 13107200000000.0
  BDS ['C', 'R', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 32768 = 1 * 32768 * 1
 get_tile_io_latency: data_volume=8388608, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=6.4e-07 = 8388608 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 32768, 'N': 8192}, arr_tile_size: {'M': 1, 'K': 256, 'N': 2}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 6.4e-07, K_N_io_latency: 0, M_N_io_latency: 6.25e-10, tile_compute_latency:8.851999999999999e-07 = 8.051999999999999e-07(arr_latency) + 8e-08(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 1, 'K': 32768, 'N': 8192}, arr_tile_size: {'M': 1, 'K': 256, 'N': 4}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 6.4e-07, K_N_io_latency: 0, M_N_io_latency: 6.25e-10, tile_compute_latency:8.799999999999999e-07 = 8e-07(arr_latency) + 8e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
@@ -525,17 +531,17 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 2           | 256         |
+| 1           | 4           | 256         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.0009765625 | 0.25        | 1           | 1           | 1           | 1           | 1           |
+| 0.000244140625 | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 1.52645e-06            cycles|
-| Total Compute Latency | 8.851999999999999e-07  cycles|
-| Total Array Latency  | 8.051999999999999e-07  cycles|
+| Total Latency        | 1.52125e-06            cycles|
+| Total Compute Latency | 8.799999999999999e-07  cycles|
+| Total Array Latency  | 8e-07                  cycles|
 | Total Reduction Latency| 8e-08                  cycles|
 | IO Latency           | 6.4125e-07             cycles|
 
@@ -562,22 +568,23 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.25
-Capacity utilization: 0.0009765625
-GEMM 1x32768x8192 latency: 1.52645e-06s
-simulated latency: GEMM_1x32768x8192 1.52645e-06
-roofline_model_simdram: total_ops=536870912, total_data_movement=40960, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=9.759999999999999e-08, memory_bound_time=3.125e-09
-GEMM roofline latency: 9.759999999999999e-08ms
+Column utilization: 1.0
+Capacity utilization: 0.000244140625
+GEMM 1x32768x8192 latency: 1.52125e-06s
+simulated latency: GEMM_1x32768x8192 1.52125e-06
+roofline_model_simdram: total_ops=536870912, total_data_movement=40960, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=7.807999999999999e-07, memory_bound_time=3.125e-09
+GEMM roofline latency: 7.807999999999999e-07ms
 Results written to test_gemm_x16_base_config.json_1_32768_8192_simdram_ddr5_operandocality.csv
 Testing M=1, K=2048, N=32768
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -594,14 +601,14 @@ find_simdram_mapping: Best mapping: Strategy(
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:2048, N:32768
-Maximum Array Tile Size: {'M': 1, 'K': 128, 'N': 1}
-get_arr_tile_stats: arr_latency=5.978e-07, capacity_utilization=0.00048828125
+Maximum Array Tile Size: {'M': 1, 'K': 128, 'N': 2}
+get_arr_tile_stats: arr_latency=5.280000000000001e-07, capacity_utilization=0.0001220703125
 get_tile_stats: K_reduction_latency: 4e-08 = 524288 / 13107200000000.0
  BS ['C', 'R', 'A', 'D'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 2048 = 1 * 2048 * 1
 get_tile_io_latency: data_volume=4194304, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=3.2e-07 = 4194304 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 2048, 'N': 32768}, arr_tile_size: {'M': 1, 'K': 128, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:128, M_K_io_latency: 3.2e-07, K_N_io_latency: 0, M_N_io_latency: 2.5e-09, tile_compute_latency:6.378000000000001e-07 = 5.978e-07(arr_latency) + 4e-08(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 1, 'K': 2048, 'N': 32768}, arr_tile_size: {'M': 1, 'K': 128, 'N': 2}, MK_dup: 1, KN_dup:1, MN_dup:128, M_K_io_latency: 3.2e-07, K_N_io_latency: 0, M_N_io_latency: 2.5e-09, tile_compute_latency:5.680000000000001e-07 = 5.280000000000001e-07(arr_latency) + 4e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
@@ -620,17 +627,17 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 1           | 128         |
+| 1           | 2           | 128         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.00048828125 | 0.125       | 1           | 1           | 1           | 1           | 1           |
+| 0.0001220703125 | 0.5         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 9.628e-07              cycles|
-| Total Compute Latency | 6.378000000000001e-07  cycles|
-| Total Array Latency  | 5.978e-07              cycles|
+| Total Latency        | 8.930000000000001e-07  cycles|
+| Total Compute Latency | 5.680000000000001e-07  cycles|
+| Total Array Latency  | 5.280000000000001e-07  cycles|
 | Total Reduction Latency| 4e-08                  cycles|
 | IO Latency           | 3.2499999999999996e-07 cycles|
 
@@ -657,22 +664,23 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.125
-Capacity utilization: 0.00048828125
-GEMM 1x2048x32768 latency: 9.628e-07s
-simulated latency: GEMM_1x2048x32768 9.628e-07
-roofline_model_simdram: total_ops=134217728, total_data_movement=34816, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=2.4399999999999997e-08, memory_bound_time=2.65625e-09
-GEMM roofline latency: 2.4399999999999997e-08ms
+Column utilization: 0.5
+Capacity utilization: 0.0001220703125
+GEMM 1x2048x32768 latency: 8.930000000000001e-07s
+simulated latency: GEMM_1x2048x32768 8.930000000000001e-07
+roofline_model_simdram: total_ops=134217728, total_data_movement=34816, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=1.9519999999999997e-07, memory_bound_time=2.65625e-09
+GEMM roofline latency: 1.9519999999999997e-07ms
 Results written to test_gemm_x16_base_config.json_1_2048_32768_simdram_ddr5_operandocality.csv
 Testing M=1, K=8192, N=32768
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -689,14 +697,14 @@ find_simdram_mapping: Best mapping: Strategy(
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:8192, N:32768
-Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 2}
-get_arr_tile_stats: arr_latency=8.051999999999999e-07, capacity_utilization=0.0009765625
+Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 4}
+get_arr_tile_stats: arr_latency=8e-07, capacity_utilization=0.000244140625
 get_tile_stats: K_reduction_latency: 8e-08 = 1048576 / 13107200000000.0
  RS ['C', 'B', 'A', 'D'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 8192 = 1 * 8192 * 1
 get_tile_io_latency: data_volume=524288, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=6.4e-07 = 524288 / 819200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 8192, 'N': 32768}, arr_tile_size: {'M': 1, 'K': 256, 'N': 2}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 6.4e-07, K_N_io_latency: 0, M_N_io_latency: 2.5e-09, tile_compute_latency:8.851999999999999e-07 = 8.051999999999999e-07(arr_latency) + 8e-08(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 1, 'K': 8192, 'N': 32768}, arr_tile_size: {'M': 1, 'K': 256, 'N': 4}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 6.4e-07, K_N_io_latency: 0, M_N_io_latency: 2.5e-09, tile_compute_latency:8.799999999999999e-07 = 8e-07(arr_latency) + 8e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
@@ -715,17 +723,17 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 2           | 256         |
+| 1           | 4           | 256         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.0009765625 | 0.25        | 1           | 1           | 1           | 1           | 1           |
+| 0.000244140625 | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 1.5301999999999998e-06 cycles|
-| Total Compute Latency | 8.851999999999999e-07  cycles|
-| Total Array Latency  | 8.051999999999999e-07  cycles|
+| Total Latency        | 1.5249999999999998e-06 cycles|
+| Total Compute Latency | 8.799999999999999e-07  cycles|
+| Total Array Latency  | 8e-07                  cycles|
 | Total Reduction Latency| 8e-08                  cycles|
 | IO Latency           | 6.45e-07               cycles|
 
@@ -752,22 +760,23 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.25
-Capacity utilization: 0.0009765625
-GEMM 1x8192x32768 latency: 1.5301999999999998e-06s
-simulated latency: GEMM_1x8192x32768 1.5301999999999998e-06
-roofline_model_simdram: total_ops=536870912, total_data_movement=40960, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=9.759999999999999e-08, memory_bound_time=3.125e-09
-GEMM roofline latency: 9.759999999999999e-08ms
+Column utilization: 1.0
+Capacity utilization: 0.000244140625
+GEMM 1x8192x32768 latency: 1.5249999999999998e-06s
+simulated latency: GEMM_1x8192x32768 1.5249999999999998e-06
+roofline_model_simdram: total_ops=536870912, total_data_movement=40960, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=7.807999999999999e-07, memory_bound_time=3.125e-09
+GEMM roofline latency: 7.807999999999999e-07ms
 Results written to test_gemm_x16_base_config.json_1_8192_32768_simdram_ddr5_operandocality.csv
 Testing M=1, K=32768, N=32768
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
 simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
-simdram ops: 5500.72655737705Tops
+simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 2113.579418320765mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -777,27 +786,27 @@ find_simdram_mapping: Best mapping: Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
   Array Multicast: False
   Column Popcount: True
-  Tile Mapping:  M:   N: RBA  K: CDS  Array Mapping:  R: MN  C: K
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:1, K:32768, N:32768
-Maximum Array Tile Size: {'M': 1, 'K': 512, 'N': 4}
-get_arr_tile_stats: arr_latency=1.22e-06, capacity_utilization=0.001953125
-get_tile_stats: K_reduction_latency: 1.6e-07 = 2097152 / 13107200000000.0
- CDS ['R', 'B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 16}
+get_arr_tile_stats: arr_latency=2.432e-06, capacity_utilization=0.0009765625
+get_tile_stats: K_reduction_latency: 3.2e-07 = 4194304 / 13107200000000.0
+ BDS ['C', 'R', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 32768 = 1 * 32768 * 1
-get_tile_io_latency: data_volume=1048576, dup=['B', 'A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=1.28e-06 = 1048576 / 819200000000.0
-get_tile_stats: tile_size: {'M': 1, 'K': 32768, 'N': 32768}, arr_tile_size: {'M': 1, 'K': 512, 'N': 4}, MK_dup: 1, KN_dup:1, MN_dup:512, M_K_io_latency: 1.28e-06, K_N_io_latency: 0, M_N_io_latency: 2.5e-09, tile_compute_latency:1.38e-06 = 1.22e-06(arr_latency) + 1.6e-07(K_reduction_latency)
+get_tile_io_latency: data_volume=8388608, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=6.4e-07 = 8388608 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 1, 'K': 32768, 'N': 32768}, arr_tile_size: {'M': 1, 'K': 256, 'N': 16}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 6.4e-07, K_N_io_latency: 0, M_N_io_latency: 2.5e-09, tile_compute_latency:2.752e-06 = 2.432e-06(arr_latency) + 3.2e-07(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
   Loop Order: mkn  PE Enabled: True  Broadcast: AB
   Array Multicast: False
   Column Popcount: True
-  Tile Mapping:  M:   N: RBA  K: CDS  Array Mapping:  R: MN  C: K
+  Tile Mapping:  M:   N: CRA  K: BDS  Array Mapping:  R: MN  C: K
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -810,25 +819,25 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 4           | 512         |
+| 1           | 16          | 256         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.001953125 | 0.5         | 1           | 1           | 1           | 1           | 1           |
+| 0.0009765625 | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 2.665e-06              cycles|
-| Total Compute Latency | 1.38e-06               cycles|
-| Total Array Latency  | 1.22e-06               cycles|
-| Total Reduction Latency| 1.6e-07                cycles|
-| IO Latency           | 1.285e-06              cycles|
+| Total Latency        | 3.397e-06              cycles|
+| Total Compute Latency | 2.752e-06              cycles|
+| Total Array Latency  | 2.432e-06              cycles|
+| Total Reduction Latency| 3.2e-07                cycles|
+| IO Latency           | 6.45e-07               cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': True, 'B': True, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': True, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+| broadcast            | {'C': True, 'R': True, 'B': False, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -847,12 +856,12 @@ Strategy(
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 0.5
-Capacity utilization: 0.001953125
-GEMM 1x32768x32768 latency: 2.665e-06s
-simulated latency: GEMM_1x32768x32768 2.665e-06
-roofline_model_simdram: total_ops=2147483648, total_data_movement=65536, peak_flops=5500726557377050.0, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=3.9039999999999995e-07, memory_bound_time=5e-09
-GEMM roofline latency: 3.9039999999999995e-07ms
+Column utilization: 1.0
+Capacity utilization: 0.0009765625
+GEMM 1x32768x32768 latency: 3.397e-06s
+simulated latency: GEMM_1x32768x32768 3.397e-06
+roofline_model_simdram: total_ops=2147483648, total_data_movement=65536, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=3.1231999999999996e-06, memory_bound_time=5e-09
+GEMM roofline latency: 3.1231999999999996e-06ms
 Results written to test_gemm_x16_base_config.json_1_32768_32768_simdram_ddr5_operandocality.csv
 /home/siyuan/LLMCompass/exp_scripts/sensitivity/gemv_size

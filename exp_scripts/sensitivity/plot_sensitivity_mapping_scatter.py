@@ -21,7 +21,7 @@ all_arrs = df["arr_mapping"].unique()
 df_plot = df[df["tile_mapping"].isin(top_tiles)]
 
 # === Scatter plot ===
-plt.figure(figsize=(3.2, 2.4))  # fits single-column paper figure
+plt.figure(figsize=(3.2, 2.0))  # fits single-column paper figure
 
 sizes = df_plot["norm_perf"] * 200  # scale dot size
 plt.scatter(
@@ -30,7 +30,7 @@ plt.scatter(
     s=sizes,
     c="#7fc97f",
     alpha=0.6,
-    edgecolor="black",
+    edgecolor=None,
     linewidth=0.4,
 )
 
@@ -56,7 +56,7 @@ best = df.loc[df["latency"].idxmin()]
 plt.scatter(
     best["tile_mapping"], best["arr_mapping"],
     s=(1 / best["norm_latency"]) * 300,
-    c="red", alpha=0.8, edgecolor="black", linewidth=0.5, zorder=3,
+    c="red", alpha=0.8, edgecolor=None, linewidth=0.5, zorder=3,
 )
 
 # === Save ===

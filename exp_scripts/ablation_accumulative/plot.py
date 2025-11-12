@@ -48,9 +48,9 @@ h100, pim, no_subarray_broadcast, no_popcount_reduction, no_locality_buffer = da
 # Compute relative performance vs PIM (baseline = 1.0)
 rel = {
     "Complete Configuration": np.ones_like(pim),
-    "LB Removed ": pim / no_subarray_broadcast,
-    "LB & PR Removed": pim / no_popcount_reduction,
-    "LB & PR & BU Removed": pim / no_locality_buffer,
+    "PR Removed ": pim / no_subarray_broadcast,
+    "PR & BU Removed": pim / no_popcount_reduction,
+    "PR & BU & LB Removed": pim / no_locality_buffer,
 }
 
 # --- Compact academic style ---
@@ -65,7 +65,7 @@ plt.rcParams.update({
 })
 
 fig_width = 3.4   # one-column width
-fig_height = 2.5  # slightly taller for clarity
+fig_height = 1.5  # slightly taller for clarity
 fig, ax = plt.subplots(figsize=(fig_width, fig_height))
 series_names = list(rel.keys())
 series_values = [rel[name] for name in series_names]
@@ -104,7 +104,7 @@ legend = ax.legend(
     frameon=False,
     ncol=2,
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.27),  # precisely between title and plot
+    bbox_to_anchor=(0.5, 1.47),  # precisely between title and plot
     handlelength=1.2,
     columnspacing=0.8,
 )

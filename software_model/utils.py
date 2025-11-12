@@ -13,6 +13,7 @@ class DataType:
 # rcd = 14.167
 rcd = 12.2 #ddr5 6400  https://de.wikipedia.org/wiki/DDR-SDRAM
 faw=13.312#https://www.igorslab.de/en/intel-vs-jedec-ddr5-timings-in-extreme-technical-practice-test/
+t_LB_row_fetch = 8 #8 because int8 arithmetic per bit is 8ns, and can hide this latency. assume global bitline width is 256 and operate at 1ns, then locality buffer width is 256x8=2048
 data_type_dict = {"int1": DataType("int1", 0.125), "int2": DataType("int2", 0.25), "int4": DataType("int4", 0.5), "int8": DataType("int8", 1), "fp16": DataType("fp16", 2), "fp32": DataType("fp32", 4)}
 simdram_op_latency_dict = {
     DataType("int8", 1).name: {"add": 3121, "mul": 31815, 'add_reduce':3121+8*rcd, 'mul_reduce':31815+16*rcd},

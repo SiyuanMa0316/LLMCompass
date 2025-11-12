@@ -20,7 +20,7 @@ class Bank:
         self.arr_cols = arr_cols
         self.arr_rows = arr_rows
         self.subarr_rows = arr_rows // subarr_count
-        self.row_buffer_size = arr_cols * arr_count * device_count
+        # self.row_buffer_size = arr_cols * arr_count * device_count
         self.device_data_width = device_data_width
         self.total_data_width = device_data_width * device_count
         self.effective_freq = effective_freq
@@ -29,6 +29,23 @@ class Bank:
         self.capacity = (
             self.device_count * self.arr_count * self.arr_cols * self.arr_rows / 8
         )  # in bytes
+
+        #logical view of architecture
+        global_bitline_bus = True
+        if global_bitline_bus:
+            self.global_bitline_width = 256
+            self.logical_PEs = self.global_bitline_width * 8 #int8 computation takes 9 cycles for each bit, each cycle takes 1 ns. We set PEs can be feed within 8ns to hide that latency
+            self.logical_arr_cols = self.global_bitline_width
+            self.logical_arr_count = self.logical_PEs // self.logical_arr_cols #always 8
+            self.logical_arr_rows = self.arr_rows * self.arr_cols * self.arr_count // self.logical_arr_cols // self.logical_arr_count
+            self.logical_subarr_rows = self.logical_arr_rows // subarr_count
+        else:
+            self.logical_PEs = self.arr_count * self.arr_cols
+            self.logical_arr_cols = self.arr_cols
+            self.logical_arr_count = self.arr_count
+            self.logical_arr_rows = self.arr_rows
+            self.logical_subarr_rows = self.subarr_rows
+
 
 
 
@@ -85,14 +102,14 @@ class ComputeModuleSIMDRAM:
         #     else:
         #         self.op_latency_dict = simdram_op_latency_dict
         if bit_parallel:
-            self.gops = channel_count * rank_count * bank_count * bank.arr_count * bank.subarr_count * bank.arr_cols / 8 *2 / (14.16*6)
+            self.gops = channel_count * rank_count * bank_count * bank.logical_arr_count * bank.subarr_count * bank.logical_arr_cols / 8 *2 / (14.16*6)
         else:
-            self.gops = channel_count * rank_count * bank_count * bank.arr_count * bank.subarr_count * bank.device_count * bank.arr_cols *2 / (16*12.2)
+            self.gops = channel_count * rank_count * bank_count * bank.logical_arr_count * bank.subarr_count * bank.device_count * bank.logical_arr_cols *2 / (16*12.2)
         self.parallelisms = {}
         self.parallelisms['C'] = self.channel_count
         self.parallelisms['R'] = self.rank_count
         self.parallelisms['B'] = self.bank_count
-        self.parallelisms['A'] = self.bank.arr_count
+        self.parallelisms['A'] = self.bank.logical_arr_count
         self.parallelisms['S'] = self.bank.subarr_count
         self.parallelisms['D'] = self.bank.device_count
         self.capacity = self.bank.capacity * self.bank_count * self.rank_count * self.channel_count
@@ -101,13 +118,14 @@ class ComputeModuleSIMDRAM:
         broadcaster_area = {'64b_1_1': 0, '64b_1_2': 6683.3/4, '64b_1_4': 6683.3/2, '64b_1_8': 6683.3, '64b_1_16': 13217, '64b_1_32': 26845.36, '64b_1_64': 53535.39} # in um^2
         bank_broadcast_total_area = broadcaster_area[f'64b_1_{self.bank_count}'] * self.rank_count * self.channel_count /1E6   # in mm^2
         rank_broadcast_total_area = broadcaster_area[f'64b_1_{self.rank_count}'] * self.channel_count /1E6  # in mm^2
-        array_broadcast_total_area = broadcaster_area[f'64b_1_{self.bank.arr_count}'] * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
+        array_broadcast_total_area = broadcaster_area[f'64b_1_{self.bank.logical_arr_count}'] * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
         popcount_unit_area = 671.6 # in um^2
-        popcount_total_area = popcount_unit_area * self.bank.arr_count * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
-        pe_area = 18.3 #in um^2
-        pe_total_area = pe_area * self.bank.arr_cols * self.bank.arr_count * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
+        popcount_total_area = popcount_unit_area * self.bank.logical_arr_count * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
+        # pe_area = 18.3 #in um^2
+        pe_area = 67 #in um^2
+        pe_total_area = pe_area * self.bank.logical_PEs* self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
         sram_per_bit_area = 0.296 # in um^2
-        sram_total_area = sram_per_bit_area * 17 * self.bank.arr_cols * self.bank.arr_count * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
+        sram_total_area = sram_per_bit_area * 17 * self.bank.logical_PEs * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
         # print(f"simdram area breakdown: bank_broadcast:{bank_broadcast_total_area}mm^2, rank_broadcast:{rank_broadcast_total_area}mm^2, array_broadcast:{array_broadcast_total_area}mm^2, popcount:{popcount_total_area}mm^2, pe:{pe_total_area}mm^2, sram:{sram_total_area}mm^2")
         pnr_factor = 1.64
         tech_node_factor = (14/45) ** 2 # assuming area scales with square of tech node
@@ -116,6 +134,7 @@ class ComputeModuleSIMDRAM:
 
     def info(self):
         info_str = (f"simdram config: {self.channel_count}channels x {self.rank_count}ranks x {self.bank_count}banks x {self.bank.arr_count}arrays x {self.bank.subarr_count}subarrays x {self.bank.subarr_rows}subarr_rows x {self.bank.arr_cols}cols x {self.bank.device_count}devices, with_PE: {self.with_PE}\n"
+                    f"simdram logical config: {self.channel_count}channels x {self.rank_count}ranks x {self.bank_count}banks x {self.bank.logical_arr_count}arrays x {self.bank.subarr_count}subarrays x {self.bank.logical_subarr_rows}subarr_rows x {self.bank.logical_arr_cols}cols x {self.bank.device_count}devices, with_PE: {self.with_PE}\n"
                     f"simdram bw: {self.bandwidth/1e9}GB/s\n"
                     f"simdram internal bw: {self.internal_bandwidth/1e9}GB/s\n"
                     f"simdram ops: {self.gops/1e3}Tops\n"

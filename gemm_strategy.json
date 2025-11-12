@@ -1,8 +1,8 @@
 {
     "tile_mapping": {
-        "M": "RB",
-        "N": "CD",
-        "K": "AS"
+        "M": "CR",
+        "N": "AD",
+        "K": "BS"
     },
     "arr_mapping": {
         "R": "MN",
