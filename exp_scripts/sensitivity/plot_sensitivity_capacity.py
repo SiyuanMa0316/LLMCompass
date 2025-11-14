@@ -56,19 +56,25 @@ rel = {
 }
 
 # --- Compact academic style ---
+FIGSIZE = (3.4, 2.5)
+BASE_FONT = 7
+TITLE_FONT = 8
+LEGEND_FONT = 6
+TICK_FONT = 6
+
 plt.rcParams.update({
-    "font.size": 7,
-    "axes.labelsize": 7,
-    "axes.titlesize": 7,
-    "legend.fontsize": 6,
-    "xtick.labelsize": 6,
-    "ytick.labelsize": 6,
+    "font.size": BASE_FONT,
+    "axes.labelsize": BASE_FONT,
+    "axes.titlesize": TITLE_FONT,
+    "legend.fontsize": LEGEND_FONT,
+    "xtick.labelsize": TICK_FONT,
+    "ytick.labelsize": TICK_FONT,
     "figure.dpi": 300,
 })
 
-fig_width = 3.4   # one-column width
-fig_height = 2.5  # slightly taller for clarity
-fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+fig, ax = plt.subplots(figsize=FIGSIZE)
+for spine in ax.spines.values():
+    spine.set_linewidth(0.8)
 
 x = np.arange(len(labels))
 series_names = list(rel.keys())
@@ -91,24 +97,22 @@ for i, (name, values) in enumerate(zip(series_names, series_values)):
 
 # Labels and grid
 ax.set_xticks(x)
-ax.set_xticklabels(labels, rotation=30, ha='right')
-ax.set_ylabel("Normalized performance")
-ax.set_title("Sensitivity Study: Memory Capacity", pad=15, fontsize=8)
-# ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7, color="#716C73")
-ax.set_yscale('log')
-# Legend: placed below title, above the plot, with extra spacing
+ax.set_xticklabels(labels, rotation=30, ha='right', fontsize=TICK_FONT)
+ax.set_ylabel("Normalized throughput", fontsize=BASE_FONT)
+ax.set_title("Sensitivity Study: Memory Capacity", pad=12, fontsize=TITLE_FONT)
+ax.set_yscale("log")
+# ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.6, color="#444244")
 legend = ax.legend(
     frameon=False,
     ncol=5,
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.16),  # precisely between title and plot
+    bbox_to_anchor=(0.5, 1.13),
     handlelength=1.2,
     columnspacing=0.8,
+    fontsize=LEGEND_FONT,
 )
-
-# Adjust layout for title–legend spacing
-plt.tight_layout(pad=0.5)
-plt.subplots_adjust(top=0.78)  # leave ample space for title + legend
+plt.tight_layout(pad=0.6)
+plt.subplots_adjust(top=0.78)
 
 plt.savefig("sensitivity_capacity.png", bbox_inches='tight')
 plt.show()

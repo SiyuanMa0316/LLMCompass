@@ -2,23 +2,45 @@ import csv
 import argparse
 import pandas as pd
 import numpy as np
+
+
+def display_name(name: str) -> str:
+    return name.replace("Llama-3.1", "Llama3").replace("_", "-")
+
 parser = argparse.ArgumentParser(description="Calculate performance per area")
 parser.add_argument("--input", type=str, help="Path to the input log file")
 args = parser.parse_args()
+
 # read latencies
 latencies = {}
 perf_per_area = {}
 
 df = pd.read_csv(args.input)
+
+desired_order = [
+    "gpt3-175B_prefill",
+    "Llama-3.1-70B_prefill",
+    "Llama-3.1-8B_prefill",
+    "gpt3-6.7B_prefill",
+    "gpt3-175B_decode",
+    "Llama-3.1-70B_decode",
+    "Llama-3.1-8B_decode",
+    "gpt3-6.7B_decode",
+]
+
+missing = [name for name in desired_order if name not in df.columns]
+if missing:
+    raise ValueError(f"Input CSV missing expected workloads: {missing}")
+
+df = df[desired_order]
 workloads = df.columns.tolist()
-print(workloads)
+display_workloads = [display_name(name) for name in workloads]
+print(display_workloads)
+
 # Row 0 = baseline latencies, Row 1 = new latencies
 baseline = df.iloc[0].values
 pim = df.iloc[2].values
-# print(proteus_data)
 proteus_latencies = df.iloc[1].values
-# print(proteus_latencies)
-# proteus_latencies = np.array(proteus_latencies)
 
 # pim_peripheral_area  = 5280
 pim_peripheral_area  = 830.6
@@ -36,8 +58,7 @@ output_file = f"perf_per_area_{args.input.split('latencies_')[1].replace('.csv',
 print(f"Writing performance per area to {output_file}")
 with open(output_file, "w", newline="") as f:
     writer = csv.writer(f)
-    writer.writerow(workloads)
-    print(workloads)
+    writer.writerow(display_workloads)
     writer.writerow(h100_perf_per_areas) 
     writer.writerow(proteus_perf_per_areas)
     writer.writerow(pim_perf_per_areas)

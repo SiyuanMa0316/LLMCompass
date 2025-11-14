@@ -9,7 +9,7 @@ from matplotlib.ticker import FuncFormatter
 # =======================
 # === Constants (values unchanged) ===
 # =======================
-FIGSIZE = (6, 4)          # single-column figure
+FIGSIZE = (6.5, 4)          # single-column figure
 COMMON_FONT_SIZE = 10
 ANNOT_FONTSIZE = COMMON_FONT_SIZE
 XTICK_FONTSIZE = COMMON_FONT_SIZE
@@ -28,7 +28,8 @@ colors = ['#fff7bc', '#fec44f', "#dd7e3e"]
 # PE-utilization line style (new constants)
 PE_LINE_COLOR = "#336ae0"
 PE_LINE_LS = "--"
-PE_LINE_LW = 0.8
+PE_LINE_LW = 1
+SPINE_LINEWIDTH = 1.5
 PE_MARKER = "o"
 PE_MARKERSIZE = 2
 LATENCY_YLABEL = "Normalized latency"
@@ -39,7 +40,7 @@ GROUP_SIZE = 3
 WORKLOAD_COLOR = "#0A7C3A"
 
 # Visual upward shift in percentage points (data-space offset, labels corrected via formatter)
-PE_BASE_SHIFT = 6.0  # try 6–12 if you need more/less lift
+PE_BASE_SHIFT = 7.5  # try 6–12 if you need more/less lift
 
 # === Input CSV ===
 csv_file = "latencies_run_gemv_output.csv"  # replace with your filename
@@ -64,6 +65,9 @@ bar_colors = [colors[i // 3] for i in range(len(workloads))]
 
 # === Plot ===
 fig, ax = plt.subplots(figsize=FIGSIZE)
+for spine in ax.spines.values():
+    spine.set_linewidth(SPINE_LINEWIDTH)
+
 x = np.arange(len(workloads))
 
 # Make bars wider
@@ -86,7 +90,10 @@ ax.set_ylim(0, ylim_top)
 
 for i, val in enumerate(norm_latencies):
     # Place text **inside** the bar (middle)
-    y_pos = val * 0.5
+    if i == len(norm_latencies) -1:
+        y_pos = val * 0.5
+    else:
+        y_pos = val+0.3
     ax.text(
         i,
         y_pos,
@@ -127,7 +134,7 @@ for i, val in enumerate(pe_utils_pct):
     # Place text **inside** the bar (middle)
     y_pos = val + 8
     ax2.text(
-        i,
+        i-0.3,
         y_pos,
         f"x{val:.1f}",
         ha="center",
@@ -142,12 +149,14 @@ ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIF
 
 # Color the right axis
 ax2.spines['right'].set_color(PE_LINE_COLOR)
+ax2.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax2.yaxis.label.set_color(PE_LINE_COLOR)
 ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=YTICK_FONTSIZE)
 
 # === Aesthetics (left axis unchanged) ===
 ax.set_xticks(x)
-ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XLABEL_FONTSIZE)
+ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XTICK_FONTSIZE)
+ax.tick_params(axis="both", labelsize=YTICK_FONTSIZE)
 ax.set_ylabel(LATENCY_YLABEL, fontsize=YLABEL_FONTSIZE)
 # ax.set_xlabel("Workload (MxKxN)", fontsize=COMMON_FONT_SIZE)
 ax.tick_params(axis="y", labelsize=YTICK_FONTSIZE)
@@ -198,6 +207,7 @@ for i, val in enumerate(workloads_normalized):
 
 # ax3.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIFT, 0):.0f}"))
 ax3.spines['right'].set_color(WORKLOAD_COLOR)
+ax3.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax3.yaxis.label.set_color(WORKLOAD_COLOR)
 ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=YTICK_FONTSIZE)
 

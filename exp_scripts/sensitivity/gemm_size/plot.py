@@ -7,7 +7,7 @@ from matplotlib.ticker import FuncFormatter
 # =======================
 # === Constants matched to GEMV styling ===
 # =======================
-FIGSIZE = (6, 3)
+FIGSIZE = (6.5, 4.5)
 COMMON_FONT_SIZE = 10
 ANNOT_FONTSIZE = COMMON_FONT_SIZE
 XTICK_FONTSIZE = COMMON_FONT_SIZE
@@ -21,7 +21,7 @@ BASELINE_LS = "--"
 BASELINE_LW = 0.6
 
 colors = ['#b2df8a', '#66c2a5', "#44A559"]
-
+SPINE_LINEWIDTH = 1.5
 PE_LINE_COLOR = "#3a60c1"
 PE_LINE_LS = "--"
 PE_LINE_LW = 0.8
@@ -29,14 +29,15 @@ PE_MARKER = "o"
 PE_MARKERSIZE = 2
 
 LATENCY_YLABEL = "Normalized Latency"
-PE_YLABEL = "Normalized PE utilization"
+PE_YLABEL = "PE utilization(%)"
 WORKLOAD_YLABEL = "Normalized workload capacity"
 WORKLOAD_COLOR = "#A73030"
 
-PE_BASE_SHIFT = 6.0
+PE_BASE_SHIFT = 8
 GROUP_SIZE = 3
 BAR_WIDTH = 0.75
 BAR_GROUP_BASE_SHIFT = 1.3  # lifts annotations for later groups on log axis
+SPINE_LINEWIDTH = 0.8
 
 # === Input CSV ===
 csv_file = "latencies_run_gemm_output.csv"
@@ -51,12 +52,15 @@ workloads_int = np.array([int(w.split('x')[0]) * int(w.split('x')[1]) * int(w.sp
 workloads_normalized = workloads_int / workloads_int.min()
 
 pe_utils = df["pe_utilization"].astype(float).values
-pe_utils_pct = pe_utils / pe_utils[0]
+pe_utils_pct = pe_utils * 100
 
 bar_colors = [colors[i // GROUP_SIZE] for i in range(len(workloads))]
 
 # === Plot ===
 fig, ax = plt.subplots(figsize=FIGSIZE)
+for spine in ax.spines.values():
+    spine.set_linewidth(SPINE_LINEWIDTH)
+
 x = np.arange(len(workloads))
 
 ax.bar(
@@ -102,6 +106,7 @@ for i, val in enumerate(norm_latencies):
 ax2 = ax.twinx()
 ax2.set_ylabel(PE_YLABEL, fontsize=YLABEL_FONTSIZE)
 
+
 pe_plot_vals = pe_utils_pct + PE_BASE_SHIFT
 if len(pe_plot_vals) > 0:
     ymax = float(np.nanmax(pe_plot_vals) * 1.2)
@@ -122,8 +127,10 @@ for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
 
 for i, val in enumerate(pe_utils_pct):
     y_pos = val + PE_BASE_SHIFT
-    if i == len(pe_utils_pct) - 2:
-        y_pos -= 1 
+    if i < len(pe_utils_pct) - 2:
+        y_pos -= 8
+    else:
+        y_pos += 3
     ax2.text(
         i,
         y_pos,
@@ -136,12 +143,13 @@ for i, val in enumerate(pe_utils_pct):
 
 ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIFT, 0):.0f}"))
 ax2.spines['right'].set_color(PE_LINE_COLOR)
+ax2.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax2.yaxis.label.set_color(PE_LINE_COLOR)
 ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=YTICK_FONTSIZE)
 
 # === Third axis: normalized workload capacity ===
 ax3 = ax.twinx()
-ax3.spines['right'].set_position(('outward', 30))
+ax3.spines['right'].set_position(('outward', 45))
 ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=YLABEL_FONTSIZE, color=WORKLOAD_COLOR)
 
 workload_plot_vals = workloads_normalized + PE_BASE_SHIFT
@@ -168,9 +176,11 @@ for i, val in enumerate(workloads_normalized):
     if i < GROUP_SIZE + 2:  # keep early points readable
         y_pos += 10
     elif i == len(workloads_normalized) - 1:
-        y_pos = val * 0.5
+        y_pos = val * 0.8
     elif i == len(workloads_normalized) -2:
-        y_pos = val * 1.2
+        y_pos = val * 0.6
+        # y_pos = val - 200
+        
     ax3.text(
         i,
         y_pos,
@@ -182,15 +192,16 @@ for i, val in enumerate(workloads_normalized):
     )
 
 ax3.spines['right'].set_color(WORKLOAD_COLOR)
+ax3.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax3.yaxis.label.set_color(WORKLOAD_COLOR)
 ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=YTICK_FONTSIZE)
 
 # === Shared aesthetics ===
 ax.set_xticks(x)
-ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XTICK_FONTSIZE - 2)
+ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XTICK_FONTSIZE)
 ax.set_ylabel(LATENCY_YLABEL, fontsize=YLABEL_FONTSIZE)
 # ax.set_xlabel("Workload (MxKxN)", fontsize=COMMON_FONT_SIZE)
-ax.tick_params(axis="y", labelsize=YTICK_FONTSIZE)
+ax.tick_params(axis="both", labelsize=YTICK_FONTSIZE)
 ax.axhline(1.0, color=BASELINE_COLOR, linestyle=BASELINE_LS, linewidth=BASELINE_LW)
 
 fig.tight_layout(pad=0.2)
