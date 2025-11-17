@@ -12,3 +12,4 @@ cost_model/
 *.png
 *.pdf
 *.csv
+*legacy*
