@@ -16,7 +16,7 @@ plt.rcParams.update({
 })
 
 FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 3.5)
+FIGSIZE = (FIG_WIDTH, 2.5)
 ANNOT_FONTSIZE = BASE_FONT - 1
 AXHLINE_WIDTH = 0.3
 BAR_LINEWIDTH = 0.3
@@ -134,6 +134,9 @@ def main():
         tick.set_color("black")
 
     plt.yscale("log")
+    ymin = (ax.get_ylim()[0])
+    ymax = (ax.get_ylim()[1])*10
+    ax.set_ylim(ymin, ymax)
     plt.ylabel("Normalized Perf./ Area")
     plt.axhline(y=1.0, color="black", linestyle="--", linewidth=AXHLINE_WIDTH)
 
@@ -176,7 +179,7 @@ def main():
         labels,
         frameon=False,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.1),
+        bbox_to_anchor=(0.5, 1.03),
         ncol=3,
     )
 

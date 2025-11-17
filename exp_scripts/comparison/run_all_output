@@ -8,7 +8,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -104,7 +104,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -200,7 +200,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -296,7 +296,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -394,7 +394,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -433,7 +433,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -473,7 +473,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -512,7 +512,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -552,7 +552,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -596,7 +596,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -640,7 +640,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -684,7 +684,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
+peripheral area: 1377.400608840403mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A

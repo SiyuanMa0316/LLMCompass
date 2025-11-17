@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 
-BASE_FONT = 6
+BASE_FONT = 8
 plt.rcParams.update({
     "font.size": BASE_FONT,
     "axes.labelsize": BASE_FONT + 1,
@@ -15,7 +15,7 @@ plt.rcParams.update({
 })
 
 FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 2)
+FIGSIZE = (FIG_WIDTH, 2.7)
 ANNOT_FONTSIZE = BASE_FONT - 1
 AXHLINE_WIDTH = 0.3
 BAR_LINEWIDTH = 0.3
@@ -134,7 +134,7 @@ plt.ylabel("Normalized throughput")
 
 # --- Align both y axes (so 10^0 = 1 line up) ---
 ymin = (ax.get_ylim()[0])
-ymax = (ax.get_ylim()[1])*5
+ymax = (ax.get_ylim()[1])*15
 ax.set_ylim(ymin, ymax)
 # ax2.set_ylim(ymin, ymax)
 plt.axhline(y=1, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
@@ -163,7 +163,7 @@ plt.legend(
     labels,
     frameon=False,
     loc="upper center",
-    bbox_to_anchor=(0.5, 1.2),
+    bbox_to_anchor=(0.5, 1.035),
     ncol=3,
 )
 

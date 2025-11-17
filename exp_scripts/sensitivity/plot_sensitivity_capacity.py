@@ -15,7 +15,7 @@ plt.rcParams.update({
 })
 
 FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 3.5)
+FIGSIZE = (FIG_WIDTH, 2.3)
 BAR_LINEWIDTH = 0.3
 BAR_WIDTH = 0.2
 AXHLINE_WIDTH = 0.3
@@ -116,29 +116,35 @@ ax.set_xticks(x)
 ax.set_xticklabels(labels, rotation=30, ha='right', fontsize=plt.rcParams["xtick.labelsize"])
 ax.set_ylabel("Normalized throughput")
 ax.set_yscale("log")
+
+ymin = (ax.get_ylim()[0])
+ymax = (ax.get_ylim()[1])*2
+# ymax = 1.2
+ax.set_ylim(ymin, ymax)
 # dashed reference lines with labels
 ref_lines = [
-    (256/1024, "256GB"),
-    (64/1024,  "64GB"),
-    (8/1024,   "8GB"),
+    (1024/1024, f"1"),
+    (256/1024, f"256/1024"),
+    (64/1024,  "64/1024"),
+    (8/1024,   "8/1024"),
 ]
 for y, label in ref_lines:
     ax.axhline(y=y, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
-    ax.text(
-        1.01, y, label,
-        transform=ax.get_yaxis_transform(),
-        va="center", ha="left",
-        fontsize=ANNOT_FONTSIZE,
-        color="black",
-        alpha=0.7,
-        clip_on=False,
-    )
+    # ax.text(
+    #     1.01, y, label,
+    #     transform=ax.get_yaxis_transform(),
+    #     va="center", ha="left",
+    #     fontsize=ANNOT_FONTSIZE,
+    #     color="black",
+    #     alpha=0.7,
+    #     clip_on=False,
+    # )
 
 legend = ax.legend(
     frameon=False,
     ncol=len(colors),
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.08),
+    bbox_to_anchor=(0.5, 1.05),
     handlelength=1.2,
     columnspacing=0.8,
 )

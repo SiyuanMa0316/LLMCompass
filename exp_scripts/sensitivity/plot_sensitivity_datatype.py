@@ -15,7 +15,7 @@ plt.rcParams.update({
 })
 
 FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 3.5)
+FIGSIZE = (FIG_WIDTH, 2.3)
 BAR_LINEWIDTH = 0.3
 BAR_WIDTH = 0.2
 AXHLINE_WIDTH = 0.3
@@ -117,13 +117,16 @@ ax.set_ylabel("Normalized throughput")
 ax.axhline(y=8/8, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
 ax.axhline(y=8/4, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
 ax.axhline(y=8/2, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
-
+ymin = (ax.get_ylim()[0])
+# ymax = (ax.get_ylim()[1])
+ymax = 4.5
+ax.set_ylim(ymin, ymax)
 
 legend = ax.legend(
     frameon=False,
     ncol=len(colors),
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.08),
+    bbox_to_anchor=(0.5, 1.05),
     handlelength=1.2,
     columnspacing=0.8,
 )
