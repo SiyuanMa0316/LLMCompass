@@ -7,40 +7,47 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter
 
 # =======================
-# === Constants (values unchanged) ===
+# === Unified Constants (matching comparison/plot.py template) ===
 # =======================
-FIGSIZE = (6.5, 4)          # single-column figure
-COMMON_FONT_SIZE = 10
-ANNOT_FONTSIZE = COMMON_FONT_SIZE
-XTICK_FONTSIZE = COMMON_FONT_SIZE
-YLABEL_FONTSIZE = COMMON_FONT_SIZE
-XLABEL_FONTSIZE = COMMON_FONT_SIZE
-YTICK_FONTSIZE = COMMON_FONT_SIZE
+BASE_FONT = 8
+plt.rcParams.update({
+    "font.size": BASE_FONT,
+    "axes.labelsize": BASE_FONT + 1,
+    "axes.titlesize": BASE_FONT,
+    "legend.fontsize": BASE_FONT,
+    "xtick.labelsize": BASE_FONT,
+    "ytick.labelsize": BASE_FONT,
+    "figure.dpi": 300,
+})
+
+FIG_WIDTH = 4
+FIGSIZE = (FIG_WIDTH, 3.5)
+ANNOT_FONTSIZE = BASE_FONT - 2
+SPINE_LINEWIDTH = 0.8
+EDGE_LINEWIDTH = 0.3
+AXHLINE_WIDTH = 0.3
+
 EDGE_COLOR = "black"
-EDGE_LINEWIDTH = 0.4
 BASELINE_COLOR = "gray"
 BASELINE_LS = "--"
 BASELINE_LW = 0.6
 
-# Existing palette (do not change)
+# Existing palette (unchanged)
 colors = ['#fff7bc', '#fec44f', "#dd7e3e"]
 
-# PE-utilization line style (new constants)
+# PE-utilization line style
 PE_LINE_COLOR = "#336ae0"
 PE_LINE_LS = "--"
-PE_LINE_LW = 1
-SPINE_LINEWIDTH = 1.5
+PE_LINE_LW = 0.8
 PE_MARKER = "o"
 PE_MARKERSIZE = 2
+PE_BASE_SHIFT = 7.5
+
 LATENCY_YLABEL = "Normalized latency"
-PE_YLABEL = "Normalized PE utilization"   # right-axis label
+PE_YLABEL = "PE utilization (%)"
 WORKLOAD_YLABEL = "Normalized workload capacity"
-GROUP_SIZE = 3
-
 WORKLOAD_COLOR = "#0A7C3A"
-
-# Visual upward shift in percentage points (data-space offset, labels corrected via formatter)
-PE_BASE_SHIFT = 7.5  # try 6–12 if you need more/less lift
+GROUP_SIZE = 3
 
 # === Input CSV ===
 csv_file = "latencies_run_gemv_output.csv"  # replace with your filename
@@ -52,13 +59,13 @@ latencies = df["simulated_latency"].astype(float).values
 norm_latencies = latencies / latencies.min()
 
 workloads_int = np.array([int(w.split('x')[0]) * int(w.split('x')[1]) * int(w.split('x')[2]) for w in workloads])
-print(workloads, workloads_int.min())
+# print(workloads, workloads_int.min())
 workloads_normalized = workloads_int/workloads_int.min()
 
 # PE utilization -> percent for right axis
 # pe_utils_pct = (df["pe_utilization"].astype(float).values) * 100.0
 pe_utils = df["pe_utilization"].astype(float).values
-pe_utils_pct = pe_utils / pe_utils[0]
+pe_utils_pct = pe_utils * 100
 
 # === Bar colors (unchanged logic) ===
 bar_colors = [colors[i // 3] for i in range(len(workloads))]
@@ -88,26 +95,52 @@ bars = ax.bar(
 ylim_top = max(norm_latencies) * 1.2
 ax.set_ylim(0, ylim_top)
 
+# for i, val in enumerate(norm_latencies):
+#     # Place text **inside** the bar (middle)
+#     if i == len(norm_latencies) -1:
+#         y_pos = val * 0.5
+#     else:
+#         y_pos = val+0.3
+#     ax.text(
+#         i,
+#         y_pos,
+#         f"x{val:.1f}",
+#         ha="center",
+#         va="center",
+#         fontsize=ANNOT_FONTSIZE,
+#         # rotation=90,
+#         color="black",
+#     )
+BAR_GROUP_BASE_SHIFT = 1
+axis_bottom = ax.get_ylim()[0]
+n = len(norm_latencies)
 for i, val in enumerate(norm_latencies):
-    # Place text **inside** the bar (middle)
-    if i == len(norm_latencies) -1:
-        y_pos = val * 0.5
+    # group_idx = i // GROUP_SIZE
+    if i >= 1:
+        y_pos = axis_bottom * BAR_GROUP_BASE_SHIFT
+        va = "bottom"
     else:
-        y_pos = val+0.3
+        y_pos = val * 1.05
+        if i >= n - GROUP_SIZE:
+            y_pos = val / 1.2
+            va = "top"
+        else:
+            va = "bottom"
+
     ax.text(
         i,
         y_pos,
         f"x{val:.1f}",
         ha="center",
-        va="center",
+        va=va,
         fontsize=ANNOT_FONTSIZE,
-        # rotation=90,
-        color="black",
+        rotation=90,
     )
+
 
 # === Right axis: PE utilization (%) dashed line with visual upward shift via data offset ===
 ax2 = ax.twinx()
-ax2.set_ylabel(PE_YLABEL, fontsize=YLABEL_FONTSIZE)
+ax2.set_ylabel(PE_YLABEL, fontsize=plt.rcParams["axes.labelsize"])
 
 # Plot shifted data so the curve sits higher, but format ticks to show true values
 pe_plot_vals = pe_utils_pct + PE_BASE_SHIFT
@@ -136,7 +169,7 @@ for i, val in enumerate(pe_utils_pct):
     ax2.text(
         i-0.3,
         y_pos,
-        f"x{val:.1f}",
+        f"{val:.0f}",
         ha="center",
         va="bottom",
         fontsize=ANNOT_FONTSIZE,
@@ -151,20 +184,20 @@ ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIF
 ax2.spines['right'].set_color(PE_LINE_COLOR)
 ax2.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax2.yaxis.label.set_color(PE_LINE_COLOR)
-ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=YTICK_FONTSIZE)
+ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=plt.rcParams["ytick.labelsize"])
 
 # === Aesthetics (left axis unchanged) ===
 ax.set_xticks(x)
-ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XTICK_FONTSIZE)
-ax.tick_params(axis="both", labelsize=YTICK_FONTSIZE)
-ax.set_ylabel(LATENCY_YLABEL, fontsize=YLABEL_FONTSIZE)
+ax.set_xticklabels(workloads, rotation=30, ha="right", fontsize=plt.rcParams["xtick.labelsize"])
+ax.tick_params(axis="both", labelsize=plt.rcParams["ytick.labelsize"])
+ax.set_ylabel(LATENCY_YLABEL, fontsize=plt.rcParams["axes.labelsize"])
 # ax.set_xlabel("Workload (MxKxN)", fontsize=COMMON_FONT_SIZE)
-ax.tick_params(axis="y", labelsize=YTICK_FONTSIZE)
+ax.tick_params(axis="y", labelsize=plt.rcParams["ytick.labelsize"])
 
 # Right axis 3: workloads_normalized line with offset to the right
 ax3 = ax.twinx()
 ax3.spines['right'].set_position(('outward', 35))
-ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=YLABEL_FONTSIZE, color=WORKLOAD_COLOR)
+ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=plt.rcParams["axes.labelsize"], color=WORKLOAD_COLOR)
 
 workload_plot_vals = workloads_normalized + PE_BASE_SHIFT
 ax3.set_ylim(0, max(5.0 + PE_BASE_SHIFT, float(np.nanmax(workload_plot_vals) * 1.2)))
@@ -209,7 +242,7 @@ for i, val in enumerate(workloads_normalized):
 ax3.spines['right'].set_color(WORKLOAD_COLOR)
 ax3.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax3.yaxis.label.set_color(WORKLOAD_COLOR)
-ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=YTICK_FONTSIZE)
+ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=plt.rcParams["ytick.labelsize"])
 
 # ax.axhline(1.0, color=BASELINE_COLOR, linestyle=BASELINE_LS, linewidth=BASELINE_LW)
 fig.tight_layout(pad=0.2)
@@ -223,7 +256,8 @@ legend_elements = [
     Line2D([0], [0], color=WORKLOAD_COLOR, linestyle=PE_LINE_LS, linewidth=PE_LINE_LW,
         marker=PE_MARKER, markersize=PE_MARKERSIZE, label=WORKLOAD_YLABEL),
 ]
-ax.legend(handles=legend_elements, fontsize=ANNOT_FONTSIZE, loc='upper left')
+ax.legend(handles=legend_elements, fontsize=plt.rcParams["legend.fontsize"], loc='upper center', 
+          bbox_to_anchor=(0.5, 1.08), frameon=False, ncol=2, columnspacing=0.8)
 
 # === Save ===
 # plt.savefig("gemm_latency_bar_log_shades_adaptive.pdf", bbox_inches="tight")

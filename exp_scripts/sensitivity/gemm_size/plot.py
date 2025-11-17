@@ -5,39 +5,49 @@ from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter
 
 # =======================
-# === Constants matched to GEMV styling ===
+# === Unified Constants (matching comparison/plot.py template) ===
 # =======================
-FIGSIZE = (6.5, 4.5)
-COMMON_FONT_SIZE = 10
-ANNOT_FONTSIZE = COMMON_FONT_SIZE
-XTICK_FONTSIZE = COMMON_FONT_SIZE
-YLABEL_FONTSIZE = COMMON_FONT_SIZE
-XLABEL_FONTSIZE = COMMON_FONT_SIZE
-YTICK_FONTSIZE = COMMON_FONT_SIZE
+BASE_FONT = 8
+plt.rcParams.update({
+    "font.size": BASE_FONT,
+    "axes.labelsize": BASE_FONT + 1,
+    "axes.titlesize": BASE_FONT,
+    "legend.fontsize": BASE_FONT,
+    "xtick.labelsize": BASE_FONT,
+    "ytick.labelsize": BASE_FONT,
+    "figure.dpi": 300,
+})
+
+FIG_WIDTH = 4
+FIGSIZE = (FIG_WIDTH, 3.5)
+ANNOT_FONTSIZE = BASE_FONT - 2
+SPINE_LINEWIDTH = 0.8
+EDGE_LINEWIDTH = 0.3
+AXHLINE_WIDTH = 0.3
+
 EDGE_COLOR = "black"
-EDGE_LINEWIDTH = 0.4
 BASELINE_COLOR = "gray"
 BASELINE_LS = "--"
 BASELINE_LW = 0.6
 
+# Existing palette
 colors = ['#b2df8a', '#66c2a5', "#44A559"]
-SPINE_LINEWIDTH = 1.5
+
+# PE-utilization line style
 PE_LINE_COLOR = "#3a60c1"
 PE_LINE_LS = "--"
 PE_LINE_LW = 0.8
 PE_MARKER = "o"
 PE_MARKERSIZE = 2
+PE_BASE_SHIFT = 8
 
 LATENCY_YLABEL = "Normalized Latency"
 PE_YLABEL = "PE utilization(%)"
 WORKLOAD_YLABEL = "Normalized workload capacity"
 WORKLOAD_COLOR = "#A73030"
-
-PE_BASE_SHIFT = 8
 GROUP_SIZE = 3
 BAR_WIDTH = 0.75
 BAR_GROUP_BASE_SHIFT = 1.3  # lifts annotations for later groups on log axis
-SPINE_LINEWIDTH = 0.8
 
 # === Input CSV ===
 csv_file = "latencies_run_gemm_output.csv"
@@ -104,7 +114,7 @@ for i, val in enumerate(norm_latencies):
 
 # === Right axis: PE utilization ===
 ax2 = ax.twinx()
-ax2.set_ylabel(PE_YLABEL, fontsize=YLABEL_FONTSIZE)
+ax2.set_ylabel(PE_YLABEL, fontsize=plt.rcParams["axes.labelsize"])
 
 
 pe_plot_vals = pe_utils_pct + PE_BASE_SHIFT
@@ -145,12 +155,12 @@ ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIF
 ax2.spines['right'].set_color(PE_LINE_COLOR)
 ax2.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax2.yaxis.label.set_color(PE_LINE_COLOR)
-ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=YTICK_FONTSIZE)
+ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=plt.rcParams["ytick.labelsize"])
 
 # === Third axis: normalized workload capacity ===
 ax3 = ax.twinx()
 ax3.spines['right'].set_position(('outward', 45))
-ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=YLABEL_FONTSIZE, color=WORKLOAD_COLOR)
+ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=plt.rcParams["axes.labelsize"], color=WORKLOAD_COLOR)
 
 workload_plot_vals = workloads_normalized + PE_BASE_SHIFT
 ax3.set_yscale("log")
@@ -194,14 +204,14 @@ for i, val in enumerate(workloads_normalized):
 ax3.spines['right'].set_color(WORKLOAD_COLOR)
 ax3.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax3.yaxis.label.set_color(WORKLOAD_COLOR)
-ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=YTICK_FONTSIZE)
+ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=plt.rcParams["ytick.labelsize"])
 
 # === Shared aesthetics ===
 ax.set_xticks(x)
-ax.set_xticklabels(workloads, rotation=15, ha="center", fontsize=XTICK_FONTSIZE)
-ax.set_ylabel(LATENCY_YLABEL, fontsize=YLABEL_FONTSIZE)
+ax.set_xticklabels(workloads, rotation=30, ha="right", fontsize=plt.rcParams["xtick.labelsize"])
+ax.set_ylabel(LATENCY_YLABEL, fontsize=plt.rcParams["axes.labelsize"])
 # ax.set_xlabel("Workload (MxKxN)", fontsize=COMMON_FONT_SIZE)
-ax.tick_params(axis="both", labelsize=YTICK_FONTSIZE)
+ax.tick_params(axis="both", labelsize=plt.rcParams["ytick.labelsize"])
 ax.axhline(1.0, color=BASELINE_COLOR, linestyle=BASELINE_LS, linewidth=BASELINE_LW)
 
 fig.tight_layout(pad=0.2)
@@ -213,7 +223,9 @@ legend_elements = [
     Line2D([0], [0], color=WORKLOAD_COLOR, linestyle=PE_LINE_LS, linewidth=PE_LINE_LW,
            marker=PE_MARKER, markersize=PE_MARKERSIZE, label=WORKLOAD_YLABEL),
 ]
-ax.legend(handles=legend_elements, fontsize=ANNOT_FONTSIZE, loc='upper left')
+# ax.legend(handles=legend_elements, fontsize=plt.rcParams["legend.fontsize"], loc='upper left')
+ax.legend(handles=legend_elements, fontsize=plt.rcParams["legend.fontsize"], loc='upper center', 
+          bbox_to_anchor=(0.5, 1.08), frameon=False, ncol=2, columnspacing=0.8)
 
 # === Save ===
 plt.savefig("sensitivity_gemm_size.png", dpi=600, bbox_inches="tight")

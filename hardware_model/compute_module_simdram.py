@@ -120,6 +120,8 @@ class ComputeModuleSIMDRAM:
         rank_broadcast_total_area = broadcaster_area[f'64b_1_{self.rank_count}'] * self.channel_count /1E6  # in mm^2
         array_broadcast_total_area = broadcaster_area[f'64b_1_{self.bank.logical_arr_count}'] * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
         popcount_unit_area = 671.6 # in um^2
+        # popcount_unit_area = 13812 # in um^2
+
         popcount_total_area = popcount_unit_area * self.bank.logical_arr_count * self.bank.device_count * self.bank_count * self.rank_count * self.channel_count /1E6  # in mm^2
         # pe_area = 18.3 #in um^2
         pe_area = 67 #in um^2

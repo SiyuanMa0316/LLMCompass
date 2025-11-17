@@ -3,14 +3,25 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse
 import os
-from matplotlib.patches import Patch
 
-FIGSIZE = (10, 6)
-XTICK_FONTSIZE = 13
-YLABEL_FONTSIZE = 18
-LEGEND_FONTSIZE = 14
-ANNOT_FONTSIZE = 12
-AXHLINE_WIDTH = 1.0
+BASE_FONT = 8
+plt.rcParams.update({
+    "font.size": BASE_FONT,
+    "axes.labelsize": BASE_FONT + 1,
+    "axes.titlesize": BASE_FONT,
+    "legend.fontsize": BASE_FONT,
+    "xtick.labelsize": BASE_FONT,
+    "ytick.labelsize": BASE_FONT,
+    "figure.dpi": 300,
+})
+
+FIG_WIDTH = 4
+FIGSIZE = (FIG_WIDTH, 3.5)
+ANNOT_FONTSIZE = BASE_FONT - 1
+AXHLINE_WIDTH = 0.3
+BAR_LINEWIDTH = 0.3
+BAR_WIDTH = 0.25
+SPINE_LINEWIDTH = 0.8
 
 def geom_mean(values: np.ndarray) -> float:
     values = np.asarray(values, dtype=float)
@@ -42,30 +53,16 @@ def main():
     prefill_slice = slice(0, len(workloads) // 2)
     decode_slice = slice(len(workloads) // 2, len(workloads))
 
-    geo_prefill = {
-        "H100": 1.0,
-        "Proteus": geom_mean(improv_proteus[prefill_slice]),
-        "PIM": geom_mean(improv_pim[prefill_slice]),
-    }
-    geo_decode = {
-        "H100": 1.0,
-        "Proteus": geom_mean(improv_proteus[decode_slice]),
-        "PIM": geom_mean(improv_pim[decode_slice]),
-    }
     geo_overall = {
         "H100": 1.0,
         "Proteus": geom_mean(improv_proteus),
         "PIM": geom_mean(improv_pim),
     }
 
-    print(f"Geomean (Prefill)  PIM vs Proteus: {geom_mean(improv_pim_vs_proteus[prefill_slice]):.2f}×")
-    print(f"Geomean (Decode)   PIM vs Proteus: {geom_mean(improv_pim_vs_proteus[decode_slice]):.2f}×")
     print(f"Geomean (Overall)  PIM vs Proteus: {geom_mean(improv_pim_vs_proteus):.2f}×")
-    print(f"Geomean (Prefill)  PIM vs H100:    {geo_prefill['PIM']:.2f}×")
-    print(f"Geomean (Decode)   PIM vs H100:    {geo_decode['PIM']:.2f}×")
     print(f"Geomean (Overall)  PIM vs H100:    {geo_overall['PIM']:.2f}×")
 
-    extra_labels = ["Prefill_Geomean", "Decode_Geomean", "Overall_Geomean"]
+    extra_label = "Geomean"
 
     workloads_all: list[str] = []
     values_h100: list[float] = []
@@ -78,19 +75,8 @@ def main():
         values_proteus.extend(improv_proteus[start:end])
         values_pim.extend(improv_pim[start:end])
 
-    extend_segment(0, prefill_slice.stop)
-    workloads_all.append(extra_labels[0])
-    values_h100.append(geo_prefill["H100"])
-    values_proteus.append(geo_prefill["Proteus"])
-    values_pim.append(geo_prefill["PIM"])
-
-    extend_segment(prefill_slice.stop, decode_slice.stop)
-    workloads_all.append(extra_labels[1])
-    values_h100.append(geo_decode["H100"])
-    values_proteus.append(geo_decode["Proteus"])
-    values_pim.append(geo_decode["PIM"])
-
-    workloads_all.append(extra_labels[2])
+    extend_segment(0, len(workloads))
+    workloads_all.append(extra_label)
     values_h100.append(geo_overall["H100"])
     values_proteus.append(geo_overall["Proteus"])
     values_pim.append(geo_overall["PIM"])
@@ -110,38 +96,45 @@ def main():
     colors_proteus = np.full(len(workloads_all), "#ee974b", dtype=object)
     colors_pim = np.full(len(workloads_all), "#32a73e", dtype=object)
 
-    width = 0.25
     bars_h100 = plt.bar(
-        x[non_geomean_mask] - width,
+        x[non_geomean_mask] - BAR_WIDTH,
         values_h100[non_geomean_mask],
-        width,
+        BAR_WIDTH,
         label="H100",
         color=colors_h100[non_geomean_mask],
         edgecolor="black",
+        linewidth=BAR_LINEWIDTH,
     )
-    bars_proteus = plt.bar(x, values_proteus, width, label="Proteus", color=colors_proteus, edgecolor="black")
-    bars_pim = plt.bar(x + width, values_pim, width, label="DREAM(Ours)", color=colors_pim, edgecolor="black")
+    bars_proteus = plt.bar(
+        x,
+        values_proteus,
+        BAR_WIDTH,
+        label="Proteus",
+        color=colors_proteus,
+        edgecolor="black",
+        linewidth=BAR_LINEWIDTH,
+    )
+    bars_pim = plt.bar(
+        x + BAR_WIDTH,
+        values_pim,
+        BAR_WIDTH,
+        label="DREAM(Ours)",
+        color=colors_pim,
+        edgecolor="black",
+        linewidth=BAR_LINEWIDTH,
+    )
 
-    for idx, bar in enumerate(bars_proteus):
-        if geomean_mask[idx]:
-            bar.set_hatch("/")
-            bar.set_edgecolor((0, 0, 0, 0.5))
-
-    for idx, bar in enumerate(bars_pim):
-        if geomean_mask[idx]:
-            bar.set_hatch("/")
-            bar.set_edgecolor((0, 0, 0, 0.5))
-
-    plt.xticks(x, workloads_all, rotation=15, ha="right", fontsize=XTICK_FONTSIZE, color="black")
+    plt.xticks(x, workloads_all, rotation=30, ha="right", fontsize=plt.rcParams["xtick.labelsize"], color="black")
     ax = plt.gca()
     for spine in ax.spines.values():
-        spine.set_linewidth(1.5)
-    ax.tick_params(axis="both", labelsize=XTICK_FONTSIZE)
+        spine.set_linewidth(SPINE_LINEWIDTH)
+    ax.tick_params(axis="x", labelsize=plt.rcParams["xtick.labelsize"])
+    ax.tick_params(axis="y", labelsize=plt.rcParams["ytick.labelsize"])
     for tick in ax.get_xticklabels():
         tick.set_color("black")
 
     plt.yscale("log")
-    plt.ylabel("Normalized Perf./ Area", fontsize=YLABEL_FONTSIZE)
+    plt.ylabel("Normalized Perf./ Area")
     plt.axhline(y=1.0, color="black", linestyle="--", linewidth=AXHLINE_WIDTH)
 
     # for idx, tick in enumerate(plt.gca().get_xticklabels()):
@@ -151,7 +144,9 @@ def main():
     for bar, idx in zip(bars_pim, range(len(workloads_all))):
         height = bar.get_height()
         plt.text(
-            bar.get_x() + bar.get_width() / 2,
+            # bar.get_x() - bar.get_width() / 2,
+            bar.get_x(),
+            # height * 1.05 if idx %2 == 1 else  height * 1.2,
             height * 1.05,
             f"x{height:.1f}",
             ha="center",
@@ -160,26 +155,33 @@ def main():
             # color="#314a3e" if idx in geomean_indices else "black",
         )
 
-    handles, labels = plt.gca().get_legend_handles_labels()
-    if geomean_indices:
-        proteus_geo_patch = Patch(
-            facecolor=colors_proteus[geomean_indices[0]],
-            edgecolor=(0, 0, 0, 0.45),
-            hatch="/",
-            label="Proteus Geomean",
-        )
-        dream_geo_patch = Patch(
-            facecolor=colors_pim[geomean_indices[0]],
-            edgecolor=(0, 0, 0, 0.45),
-            hatch="/",
-            label="DREAM Geomean",
-        )
-        handles = list(handles) + [proteus_geo_patch, dream_geo_patch]
-        labels = list(labels) + ["Proteus Geomean", "DREAM Geomean"]
-    plt.legend(handles, labels, fontsize=LEGEND_FONTSIZE, frameon=False)
 
-    plt.tight_layout()
-    plt.savefig(f"{output_file}")
+    for bar, idx in zip(bars_proteus, range(len(workloads_all))):
+        height = bar.get_height()
+        if height > 1:
+            plt.text(
+                bar.get_x() - bar.get_width() / 3,
+                # bar.get_x(),
+                height * 1.05,
+                f"x{height:.1f}",
+                ha="center",
+                va="bottom",
+                fontsize=ANNOT_FONTSIZE,
+                # color="#314a3e" if idx in geomean_indices else "black",
+            )
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(
+        handles,
+        labels,
+        frameon=False,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.1),
+        ncol=3,
+    )
+
+    plt.tight_layout(pad=0.35)
+    plt.savefig(f"{output_file}", bbox_inches="tight", pad_inches=0.02)
     plt.show()
 
 if __name__ == "__main__":

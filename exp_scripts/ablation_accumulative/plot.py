@@ -3,6 +3,24 @@ import matplotlib.pyplot as plt
 import sys
 import csv
 
+BASE_FONT = 8
+plt.rcParams.update({
+    "font.size": BASE_FONT,
+    "axes.labelsize": BASE_FONT + 1,
+    "axes.titlesize": BASE_FONT,
+    "legend.fontsize": BASE_FONT,
+    "xtick.labelsize": BASE_FONT,
+    "ytick.labelsize": BASE_FONT,
+    "figure.dpi": 300,
+})
+
+FIG_WIDTH = 4
+FIGSIZE = (FIG_WIDTH, 3.2)
+BAR_LINEWIDTH = 0.3
+BAR_WIDTH = 0.25
+AXHLINE_WIDTH = 0.3
+SPINE_LINEWIDTH = 0.8
+
 def coerce_float_row(row):
     vals = []
     for x in row:
@@ -53,25 +71,11 @@ rel = {
     "PR & BU & LB Removed": pim / no_locality_buffer,
 }
 
-# --- Compact academic style ---
-plt.rcParams.update({
-    "font.size": 7,
-    "axes.labelsize": 7,
-    "axes.titlesize": 7,
-    "legend.fontsize": 6,
-    "xtick.labelsize": 6,
-    "ytick.labelsize": 6,
-    "figure.dpi": 300,
-})
-
-fig_width = 3.4   # one-column width
-fig_height = 1.5  # slightly taller for clarity
-fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+fig, ax = plt.subplots(figsize=FIGSIZE)
 series_names = list(rel.keys())
 series_values = [rel[name] for name in series_names]
 n_series = len(series_names)
-bar_width = 0.18
-offsets = (np.arange(n_series) - (n_series - 1) / 2.0) * bar_width
+offsets = (np.arange(n_series) - (n_series - 1) / 2.0) * BAR_WIDTH
 
 # Append geometric-mean column per series to create an aggregate bar
 geo_label = "Geomean"
@@ -87,34 +91,46 @@ labels = labels + [geo_label]
 x = np.arange(len(labels))
 
 # Draw bars
+colors = ["#EEB78F", "#E00F47", "#20B2AA", "#9932CC"]
 for i, (name, values) in enumerate(zip(series_names, series_values)):
-    colors = ["#EEB78F", "#E00F47", '#20B2AA', '#9932CC']
-    ax.bar(x + offsets[i], values, width=bar_width, label=name, linewidth=0.3, edgecolor="black", color=colors[i])
+    ax.bar(
+        x + offsets[i],
+        values,
+        width=BAR_WIDTH,
+        label=name,
+        linewidth=BAR_LINEWIDTH,
+        edgecolor="black",
+        color=colors[i],
+    )
 
 
 # Labels and grid
 ax.set_xticks(x)
 ax.set_xticklabels(labels, rotation=30, ha='right')
 ax.set_ylabel("Normalized performance")
-ax.set_title("Ablation Study of Added Peripheral Components", pad=28, fontsize=8)
-ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7, color = "#272329")
-
+# ax.set_title("Ablation Study of Added Peripheral Components", pad=22)
+ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7, color="#272329")
+ax.axhline(1.0, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
+for spine in ax.spines.values():
+    spine.set_linewidth(SPINE_LINEWIDTH)
+ax.tick_params(axis='x', labelsize=plt.rcParams['xtick.labelsize'])
+ax.tick_params(axis='y', labelsize=plt.rcParams['ytick.labelsize'])
+ymin = (ax.get_ylim()[0])
+ymax = (ax.get_ylim()[1])*5
+ax.set_ylim(ymin, ymax)
 # Legend: placed below title, above the plot, with extra spacing
 legend = ax.legend(
     frameon=False,
     ncol=2,
     loc='upper center',
-    bbox_to_anchor=(0.5, 1.47),  # precisely between title and plot
+    bbox_to_anchor=(0.5, 1.4),
     handlelength=1.2,
     columnspacing=0.8,
 )
 
-# Adjust layout for title–legend spacing
-plt.tight_layout(pad=0.5)
-plt.subplots_adjust(top=0.78, bottom=0.18)  # leave ample space for title + legend + caption
+caption = r"$\mathbf{PR}$ Popcount Reduction    $\mathbf{BU}$ Broadcasting Unit    $\mathbf{LB}$ Locality Buffer"
+fig.text(0.52, 0.74, caption, ha='center', va='top', fontsize=BASE_FONT-1)
 
-caption = "LB: Locality Buffer, PR: Popcount Reduction, BU: Broadcasting Unit."
-fig.text(0.55, 0.79, caption, ha='center', va='bottom', fontsize=6)
-
-plt.savefig("ablation_accumulative.png", bbox_inches='tight')
+plt.tight_layout(pad=0.35)
+plt.savefig("ablation_accumulative.png", bbox_inches="tight", pad_inches=0.02)
 plt.show()
