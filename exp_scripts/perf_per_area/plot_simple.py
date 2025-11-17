@@ -4,84 +4,187 @@ import numpy as np
 import argparse
 import os
 
+BASE_FONT = 8
+plt.rcParams.update({
+    "font.size": BASE_FONT,
+    "axes.labelsize": BASE_FONT + 1,
+    "axes.titlesize": BASE_FONT,
+    "legend.fontsize": BASE_FONT,
+    "xtick.labelsize": BASE_FONT,
+    "ytick.labelsize": BASE_FONT,
+    "figure.dpi": 300,
+})
+
+FIG_WIDTH = 4
+FIGSIZE = (FIG_WIDTH, 2.5)
+ANNOT_FONTSIZE = BASE_FONT - 1
+AXHLINE_WIDTH = 0.3
+BAR_LINEWIDTH = 0.3
+BAR_WIDTH = 0.25
+SPINE_LINEWIDTH = 0.8
+
+def geom_mean(values: np.ndarray) -> float:
+    values = np.asarray(values, dtype=float)
+    if np.any(values <= 0):
+        raise ValueError("Geometric mean requires strictly positive values.")
+    return float(np.exp(np.mean(np.log(values))))
+
 def main():
     parser = argparse.ArgumentParser(
         description="Plot relative perf/area improvement (Proteus, PIM vs H100)"
     )
-    parser.add_argument("--input", required=False, help="Path to input CSV file", default="perf_per_area_run_all_output_10-9.csv")
+    parser.add_argument("--input", required=False, help="Path to input CSV file")
     args = parser.parse_args()
 
     input_file = args.input
     output_file = os.path.splitext(input_file)[0] + "_speedup_column.pdf"
 
-    # === Load CSV ===
     df = pd.read_csv(input_file)
     h100 = df.iloc[0].values
     pim = df.iloc[2].values
     proteus = df.iloc[1].values
     workloads = df.columns.tolist()
 
-    # === Compute relative improvements ===
-    improv_pim = pim / h100
+    improv_h100 = np.ones_like(h100, dtype=float)
     improv_proteus = proteus / h100
-    improv_pim_against_proteus = pim / proteus
-    #calculate geomean of improv_pim_against_proteus
-    geo_mean_improv = np.exp(np.mean(np.log(improv_pim_against_proteus)))
-    print(f"Geometric mean of PIM vs Proteus perf/area improvement: {geo_mean_improv:.2f}×")
-    geo_mean_improv_gpu = np.exp(np.mean(np.log(improv_pim)))
-    print(f"Geometric mean of PIM vs H100 perf/area improvement: {geo_mean_improv_gpu:.2f}×")
+    improv_pim = pim / h100
+    improv_pim_vs_proteus = pim / proteus
 
-    # === Plot grouped bars ===
-    plt.figure(figsize=(8, 6))
+    prefill_slice = slice(0, len(workloads) // 2)
+    decode_slice = slice(len(workloads) // 2, len(workloads))
 
-    x = np.arange(len(workloads))
-    width = 0.2  # width of each bar
+    geo_overall = {
+        "H100": 1.0,
+        "Proteus": geom_mean(improv_proteus),
+        "PIM": geom_mean(improv_pim),
+    }
 
-    bars1 = plt.bar(x - width, np.ones_like(h100), width, label="H100", color="#cccccc", edgecolor="black")
-    bars2 = plt.bar(x, improv_proteus, width, label="Proteus", color="#ff7f0e", edgecolor="black")
-    bars3 = plt.bar(x + width, improv_pim, width, label="ReMAP(Ours)", color="#1fc430", edgecolor="black")
+    print(f"Geomean (Overall)  PIM vs Proteus: {geom_mean(improv_pim_vs_proteus):.2f}×")
+    print(f"Geomean (Overall)  PIM vs H100:    {geo_overall['PIM']:.2f}×")
 
-    # Labels and style
-    plt.xticks(x, workloads, rotation=30, ha="right", fontsize=12)
+    extra_label = "Geomean"
+
+    workloads_all: list[str] = []
+    values_h100: list[float] = []
+    values_proteus: list[float] = []
+    values_pim: list[float] = []
+
+    def extend_segment(start: int, end: int) -> None:
+        workloads_all.extend(workloads[start:end])
+        values_h100.extend(improv_h100[start:end])
+        values_proteus.extend(improv_proteus[start:end])
+        values_pim.extend(improv_pim[start:end])
+
+    extend_segment(0, len(workloads))
+    workloads_all.append(extra_label)
+    values_h100.append(geo_overall["H100"])
+    values_proteus.append(geo_overall["Proteus"])
+    values_pim.append(geo_overall["PIM"])
+
+    values_h100 = np.asarray(values_h100, dtype=float)
+    values_proteus = np.asarray(values_proteus, dtype=float)
+    values_pim = np.asarray(values_pim, dtype=float)
+
+    plt.figure(figsize=FIGSIZE)
+    x = np.arange(len(workloads_all))
+
+    geomean_indices = [i for i, label in enumerate(workloads_all) if "Geomean" in label]
+    geomean_mask = np.array([idx in geomean_indices for idx in range(len(workloads_all))], dtype=bool)
+    non_geomean_mask = ~geomean_mask
+
+    colors_h100 = np.full(len(workloads_all), "#838181", dtype=object)
+    colors_proteus = np.full(len(workloads_all), "#ee974b", dtype=object)
+    colors_pim = np.full(len(workloads_all), "#32a73e", dtype=object)
+
+    bars_h100 = plt.bar(
+        x[non_geomean_mask] - BAR_WIDTH,
+        values_h100[non_geomean_mask],
+        BAR_WIDTH,
+        label="H100",
+        color=colors_h100[non_geomean_mask],
+        edgecolor="black",
+        linewidth=BAR_LINEWIDTH,
+    )
+    bars_proteus = plt.bar(
+        x,
+        values_proteus,
+        BAR_WIDTH,
+        label="Proteus",
+        color=colors_proteus,
+        edgecolor="black",
+        linewidth=BAR_LINEWIDTH,
+    )
+    bars_pim = plt.bar(
+        x + BAR_WIDTH,
+        values_pim,
+        BAR_WIDTH,
+        label="DREAM(Ours)",
+        color=colors_pim,
+        edgecolor="black",
+        linewidth=BAR_LINEWIDTH,
+    )
+
+    plt.xticks(x, workloads_all, rotation=30, ha="right", fontsize=plt.rcParams["xtick.labelsize"], color="black")
+    ax = plt.gca()
+    for spine in ax.spines.values():
+        spine.set_linewidth(SPINE_LINEWIDTH)
+    ax.tick_params(axis="x", labelsize=plt.rcParams["xtick.labelsize"])
+    ax.tick_params(axis="y", labelsize=plt.rcParams["ytick.labelsize"])
+    for tick in ax.get_xticklabels():
+        tick.set_color("black")
+
     plt.yscale("log")
-    plt.ylabel("Perf./ area normalized to H100", fontsize=15)
-    # plt.title("Performance per Area Comparison", fontsize=15)
-    plt.legend(fontsize=10, frameon=False)
+    ymin = (ax.get_ylim()[0])
+    ymax = (ax.get_ylim()[1])*10
+    ax.set_ylim(ymin, ymax)
+    plt.ylabel("Normalized Perf./ Area")
+    plt.axhline(y=1.0, color="black", linestyle="--", linewidth=AXHLINE_WIDTH)
 
-    # Add annotations
-    for bars in [bars2, bars3]:
-        for bar in bars:
-            height = bar.get_height()
-            if height > 1:
-                plt.text(
-                    bar.get_x() + bar.get_width() * 1.2, 
-                    height * 1.05, 
-                    f"{height:.2f}", 
-                    ha="center", va="bottom", fontsize=12
-                )
-            # Add geomean bar
-            geomean_x = len(workloads)
-            plt.bar(geomean_x - width, 1.0, width, color="lightgray", edgecolor="black")
-            bar_proteus = plt.bar(geomean_x, np.exp(np.mean(np.log(improv_proteus))), width, color="#ff7f0e", edgecolor="black")
-            bar_pim = plt.bar(geomean_x + width, geo_mean_improv_gpu, width, color="#1fc430", edgecolor="black")
-            
-            # Add height labels for geomean bars
-            # for bar in bar_proteus:
-                # height = bar.get_height()
-                # plt.text(bar.get_x() + bar.get_width() / 2, height * 1.05, f"{height:.2f}", ha="center", va="bottom", fontsize=12)
-            for bar in bar_pim:
-                height = bar.get_height()
-                plt.text(bar.get_x() + bar.get_width() / 2, height * 1.05, f"{height:.2f}", ha="center", va="bottom", fontsize=12)
-            
-            plt.xticks(list(x) + [geomean_x], workloads + ["Geomean"], rotation=30, ha="right", fontsize=12)
-            geomean_x = len(workloads)
-            plt.bar(geomean_x - width, 1.0, width, color="#cccccc", edgecolor="black")
-            plt.bar(geomean_x, np.exp(np.mean(np.log(improv_proteus))), width, color="#ff7f0e", edgecolor="black")
-            plt.bar(geomean_x + width, geo_mean_improv_gpu, width, color="#1fc430", edgecolor="black")
-            plt.xticks(list(x) + [geomean_x], workloads + ["Geomean"], rotation=30, ha="right", fontsize=12)
-    plt.axhline(y=1.0, color="black", linestyle="--", linewidth=0.7)
-    plt.tight_layout()
-    plt.savefig(f"{output_file}")
+    # for idx, tick in enumerate(plt.gca().get_xticklabels()):
+    #     if idx in geomean_indices:
+    #         tick.set_color("#43A857")
+
+    for bar, idx in zip(bars_pim, range(len(workloads_all))):
+        height = bar.get_height()
+        plt.text(
+            # bar.get_x() - bar.get_width() / 2,
+            bar.get_x(),
+            # height * 1.05 if idx %2 == 1 else  height * 1.2,
+            height * 1.05,
+            f"x{height:.1f}",
+            ha="center",
+            va="bottom",
+            fontsize=ANNOT_FONTSIZE,
+            # color="#314a3e" if idx in geomean_indices else "black",
+        )
+
+
+    for bar, idx in zip(bars_proteus, range(len(workloads_all))):
+        height = bar.get_height()
+        if height > 1:
+            plt.text(
+                bar.get_x() - bar.get_width() / 3,
+                # bar.get_x(),
+                height * 1.05,
+                f"x{height:.1f}",
+                ha="center",
+                va="bottom",
+                fontsize=ANNOT_FONTSIZE,
+                # color="#314a3e" if idx in geomean_indices else "black",
+            )
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(
+        handles,
+        labels,
+        frameon=False,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.03),
+        ncol=3,
+    )
+
+    plt.tight_layout(pad=0.35)
+    plt.savefig(f"{output_file}", bbox_inches="tight", pad_inches=0.02)
     plt.show()
 
 if __name__ == "__main__":

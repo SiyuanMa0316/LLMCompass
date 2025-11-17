@@ -15,30 +15,30 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: RB  N: CA  K: DS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: CR  N: B  K: ADS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:2048, K:2048, N:2048
-Maximum Array Tile Size: {'M': 4, 'K': 256, 'N': 32}
-get_arr_tile_stats: arr_latency=1.7664e-05, capacity_utilization=0.0078125
-get_tile_stats: K_reduction_latency: 2.56e-06 = 33554432 / 13107200000000.0
-RB DS ['C', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Maximum Array Tile Size: {'M': 8, 'K': 32, 'N': 128}
+get_arr_tile_stats: arr_latency=0.00013952, capacity_utilization=0.015625
+get_tile_stats: K_reduction_latency: 2.048e-05 = 268435456 / 13107200000000.0
+CR ADS ['B'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 4194304 = 2048 * 2048 * 1
-get_tile_io_latency: data_volume=33554432, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=2.56e-06 = 33554432 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 2048, 'K': 2048, 'N': 2048}, arr_tile_size: {'M': 4, 'K': 256, 'N': 32}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 2.56e-06, K_N_io_latency: 0, M_N_io_latency: 3.2e-07, tile_compute_latency:2.0223999999999998e-05 = 1.7664e-05(arr_latency) + 2.56e-06(K_reduction_latency)
+get_tile_io_latency: data_volume=67108864, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=5.12e-06 = 67108864 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 2048, 'K': 2048, 'N': 2048}, arr_tile_size: {'M': 8, 'K': 32, 'N': 128}, MK_dup: 1, KN_dup:8, MN_dup:32, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 1.024e-05, tile_compute_latency:0.00015999999999999999 = 0.00013952(arr_latency) + 2.048e-05(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: RB  N: CA  K: DS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: CR  N: B  K: ADS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -51,25 +51,25 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 4           | 32          | 256         |
+| 8           | 128         | 32          |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.0078125   | 1.0         | 1           | 1           | 1           | 1           | 1           |
+| 0.015625    | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 2.3423999999999998e-05 cycles|
-| Total Compute Latency | 2.0223999999999998e-05 cycles|
-| Total Array Latency  | 1.7664e-05             cycles|
-| Total Reduction Latency| 2.56e-06               cycles|
-| IO Latency           | 3.2e-06                cycles|
+| Total Latency        | 0.0001856              cycles|
+| Total Compute Latency | 0.00015999999999999999 cycles|
+| Total Array Latency  | 0.00013952             cycles|
+| Total Reduction Latency| 2.048e-05              cycles|
+| IO Latency           | 2.5600000000000002e-05 cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
-| broadcast            | {'C': True, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+| broadcast            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -89,9 +89,9 @@ Strategy(
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
-Capacity utilization: 0.0078125
-GEMM 2048x2048x2048 latency: 2.3423999999999998e-05s
-simulated latency: GEMM_2048x2048x2048 2.3423999999999998e-05
+Capacity utilization: 0.015625
+GEMM 2048x2048x2048 latency: 0.0001856s
+simulated latency: GEMM_2048x2048x2048 0.0001856
 roofline_model_simdram: total_ops=17179869184, total_data_movement=8388608, peak_flops=687590819672131.2, bandwidth=13107200000000.0
 roofline_model_simdram: compute_bound_time=2.4985599999999997e-05, memory_bound_time=6.4e-07
 GEMM roofline latency: 2.4985599999999997e-05ms
@@ -111,30 +111,30 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CBD  N: A  K: RS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: RB  N: C  K: ADS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:2048, K:8192, N:2048
-Maximum Array Tile Size: {'M': 2, 'K': 256, 'N': 256}
-get_arr_tile_stats: arr_latency=6.9888e-05, capacity_utilization=0.03125
-get_tile_stats: K_reduction_latency: 1.024e-05 = 134217728 / 13107200000000.0
-CBD RS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-16777216 = 2048 * 8192 * 1
-get_tile_io_latency: data_volume=16777216, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=1.28e-06 = 16777216 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 2048, 'K': 8192, 'N': 2048}, arr_tile_size: {'M': 2, 'K': 256, 'N': 256}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 1.28e-06, K_N_io_latency: 0, M_N_io_latency: 3.2e-07, tile_compute_latency:8.0128e-05 = 6.9888e-05(arr_latency) + 1.024e-05(K_reduction_latency)
+Maximum Array Tile Size: {'M': 4, 'K': 128, 'N': 256}
+get_arr_tile_stats: arr_latency=0.000278784, capacity_utilization=0.03125
+get_tile_stats: K_reduction_latency: 2.048e-05 = 268435456 / 13107200000000.0
+RB ADS ['C'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+8388608 = 2048 * 4096 * 1
+get_tile_io_latency: data_volume=67108864, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=5.12e-06 = 67108864 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 2048, 'K': 4096, 'N': 2048}, arr_tile_size: {'M': 4, 'K': 64, 'N': 256}, MK_dup: 1, KN_dup:4, MN_dup:64, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 2.048e-05, tile_compute_latency:0.00029926400000000004 = 0.000278784(arr_latency) + 2.048e-05(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CBD  N: A  K: RS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: RB  N: C  K: ADS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -143,11 +143,11 @@ Strategy(
 ---------------- Tile Sizes ----------------------
 | Tile_M      | Tile_N      | Tile_K      |
 |-------------|-------------|-------------|
-| 2048        | 2048        | 8192        |
+| 2048        | 2048        | 4096        |
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 2           | 256         | 256         |
+| 4           | 256         | 64          |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
@@ -155,17 +155,17 @@ Strategy(
 | 0.03125     | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 8.2048e-05             cycles|
-| Total Compute Latency | 8.0128e-05             cycles|
-| Total Array Latency  | 6.9888e-05             cycles|
-| Total Reduction Latency| 1.024e-05              cycles|
-| IO Latency           | 1.92e-06               cycles|
+| Total Latency        | 0.0006497280000000001  cycles|
+| Total Compute Latency | 0.0005985280000000001  cycles|
+| Total Array Latency  | 0.000557568            cycles|
+| Total Reduction Latency| 4.096e-05              cycles|
+| IO Latency           | 5.12e-05               cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': False, 'R': True, 'B': False, 'A': False, 'S': True, 'D': False}|
+| broadcast            | {'C': True, 'R': False, 'B': False, 'A': False, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -179,15 +179,15 @@ Strategy(
 |-------------------------|-----------------------|
 | M_t                   | 1                      |
 | N_t                   | 1                      |
-| K_t                   | 1                      |
+| K_t                   | 2                      |
 
 |------------------------|------------------------|
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
 Capacity utilization: 0.03125
-GEMM 2048x8192x2048 latency: 8.2048e-05s
-simulated latency: GEMM_2048x8192x2048 8.2048e-05
+GEMM 2048x8192x2048 latency: 0.0006497280000000001s
+simulated latency: GEMM_2048x8192x2048 0.0006497280000000001
 roofline_model_simdram: total_ops=68719476736, total_data_movement=20971520, peak_flops=687590819672131.2, bandwidth=13107200000000.0
 roofline_model_simdram: compute_bound_time=9.994239999999999e-05, memory_bound_time=1.6e-06
 GEMM roofline latency: 9.994239999999999e-05ms
@@ -207,30 +207,30 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRA  N:   K: BDS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: CBA  N:   K: RDS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:2048, K:32768, N:2048
-Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 2048}
-get_arr_tile_stats: arr_latency=0.000278784, capacity_utilization=0.125
-get_tile_stats: K_reduction_latency: 4.096e-05 = 536870912 / 13107200000000.0
-CRA BDS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Maximum Array Tile Size: {'M': 2, 'K': 128, 'N': 2048}
+get_arr_tile_stats: arr_latency=0.00222848, capacity_utilization=0.25
+get_tile_stats: K_reduction_latency: 8.192e-05 = 1073741824 / 13107200000000.0
+CBA RDS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 67108864 = 2048 * 32768 * 1
 get_tile_io_latency: data_volume=67108864, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=5.12e-06 = 67108864 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 2048, 'K': 32768, 'N': 2048}, arr_tile_size: {'M': 1, 'K': 256, 'N': 2048}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 3.2e-07, tile_compute_latency:0.000319744 = 0.000278784(arr_latency) + 4.096e-05(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 2048, 'K': 32768, 'N': 2048}, arr_tile_size: {'M': 2, 'K': 128, 'N': 2048}, MK_dup: 1, KN_dup:2, MN_dup:128, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 4.096e-05, tile_compute_latency:0.0023104 = 0.00222848(arr_latency) + 8.192e-05(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRA  N:   K: BDS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: CBA  N:   K: RDS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -243,25 +243,25 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 2048        | 256         |
+| 2           | 2048        | 128         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.125       | 1.0         | 1           | 1           | 1           | 1           | 1           |
+| 0.25        | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 0.000325504            cycles|
-| Total Compute Latency | 0.000319744            cycles|
-| Total Array Latency  | 0.000278784            cycles|
-| Total Reduction Latency| 4.096e-05              cycles|
-| IO Latency           | 5.760000000000001e-06  cycles|
+| Total Latency        | 0.0023974400000000002  cycles|
+| Total Compute Latency | 0.0023104              cycles|
+| Total Array Latency  | 0.00222848             cycles|
+| Total Reduction Latency| 8.192e-05              cycles|
+| IO Latency           | 8.704000000000001e-05  cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
 | broadcast            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': False, 'D': False}|
-| reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': True}|
+| reduction            | {'C': False, 'R': True, 'B': False, 'A': False, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -281,9 +281,9 @@ Strategy(
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
-Capacity utilization: 0.125
-GEMM 2048x32768x2048 latency: 0.000325504s
-simulated latency: GEMM_2048x32768x2048 0.000325504
+Capacity utilization: 0.25
+GEMM 2048x32768x2048 latency: 0.0023974400000000002s
+simulated latency: GEMM_2048x32768x2048 0.0023974400000000002
 roofline_model_simdram: total_ops=274877906944, total_data_movement=71303168, peak_flops=687590819672131.2, bandwidth=13107200000000.0
 roofline_model_simdram: compute_bound_time=0.00039976959999999995, memory_bound_time=5.44e-06
 GEMM roofline latency: 0.00039976959999999995ms
@@ -303,30 +303,30 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRB  N: A  K: DS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: R  N: CB  K: ADS  Array Mapping:  R: KN  C: M
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:8192, K:2048, N:8192
-Maximum Array Tile Size: {'M': 2, 'K': 256, 'N': 1024}
-get_arr_tile_stats: arr_latency=0.000278784, capacity_utilization=0.125
-get_tile_stats: K_reduction_latency: 4.096e-05 = 536870912 / 13107200000000.0
-CRB DS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Maximum Array Tile Size: {'M': 256, 'K': 32, 'N': 64}
+get_arr_tile_stats: arr_latency=0.00222848, capacity_utilization=0.125
+get_tile_stats: K_reduction_latency: 0.00032768 = 4294967296 / 13107200000000.0
+R ADS ['C', 'B'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 16777216 = 8192 * 2048 * 1
-get_tile_io_latency: data_volume=16777216, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=1.28e-06 = 16777216 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 8192, 'K': 2048, 'N': 8192}, arr_tile_size: {'M': 2, 'K': 256, 'N': 1024}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 1.28e-06, K_N_io_latency: 0, M_N_io_latency: 5.12e-06, tile_compute_latency:0.000319744 = 0.000278784(arr_latency) + 4.096e-05(K_reduction_latency)
+get_tile_io_latency: data_volume=2147483648, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=0.00016384 = 2147483648 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 8192, 'K': 2048, 'N': 8192}, arr_tile_size: {'M': 256, 'K': 32, 'N': 64}, MK_dup: 1, KN_dup:256, MN_dup:1, M_K_io_latency: 0.00016384, K_N_io_latency: 0, M_N_io_latency: 5.12e-06, tile_compute_latency:0.00255616 = 0.00222848(arr_latency) + 0.00032768(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRB  N: A  K: DS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: R  N: CB  K: ADS  Array Mapping:  R: KN  C: M
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -339,7 +339,7 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 2           | 1024        | 256         |
+| 256         | 64          | 32          |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
@@ -347,17 +347,17 @@ Strategy(
 | 0.125       | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 0.000331264            cycles|
-| Total Compute Latency | 0.000319744            cycles|
-| Total Array Latency  | 0.000278784            cycles|
-| Total Reduction Latency| 4.096e-05              cycles|
-| IO Latency           | 1.152e-05              cycles|
+| Total Latency        | 0.00273024             cycles|
+| Total Compute Latency | 0.00255616             cycles|
+| Total Array Latency  | 0.00222848             cycles|
+| Total Reduction Latency| 0.00032768             cycles|
+| IO Latency           | 0.00017408000000000001 cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+| broadcast            | {'C': True, 'R': False, 'B': True, 'A': False, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -378,8 +378,8 @@ Strategy(
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
 Capacity utilization: 0.125
-GEMM 8192x2048x8192 latency: 0.000331264s
-simulated latency: GEMM_8192x2048x8192 0.000331264
+GEMM 8192x2048x8192 latency: 0.00273024s
+simulated latency: GEMM_8192x2048x8192 0.00273024
 roofline_model_simdram: total_ops=274877906944, total_data_movement=83886080, peak_flops=687590819672131.2, bandwidth=13107200000000.0
 roofline_model_simdram: compute_bound_time=0.00039976959999999995, memory_bound_time=6.4e-06
 GEMM roofline latency: 0.00039976959999999995ms
@@ -399,37 +399,37 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CBAD  N:   K: RS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: CRA  N:   K: BDS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:8192, K:8192, N:8192
-Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 8192}
-get_arr_tile_stats: arr_latency=0.001114232, capacity_utilization=0.49993896484375
-get_tile_stats: K_reduction_latency: 0.00016382 = 2147221504 / 13107200000000.0
-CBAD RS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Maximum Array Tile Size: {'M': 4, 'K': 64, 'N': 8192}
+get_arr_tile_stats: arr_latency=0.008912064, capacity_utilization=0.9998779296875
+get_tile_stats: K_reduction_latency: 0.00065528 = 8588886016 / 13107200000000.0
+CRA BDS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 67108864 = 8192 * 8192 * 1
 get_tile_io_latency: data_volume=67108864, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=5.12e-06 = 67108864 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 8192, 'K': 8192, 'N': 8191}, arr_tile_size: {'M': 1, 'K': 256, 'N': 8191}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 5.119375e-06, tile_compute_latency:0.001278052 = 0.001114232(arr_latency) + 0.00016382(K_reduction_latency)
-get_arr_tile_stats: arr_latency=3.92e-07, capacity_utilization=6.103515625e-05
-get_tile_stats: K_reduction_latency: 2e-08 = 262144 / 13107200000000.0
-CBAD RS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_stats: tile_size: {'M': 8192, 'K': 8192, 'N': 8191}, arr_tile_size: {'M': 4, 'K': 64, 'N': 8191}, MK_dup: 1, KN_dup:4, MN_dup:64, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 0.00032764, tile_compute_latency:0.009567344 = 0.008912064(arr_latency) + 0.00065528(K_reduction_latency)
+get_arr_tile_stats: arr_latency=1.344e-06, capacity_utilization=0.0001220703125
+get_tile_stats: K_reduction_latency: 8e-08 = 1048576 / 13107200000000.0
+CRA BDS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 67108864 = 8192 * 8192 * 1
 get_tile_io_latency: data_volume=67108864, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=5.12e-06 = 67108864 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 8192, 'K': 8192, 'N': 1}, arr_tile_size: {'M': 1, 'K': 256, 'N': 1}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 6.25e-10, tile_compute_latency:4.1200000000000004e-07 = 3.92e-07(arr_latency) + 2e-08(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 8192, 'K': 8192, 'N': 1}, arr_tile_size: {'M': 4, 'K': 64, 'N': 1}, MK_dup: 1, KN_dup:4, MN_dup:64, M_K_io_latency: 5.12e-06, K_N_io_latency: 0, M_N_io_latency: 4e-08, tile_compute_latency:1.424e-06 = 1.344e-06(arr_latency) + 8e-08(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CBAD  N:   K: RS  Array Mapping:  R: MN  C: K
+  Column Popcount: False
+  Tile Mapping:  M: CRA  N:   K: BDS  Array Mapping:  R: N  C: MK
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -442,25 +442,25 @@ Strategy(
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 1           | 8191        | 256         |
+| 4           | 8191        | 64          |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.49993896484375 | 1.0         | 1           | 1           | 1           | 1           | 1           |
+| 0.9998779296875 | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 0.0012887046250000002  cycles|
-| Total Compute Latency | 0.001278464            cycles|
-| Total Array Latency  | 0.001114624            cycles|
-| Total Reduction Latency| 0.00016383999999999998 cycles|
-| IO Latency           | 1.0240625e-05          cycles|
+| Total Latency        | 0.009901608            cycles|
+| Total Compute Latency | 0.009568768            cycles|
+| Total Array Latency  | 0.008913408000000001   cycles|
+| Total Reduction Latency| 0.0006553599999999999  cycles|
+| IO Latency           | 0.00033283999999999994 cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | False                 |
 | col_broadcast        | False                 |
 | broadcast            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': False, 'D': False}|
-| reduction            | {'C': False, 'R': True, 'B': False, 'A': False, 'S': True, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -480,9 +480,9 @@ Strategy(
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
-Capacity utilization: 0.49993896484375
-GEMM 8192x8192x8192 latency: 0.0012887046250000002s
-simulated latency: GEMM_8192x8192x8192 0.0012887046250000002
+Capacity utilization: 0.9998779296875
+GEMM 8192x8192x8192 latency: 0.009901608s
+simulated latency: GEMM_8192x8192x8192 0.009901608
 roofline_model_simdram: total_ops=1099511627776, total_data_movement=134217728, peak_flops=687590819672131.2, bandwidth=13107200000000.0
 roofline_model_simdram: compute_bound_time=0.0015990783999999998, memory_bound_time=1.024e-05
 GEMM roofline latency: 0.0015990783999999998ms
@@ -502,30 +502,30 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: RB  N: A  K: CDS  Array Mapping:  R: K  C: MN
+  Column Popcount: False
+  Tile Mapping:  M: CRA  N:   K: BDS  Array Mapping:  R: K  C: MN
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
 --- Input Matmul Size --- M:8192, K:32768, N:8192
-Maximum Array Tile Size: {'M': 16, 'K': 512, 'N': 1024}
-get_arr_tile_stats: arr_latency=6.592e-05, capacity_utilization=0.0625
+Maximum Array Tile Size: {'M': 4, 'K': 256, 'N': 8192}
+get_arr_tile_stats: arr_latency=0.000278784, capacity_utilization=0.03125
 get_tile_stats: K_reduction_latency: 5.12e-06 = 67108864 / 13107200000000.0
-RB CDS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+CRA BDS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 268435456 = 8192 * 32768 * 1
-get_tile_io_latency: data_volume=268435456, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: data_volume=268435456, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 get_tile_io_latency: latency=2.048e-05 = 268435456 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 8192, 'K': 32768, 'N': 128}, arr_tile_size: {'M': 16, 'K': 512, 'N': 16}, MK_dup: 16, KN_dup:16, MN_dup:1, M_K_io_latency: 0.00032768, K_N_io_latency: 0, M_N_io_latency: 8e-08, tile_compute_latency:7.104000000000001e-05 = 6.592e-05(arr_latency) + 5.12e-06(K_reduction_latency)
+get_tile_stats: tile_size: {'M': 8192, 'K': 32768, 'N': 64}, arr_tile_size: {'M': 4, 'K': 256, 'N': 64}, MK_dup: 64, KN_dup:4, MN_dup:1, M_K_io_latency: 0.00131072, K_N_io_latency: 0, M_N_io_latency: 4e-08, tile_compute_latency:0.000283904 = 0.000278784(arr_latency) + 5.12e-06(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: RB  N: A  K: CDS  Array Mapping:  R: K  C: MN
+  Column Popcount: False
+  Tile Mapping:  M: CRA  N:   K: BDS  Array Mapping:  R: K  C: MN
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -534,107 +534,11 @@ Strategy(
 ---------------- Tile Sizes ----------------------
 | Tile_M      | Tile_N      | Tile_K      |
 |-------------|-------------|-------------|
-| 8192        | 128         | 32768       |
+| 8192        | 64          | 32768       |
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 16          | 16          | 512         |
-
---------------- Utilization ----------------------
-| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
-|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.0625      | 1.0         | 1           | 1           | 1           | 1           | 1           |
-
------------------- Latency -----------------------
-| Total Latency        | 0.004879440000000002   cycles|
-| Total Compute Latency | 0.00454656             cycles|
-| Total Array Latency  | 0.004218880000000001   cycles|
-| Total Reduction Latency| 0.0003276800000000002  cycles|
-| IO Latency           | 0.00033288000000000084 cycles|
-
------------ Hardware Requirements ---------------
-| col_multicast        | True                  |
-| col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': True, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
-==================================================
-
----------------- Debug Info -----------------------
-| Remaining Tiles       |                         |
-|-----------------------|-------------------------|
-| M_remain              | 0                      |
-| N_remain              | 0                      |
-| K_remain              | 0                      |
-
-| Fully Partitioned #Tiles |                       |
-|-------------------------|-----------------------|
-| M_t                   | 1                      |
-| N_t                   | 64                     |
-| K_t                   | 1                      |
-
-|------------------------|------------------------|
-==================================================
-Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-Column utilization: 1.0
-Capacity utilization: 0.0625
-GEMM 8192x32768x8192 latency: 0.004879440000000002s
-simulated latency: GEMM_8192x32768x8192 0.004879440000000002
-roofline_model_simdram: total_ops=4398046511104, total_data_movement=335544320, peak_flops=687590819672131.2, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=0.006396313599999999, memory_bound_time=2.56e-05
-GEMM roofline latency: 0.006396313599999999ms
-Results written to test_gemm_x16_base_config.json_8192_32768_8192_simdram_ddr5_operandocality.csv
-Testing M=32768, K=2048, N=32768
-compute module:
-simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
-simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
-simdram bw: 13107.2GB/s
-simdram internal bw: 4739326.553672316GB/s
-simdram ops: 687.5908196721313Tops
-memory capacity: 1024.0GB
-peripheral area: 830.6070382046778mm^2
-dram area: 33792.0mm^2
-
-memory module: N/A
-io module: N/A
-Running mapping search...
-find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
-  Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRB  N: A  K: DS  Array Mapping:  R: K  C: MN
-  Weight Resident: True
-  Input Resident: False
-  Output Resident: False
-)
-Running simulation...
---- Input Matmul Size --- M:32768, K:2048, N:32768
-Maximum Array Tile Size: {'M': 8, 'K': 256, 'N': 4096}
-get_arr_tile_stats: arr_latency=3.3152000000000004e-05, capacity_utilization=0.03125
-get_tile_stats: K_reduction_latency: 5.12e-06 = 67108864 / 13107200000000.0
-CRB DS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-67108864 = 32768 * 2048 * 1
-get_tile_io_latency: data_volume=67108864, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=5.12e-06 = 67108864 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 32768, 'K': 2048, 'N': 256}, arr_tile_size: {'M': 8, 'K': 256, 'N': 32}, MK_dup: 32, KN_dup:8, MN_dup:1, M_K_io_latency: 0.00016384, K_N_io_latency: 0, M_N_io_latency: 6.4e-07, tile_compute_latency:3.8272e-05 = 3.3152000000000004e-05(arr_latency) + 5.12e-06(K_reduction_latency)
-================ Strategy Summary ================
-Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
-  Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRB  N: A  K: DS  Array Mapping:  R: K  C: MN
-  Weight Resident: True
-  Input Resident: False
-  Output Resident: False
-)
-
----------------- Tile Sizes ----------------------
-| Tile_M      | Tile_N      | Tile_K      |
-|-------------|-------------|-------------|
-| 32768       | 256         | 2048        |
-
-| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
-|-------------|-------------|-------------|
-| 8           | 32          | 256         |
+| 4           | 64          | 256         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
@@ -642,17 +546,17 @@ Strategy(
 | 0.03125     | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 0.005145216000000007   cycles|
-| Total Compute Latency | 0.004898815999999984   cycles|
-| Total Array Latency  | 0.004243455999999991   cycles|
+| Total Latency        | 0.037655592000000085   cycles|
+| Total Compute Latency | 0.0363397120000001     cycles|
+| Total Array Latency  | 0.03568435200000001    cycles|
 | Total Reduction Latency| 0.0006553599999999988  cycles|
-| IO Latency           | 0.0002463999999999992  cycles|
+| IO Latency           | 0.0013158799999999974  cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | True                  |
 | col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
-| reduction            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+| broadcast            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': True}|
 ==================================================
 
 ---------------- Debug Info -----------------------
@@ -673,13 +577,13 @@ Strategy(
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
 Capacity utilization: 0.03125
-GEMM 32768x2048x32768 latency: 0.005145216000000007s
-simulated latency: GEMM_32768x2048x32768 0.005145216000000007
-roofline_model_simdram: total_ops=4398046511104, total_data_movement=1140850688, peak_flops=687590819672131.2, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=0.006396313599999999, memory_bound_time=8.704e-05
+GEMM 8192x32768x8192 latency: 0.037655592000000085s
+simulated latency: GEMM_8192x32768x8192 0.037655592000000085
+roofline_model_simdram: total_ops=4398046511104, total_data_movement=335544320, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=0.006396313599999999, memory_bound_time=2.56e-05
 GEMM roofline latency: 0.006396313599999999ms
-Results written to test_gemm_x16_base_config.json_32768_2048_32768_simdram_ddr5_operandocality.csv
-Testing M=32768, K=8192, N=32768
+Results written to test_gemm_x16_base_config.json_8192_32768_8192_simdram_ddr5_operandocality.csv
+Testing M=32768, K=2048, N=32768
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -694,30 +598,30 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRB  N: A  K: DS  Array Mapping:  R: K  C: MN
+  Column Popcount: False
+  Tile Mapping:  M: CRBA  N:   K: DS  Array Mapping:  R: MK  C: N
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
---- Input Matmul Size --- M:32768, K:8192, N:32768
-Maximum Array Tile Size: {'M': 8, 'K': 1024, 'N': 4096}
-get_arr_tile_stats: arr_latency=0.000131456, capacity_utilization=0.125
+--- Input Matmul Size --- M:32768, K:2048, N:32768
+Maximum Array Tile Size: {'M': 1, 'K': 256, 'N': 32768}
+get_arr_tile_stats: arr_latency=0.000278784, capacity_utilization=0.015625
 get_tile_stats: K_reduction_latency: 5.12e-06 = 67108864 / 13107200000000.0
-CRB DS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-268435456 = 32768 * 8192 * 1
-get_tile_io_latency: data_volume=268435456, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=2.048e-05 = 268435456 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 32768, 'K': 8192, 'N': 256}, arr_tile_size: {'M': 8, 'K': 1024, 'N': 32}, MK_dup: 32, KN_dup:8, MN_dup:1, M_K_io_latency: 0.00065536, K_N_io_latency: 0, M_N_io_latency: 6.4e-07, tile_compute_latency:0.00013657600000000002 = 0.000131456(arr_latency) + 5.12e-06(K_reduction_latency)
+CRBA DS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+67108864 = 32768 * 2048 * 1
+get_tile_io_latency: data_volume=67108864, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=5.12e-06 = 67108864 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 32768, 'K': 2048, 'N': 256}, arr_tile_size: {'M': 1, 'K': 256, 'N': 256}, MK_dup: 256, KN_dup:1, MN_dup:1, M_K_io_latency: 0.00131072, K_N_io_latency: 0, M_N_io_latency: 6.4e-07, tile_compute_latency:0.000283904 = 0.000278784(arr_latency) + 5.12e-06(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRB  N: A  K: DS  Array Mapping:  R: K  C: MN
+  Column Popcount: False
+  Tile Mapping:  M: CRBA  N:   K: DS  Array Mapping:  R: MK  C: N
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -726,28 +630,28 @@ Strategy(
 ---------------- Tile Sizes ----------------------
 | Tile_M      | Tile_N      | Tile_K      |
 |-------------|-------------|-------------|
-| 32768       | 256         | 8192        |
+| 32768       | 256         | 2048        |
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 8           | 32          | 1024        |
+| 1           | 256         | 256         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.125       | 1.0         | 1           | 1           | 1           | 1           | 1           |
+| 0.015625    | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 0.018219648000000022   cycles|
-| Total Compute Latency | 0.017481727999999967   cycles|
-| Total Array Latency  | 0.016826368000000008   cycles|
+| Total Latency        | 0.037732992            cycles|
+| Total Compute Latency | 0.0363397120000001     cycles|
+| Total Array Latency  | 0.03568435200000001    cycles|
 | Total Reduction Latency| 0.0006553599999999988  cycles|
-| IO Latency           | 0.0007379199999999992  cycles|
+| IO Latency           | 0.0013932800000000132  cycles|
 
 ----------- Hardware Requirements ---------------
-| col_multicast        | True                  |
-| col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
+| col_multicast        | False                 |
+| col_broadcast        | True                  |
+| broadcast            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': False, 'D': False}|
 | reduction            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
 ==================================================
 
@@ -768,14 +672,14 @@ Strategy(
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
-Capacity utilization: 0.125
-GEMM 32768x8192x32768 latency: 0.018219648000000022s
-simulated latency: GEMM_32768x8192x32768 0.018219648000000022
-roofline_model_simdram: total_ops=17592186044416, total_data_movement=1342177280, peak_flops=687590819672131.2, bandwidth=13107200000000.0
-roofline_model_simdram: compute_bound_time=0.025585254399999997, memory_bound_time=0.0001024
-GEMM roofline latency: 0.025585254399999997ms
-Results written to test_gemm_x16_base_config.json_32768_8192_32768_simdram_ddr5_operandocality.csv
-Testing M=32768, K=32768, N=32768
+Capacity utilization: 0.015625
+GEMM 32768x2048x32768 latency: 0.037732992s
+simulated latency: GEMM_32768x2048x32768 0.037732992
+roofline_model_simdram: total_ops=4398046511104, total_data_movement=1140850688, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=0.006396313599999999, memory_bound_time=8.704e-05
+GEMM roofline latency: 0.006396313599999999ms
+Results written to test_gemm_x16_base_config.json_32768_2048_32768_simdram_ddr5_operandocality.csv
+Testing M=32768, K=8192, N=32768
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -790,30 +694,30 @@ memory module: N/A
 io module: N/A
 Running mapping search...
 find_simdram_mapping: Best mapping: Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRD  N: A  K: BS  Array Mapping:  R: K  C: MN
+  Column Popcount: False
+  Tile Mapping:  M: CRAD  N:   K: BS  Array Mapping:  R: K  C: MN
   Weight Resident: True
   Input Resident: False
   Output Resident: False
 )
 Running simulation...
---- Input Matmul Size --- M:32768, K:32768, N:32768
-Maximum Array Tile Size: {'M': 16, 'K': 2048, 'N': 4096}
-get_arr_tile_stats: arr_latency=0.00026252800000000005, capacity_utilization=0.25
+--- Input Matmul Size --- M:32768, K:8192, N:32768
+Maximum Array Tile Size: {'M': 2, 'K': 512, 'N': 32768}
+get_arr_tile_stats: arr_latency=0.000557312, capacity_utilization=0.0625
 get_tile_stats: K_reduction_latency: 5.12e-06 = 67108864 / 13107200000000.0
-CRD BS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-1073741824 = 32768 * 32768 * 1
-get_tile_io_latency: data_volume=1073741824, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
-get_tile_io_latency: latency=8.192e-05 = 1073741824 / 13107200000000.0
-get_tile_stats: tile_size: {'M': 32768, 'K': 32768, 'N': 128}, arr_tile_size: {'M': 16, 'K': 2048, 'N': 16}, MK_dup: 16, KN_dup:16, MN_dup:1, M_K_io_latency: 0.00131072, K_N_io_latency: 0, M_N_io_latency: 3.2e-07, tile_compute_latency:0.00026764800000000005 = 0.00026252800000000005(arr_latency) + 5.12e-06(K_reduction_latency)
+CRAD BS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+268435456 = 32768 * 8192 * 1
+get_tile_io_latency: data_volume=268435456, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=2.048e-05 = 268435456 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 32768, 'K': 8192, 'N': 128}, arr_tile_size: {'M': 2, 'K': 512, 'N': 128}, MK_dup: 128, KN_dup:2, MN_dup:1, M_K_io_latency: 0.00262144, K_N_io_latency: 0, M_N_io_latency: 3.2e-07, tile_compute_latency:0.000562432 = 0.000557312(arr_latency) + 5.12e-06(K_reduction_latency)
 ================ Strategy Summary ================
 Strategy(
-  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
   Array Multicast: False
-  Column Popcount: True
-  Tile Mapping:  M: CRD  N: A  K: BS  Array Mapping:  R: K  C: MN
+  Column Popcount: False
+  Tile Mapping:  M: CRAD  N:   K: BS  Array Mapping:  R: K  C: MN
   Weight Resident: True
   Input Resident: False
   Output Resident: False
@@ -822,28 +726,28 @@ Strategy(
 ---------------- Tile Sizes ----------------------
 | Tile_M      | Tile_N      | Tile_K      |
 |-------------|-------------|-------------|
-| 32768       | 128         | 32768       |
+| 32768       | 128         | 8192        |
 
 | Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
 |-------------|-------------|-------------|
-| 16          | 16          | 2048        |
+| 2           | 128         | 512         |
 
 --------------- Utilization ----------------------
 | Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
 |-------------|-------------|-------------|-------------|-------------|-------------|-------------|
-| 0.25        | 1.0         | 1           | 1           | 1           | 1           | 1           |
+| 0.0625      | 1.0         | 1           | 1           | 1           | 1           | 1           |
 
 ------------------ Latency -----------------------
-| Total Latency        | 0.0699108479999999     cycles|
-| Total Compute Latency | 0.06851788800000011    cycles|
-| Total Array Latency  | 0.0672071679999998     cycles|
+| Total Latency        | 0.14668627199999992    cycles|
+| Total Compute Latency | 0.14398259200000035    cycles|
+| Total Array Latency  | 0.14267187200000048    cycles|
 | Total Reduction Latency| 0.0013107199999999927  cycles|
-| IO Latency           | 0.0013929600000000132  cycles|
+| IO Latency           | 0.0027036799999999575  cycles|
 
 ----------- Hardware Requirements ---------------
 | col_multicast        | True                  |
 | col_broadcast        | False                 |
-| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
+| broadcast            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': False, 'D': False}|
 | reduction            | {'C': False, 'R': False, 'B': True, 'A': False, 'S': True, 'D': False}|
 ==================================================
 
@@ -864,9 +768,105 @@ Strategy(
 ==================================================
 Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
 Column utilization: 1.0
-Capacity utilization: 0.25
-GEMM 32768x32768x32768 latency: 0.0699108479999999s
-simulated latency: GEMM_32768x32768x32768 0.0699108479999999
+Capacity utilization: 0.0625
+GEMM 32768x8192x32768 latency: 0.14668627199999992s
+simulated latency: GEMM_32768x8192x32768 0.14668627199999992
+roofline_model_simdram: total_ops=17592186044416, total_data_movement=1342177280, peak_flops=687590819672131.2, bandwidth=13107200000000.0
+roofline_model_simdram: compute_bound_time=0.025585254399999997, memory_bound_time=0.0001024
+GEMM roofline latency: 0.025585254399999997ms
+Results written to test_gemm_x16_base_config.json_32768_8192_32768_simdram_ddr5_operandocality.csv
+Testing M=32768, K=32768, N=32768
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 687.5908196721313Tops
+memory capacity: 1024.0GB
+peripheral area: 830.6070382046778mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+Running mapping search...
+find_simdram_mapping: Best mapping: Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M: CBAD  N:   K: RS  Array Mapping:  R: K  C: MN
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+Running simulation...
+--- Input Matmul Size --- M:32768, K:32768, N:32768
+Maximum Array Tile Size: {'M': 4, 'K': 1024, 'N': 32768}
+get_arr_tile_stats: arr_latency=0.001114368, capacity_utilization=0.125
+get_tile_stats: K_reduction_latency: 5.12e-06 = 67108864 / 13107200000000.0
+CBAD RS [] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+1073741824 = 32768 * 32768 * 1
+get_tile_io_latency: data_volume=1073741824, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=8.192e-05 = 1073741824 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 32768, 'K': 32768, 'N': 64}, arr_tile_size: {'M': 4, 'K': 1024, 'N': 64}, MK_dup: 64, KN_dup:4, MN_dup:1, M_K_io_latency: 0.00524288, K_N_io_latency: 0, M_N_io_latency: 1.6e-07, tile_compute_latency:0.0011194879999999999 = 0.001114368(arr_latency) + 5.12e-06(K_reduction_latency)
+================ Strategy Summary ================
+Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
+  Array Multicast: False
+  Column Popcount: False
+  Tile Mapping:  M: CBAD  N:   K: RS  Array Mapping:  R: K  C: MN
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+
+---------------- Tile Sizes ----------------------
+| Tile_M      | Tile_N      | Tile_K      |
+|-------------|-------------|-------------|
+| 32768       | 64          | 32768       |
+
+| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
+|-------------|-------------|-------------|
+| 4           | 64          | 1024        |
+
+--------------- Utilization ----------------------
+| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
+|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| 0.125       | 1.0         | 1           | 1           | 1           | 1           | 1           |
+
+------------------ Latency -----------------------
+| Total Latency        | 0.5785028159999923     cycles|
+| Total Compute Latency | 0.5731778559999972     cycles|
+| Total Array Latency  | 0.570556415999994      cycles|
+| Total Reduction Latency| 0.00262143999999998    cycles|
+| IO Latency           | 0.005324959999999958   cycles|
+
+----------- Hardware Requirements ---------------
+| col_multicast        | True                  |
+| col_broadcast        | False                 |
+| broadcast            | {'C': False, 'R': False, 'B': False, 'A': False, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': True, 'B': False, 'A': False, 'S': True, 'D': False}|
+==================================================
+
+---------------- Debug Info -----------------------
+| Remaining Tiles       |                         |
+|-----------------------|-------------------------|
+| M_remain              | 0                      |
+| N_remain              | 0                      |
+| K_remain              | 0                      |
+
+| Fully Partitioned #Tiles |                       |
+|-------------------------|-----------------------|
+| M_t                   | 1                      |
+| N_t                   | 512                    |
+| K_t                   | 1                      |
+
+|------------------------|------------------------|
+==================================================
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 1.0
+Capacity utilization: 0.125
+GEMM 32768x32768x32768 latency: 0.5785028159999923s
+simulated latency: GEMM_32768x32768x32768 0.5785028159999923
 roofline_model_simdram: total_ops=70368744177664, total_data_movement=2147483648, peak_flops=687590819672131.2, bandwidth=13107200000000.0
 roofline_model_simdram: compute_bound_time=0.10234101759999999, memory_bound_time=0.00016384
 GEMM roofline latency: 0.10234101759999999ms

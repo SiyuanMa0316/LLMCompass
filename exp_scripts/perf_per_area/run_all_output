@@ -8,7 +8,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -104,7 +104,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -200,7 +200,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -296,7 +296,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -394,7 +394,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -433,7 +433,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -473,7 +473,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -512,7 +512,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -552,7 +552,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -596,7 +596,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -640,7 +640,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -684,7 +684,7 @@ simdram bw: 13107.2GB/s
 simdram internal bw: 4739326.553672316GB/s
 simdram ops: 687.5908196721313Tops
 memory capacity: 1024.0GB
-peripheral area: 311.8264224068545mm^2
+peripheral area: 830.6070382046778mm^2
 dram area: 33792.0mm^2
 
 memory module: N/A
@@ -719,4 +719,4 @@ weighted avg tiling utilization: {'C': 1.0, 'R': 1.0, 'B': 1.0, 'A': 0.901175156
 Llama-3.1-8B decode latency per token: 4.590058258056641e-06
 Llama-3.1-8B decode total latency for 2048 tokens: 0.30081405800000005
 simulated latency: Llama-3.1-8B_decode 0.30081405800000005
-/home/siyuan/LLMCompass/exp_scripts/comparison
+/Users/max/Desktop/LLMCompass/exp_scripts/perf_per_area

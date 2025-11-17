@@ -1,127 +1,151 @@
 import csv
 import argparse
+import os
 
-parser = argparse.ArgumentParser(description="Compute LLM E2E (1024->128), Decode Throughput, and Prefill Latencies")
-parser.add_argument("--input", type=str, default="run_all_output_11-8", help="Path to the input log file")
-parser.add_argument("--decode_tokens", type=int, default=128, help="Number of generated tokens for throughput calculation")
-args = parser.parse_args()
+BASE_INPUT_TOKENS = 1024    # baseline prefill length
+BASE_OUTPUT_TOKENS = 2048   # baseline decode length
 
-input_file = args.input
-lat_output_file = f"latencies_e2e_1024to128_{args.input}.csv"
-thr_output_file = f"throughput_decode_1024to128_{args.input}.csv"
-prefill_output_file = f"latencies_prefill_1024to128_{args.input}.csv"
+# Application-level model names and their CSV name prefixes
+MODEL_NAMES = ["gpt3-175B", "Llama3-70B", "Llama3-8B","gpt3-6.7B"]
 
-# === Workload order ===
-workload_order = [
-    "GEMM_1024x12288x12288", "GEMM_2048x24576x24576",
-    "GEMV_1x12288x12288", "GEMV_1x24576x24576",
-    "gpt3-175B_prefill", "gpt3-175B_decode",
-    "gpt3-6.7B_prefill", "gpt3-6.7B_decode",
-    "Llama-3.1-70B_prefill", "Llama-3.1-70B_decode",
-    "Llama-3.1-8B_prefill", "Llama-3.1-8B_decode",
+# Scenarios: (scenario_name, N_in, N_out)
+SCENARIOS = [
+    ("large_read",      8192,  256),   # long prompt, short answer
+    ("regular_chat",    1024,  128),   # typical chat
+    ("long_generation", 1024,  4096),  # long answer/story
 ]
 
-# === Baseline latencies (H100, in seconds) ===
-h100_latencies = [
-    0.0002655339506, 0.0020424524691358,
-    0.000045049255441008, 0.000180182359679266,
-    0.35947, 238.99,
-    0.02766, 27.39910,
-    0.13564, 102.8096,
-    0.02542602351, 26.05659218
-]
+def display_name(name: str) -> str:
+    """Normalize model identifiers if you want nicer column names."""
+    return name.replace("Llama3", "Llama3").replace("_", "-")
 
-# === Proteus latencies (ms → s) ===
-proteus_latencies_ms = {
-    "GEMM_1024x12288x12288": 95567.21,
-    "GEMM_2048x24576x24576": 382268.84,
-    "GEMV_1x12288x12288": 88.74,
-    "GEMV_1x24576x24576": 177.47,
-    "gpt3-175B_prefill": 1401086.566 * 96,
-    "gpt3-175B_decode": 1306.107936 * 96 * 2048,
-    "gpt3-6.7B_prefill": 572829.6539 * 32,
-    "gpt3-6.7B_decode": 532.46928 * 32 * 2048,
-    "Llama-3.1-70B_prefill": 1113802.157 * 80,
-    "Llama-3.1-70B_decode": 1035.359808 * 80 * 2048,
-    "Llama-3.1-8B_prefill": 556901.138 * 32,
-    "Llama-3.1-8B_decode": 517.679904 * 32 * 2048,
-}
-proteus_latencies = [proteus_latencies_ms[w] / 1e3 for w in workload_order]  # s
 
-# === Parse simulated latencies ===
-sim_latencies = []
-with open(input_file, "r") as f:
-    for line in f:
-        if line.startswith("simulated latency:"):
-            parts = line.strip().replace("simulated latency:", "").split()
-            if len(parts) == 2:
-                sim_latencies.append(float(parts[1]))
+def parse_latency_csv(path):
+    """
+    Read the latency CSV.
 
-if len(sim_latencies) < len(workload_order):
-    print("Warning: fewer simulated latencies than expected.")
+    Returns:
+        header: list of column names
+        backend_names: list of backend names (Backend_1, Backend_2, ...)
+        latencies_per_backend: list of dicts: [{col_name: value_in_seconds}, ...]
+    """
+    with open(path, "r", newline="") as f:
+        reader = csv.reader(f)
+        rows = list(reader)
 
-# === Helpers ===
-def get_latency(lat_list, name):
-    try:
-        idx = workload_order.index(name)
-        return lat_list[idx]
-    except (ValueError, IndexError):
-        return 0
+    if not rows:
+        raise ValueError("Input CSV is empty")
 
-# === 1. End-to-End Latency (prefill + scaled decode) ===
-def compute_e2e(lat_list):
-    e2e = []
-    for prefix in ["gpt3-175B", "gpt3-6.7B", "Llama-3.1-70B", "Llama-3.1-8B"]:
-        prefill = get_latency(lat_list, f"{prefix}_prefill")
-        decode_full = get_latency(lat_list, f"{prefix}_decode")
-        decode_scaled = decode_full * (args.decode_tokens / 2048)
-        e2e.append(prefill + decode_scaled)
-    return e2e
+    header = [col.strip() for col in rows[0]]
+    data_rows = rows[1:]
 
-# === 2. Decode Throughput (tokens/s) ===
-def compute_decode_throughput(lat_list):
-    thr = []
-    for prefix in ["gpt3-175B", "gpt3-6.7B", "Llama-3.1-70B", "Llama-3.1-8B"]:
-        decode_full = get_latency(lat_list, f"{prefix}_decode")
-        decode_scaled = decode_full * (args.decode_tokens / 2048)
-        thr.append(args.decode_tokens / decode_scaled if decode_scaled > 0 else 0)
-    return thr
+    latencies_per_backend = []
+    backend_names = []
+    backend_names = ["H100", "Proteus", "DREAM(Ours)"]
 
-# === 3. Prefill Latencies ===
-def compute_prefill(lat_list):
-    pref = []
-    for prefix in ["gpt3-175B", "gpt3-6.7B", "Llama-3.1-70B", "Llama-3.1-8B"]:
-        pref.append(get_latency(lat_list, f"{prefix}_prefill"))
-    return pref
+    for i, row in enumerate(data_rows):
+        if not row:
+            continue
+    #     backend_name = f"Backend_{i+1}"
+    #     backend_names.append(backend_name)
+# Row 0 = baseline latencies, Row 1 = Proteus latencies, Row 2 = new latencies
+        values = {}
+        for col_name, val_str in zip(header, row):
+            val_str = val_str.strip()
+            if val_str == "":
+                continue
+            values[col_name] = float(val_str)
+        latencies_per_backend.append(values)
 
-# === Compute all ===
-h100_e2e = compute_e2e(h100_latencies)
-proteus_e2e = compute_e2e(proteus_latencies)
-sim_e2e = compute_e2e(sim_latencies)
+    return header, backend_names, latencies_per_backend
 
-h100_thr = compute_decode_throughput(h100_latencies)
-proteus_thr = compute_decode_throughput(proteus_latencies)
-sim_thr = compute_decode_throughput(sim_latencies)
 
-h100_pref = compute_prefill(h100_latencies)
-proteus_pref = compute_prefill(proteus_latencies)
-sim_pref = compute_prefill(sim_latencies)
+def get_prefill_decode(lat_dict, model_name):
+    """
+    From a dict {column_name: value}, extract prefill and decode latencies
+    for a given model.
 
-# === Write CSVs ===
-header = ["gpt3-175B", "gpt3-6.7B", "Llama-3.1-70B", "Llama-3.1-8B"]
+    Expects column names like:
+      gpt3-175B-prefill, gpt3-175B-decode, etc.
+    Values are assumed to be in **seconds**.
+    """
+    prefill_key = f"{model_name}-prefill"
+    decode_key = f"{model_name}-decode"
 
-def write_csv(filename, *rows):
-    with open(filename, "w", newline="") as f:
+    prefill = lat_dict.get(prefill_key, 0.0)
+    decode = lat_dict.get(decode_key, 0.0)
+    return prefill, decode
+
+
+def estimate_e2e_ms(lat_dict, model_name, n_in, n_out):
+    """
+    Estimate E2E latency in milliseconds for one backend/model/scenario.
+
+    lat_dict: dict mapping 'model-phase' -> latency (seconds)
+    model_name: e.g. "gpt3-175B"
+    n_in, n_out: token counts for this scenario
+    """
+    prefill_base_s, decode_base_s = get_prefill_decode(lat_dict, model_name)
+
+    if prefill_base_s <= 0.0 and decode_base_s <= 0.0:
+        return 0.0
+
+    prefill_scaled_s = prefill_base_s * (n_in / BASE_INPUT_TOKENS)
+    decode_scaled_s = decode_base_s * (n_out / BASE_OUTPUT_TOKENS)
+    total_s = prefill_scaled_s + decode_scaled_s
+
+    # convert to ms
+    return total_s * 1e3
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Scale LLM prefill/decode latencies from a CSV (1024→2048 baseline) "
+                    "to different (N_in, N_out) scenarios and output E2E latencies in ms."
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        required=True,
+        help="Path to the input latency CSV file"
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to the output CSV file (optional)"
+    )
+    args = parser.parse_args()
+
+    input_csv = args.input
+    if args.output is None:
+        base = os.path.splitext(os.path.basename(input_csv))[0]
+        output_csv = f"scaled_latencies_ms.csv"
+    else:
+        output_csv = args.output
+
+    header, backend_names, latencies_per_backend = parse_latency_csv(input_csv)
+
+    # Build output table:
+    # Scenario, Backend, gpt3-175B, gpt3-6.7B, Llama3-70B, Llama3-8B
+    out_header = ["Scenario", "Backend"] + [display_name(m) for m in MODEL_NAMES]
+    rows = []
+
+    for scenario_name, n_in, n_out in SCENARIOS:
+        for backend_name, lat_dict in zip(backend_names, latencies_per_backend):
+            model_values_ms = [
+                estimate_e2e_ms(lat_dict, model_name, n_in, n_out)
+                for model_name in MODEL_NAMES
+            ]
+            rows.append([scenario_name, backend_name] + model_values_ms)
+
+    with open(output_csv, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(header)
-        for row in rows:
-            writer.writerow(row)
+        writer.writerow(out_header)
+        writer.writerows(rows)
 
-write_csv(lat_output_file, h100_e2e, proteus_e2e, sim_e2e)
-print(f"Saved end-to-end latencies to {lat_output_file}")
+    print(f"Saved scaled E2E latencies (ms) to {output_csv}")
 
-write_csv(thr_output_file, h100_thr, proteus_thr, sim_thr)
-print(f"Saved decode throughput to {thr_output_file}")
 
-write_csv(prefill_output_file, h100_pref, proteus_pref, sim_pref)
-print(f"Saved prefill latencies to {prefill_output_file}")
+if __name__ == "__main__":
+    main()
