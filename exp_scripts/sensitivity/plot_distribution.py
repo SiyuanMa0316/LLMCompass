@@ -8,7 +8,7 @@ from pathlib import Path
 CSV_FILE = "mapping_sensitivity.csv"
 TRIM_PERCENT = 0.10        # keep <= 10th percentile
 BINS = 80
-SAVE_PNG = "latency_distribution_trim10.png"
+SAVE_PNG = "latency_distribution_trim10.pdf"
 
 # === Load & clean ===
 df = pd.read_csv(CSV_FILE)

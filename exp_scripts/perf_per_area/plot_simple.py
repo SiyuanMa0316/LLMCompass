@@ -4,7 +4,7 @@ import numpy as np
 import argparse
 import os
 
-BASE_FONT = 8
+BASE_FONT = 7
 plt.rcParams.update({
     "font.size": BASE_FONT,
     "axes.labelsize": BASE_FONT + 1,
@@ -16,7 +16,7 @@ plt.rcParams.update({
 })
 
 FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 2.5)
+FIGSIZE = (FIG_WIDTH, 2.5 * 0.8)
 ANNOT_FONTSIZE = BASE_FONT - 1
 AXHLINE_WIDTH = 0.3
 BAR_LINEWIDTH = 0.3
@@ -179,7 +179,7 @@ def main():
         labels,
         frameon=False,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.03),
+        bbox_to_anchor=(0.5, 1.04),
         ncol=3,
     )
 

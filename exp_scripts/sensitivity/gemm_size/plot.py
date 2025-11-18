@@ -18,8 +18,8 @@ plt.rcParams.update({
     "figure.dpi": 300,
 })
 
-FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 3.5)
+FIG_WIDTH = 4.5
+FIGSIZE = (FIG_WIDTH, 2.3)
 ANNOT_FONTSIZE = BASE_FONT - 2
 SPINE_LINEWIDTH = 0.8
 EDGE_LINEWIDTH = 0.3
@@ -28,7 +28,7 @@ AXHLINE_WIDTH = 0.3
 EDGE_COLOR = "black"
 BASELINE_COLOR = "gray"
 BASELINE_LS = "--"
-BASELINE_LW = 0.6
+BASELINE_LW = 0.75
 
 # Existing palette
 colors = ['#b2df8a', '#66c2a5', "#44A559"]
@@ -39,15 +39,17 @@ PE_LINE_LS = "--"
 PE_LINE_LW = 0.8
 PE_MARKER = "o"
 PE_MARKERSIZE = 2
-PE_BASE_SHIFT = 8
+# PE_BASE_SHIFT = 8
+PE_BASE_SHIFT = 0
+
 
 LATENCY_YLABEL = "Normalized Latency"
 PE_YLABEL = "PE utilization(%)"
-WORKLOAD_YLABEL = "Normalized workload capacity"
+WORKLOAD_YLABEL = "Normalized num. of MACs"
 WORKLOAD_COLOR = "#A73030"
 GROUP_SIZE = 3
-BAR_WIDTH = 0.75
-BAR_GROUP_BASE_SHIFT = 1.3  # lifts annotations for later groups on log axis
+BAR_WIDTH = 0.7
+BAR_GROUP_BASE_SHIFT = 1 # lifts annotations for later groups on log axis
 
 # === Input CSV ===
 csv_file = "latencies_run_gemm_output.csv"
@@ -84,32 +86,31 @@ ax.bar(
 
 ax.set_yscale("log")
 
-ylim_top = max(norm_latencies) * 1.2
-ax.set_ylim(0.9, ylim_top)
+# Compute consistent ylim for both ax (latency) and ax3 (workload)
+# Using the same scale factor for both
+latency_lower = 0.9
+latency_upper = max(norm_latencies) * 1.2
+
+workload_plot_vals_temp = workloads_normalized + PE_BASE_SHIFT
+workload_lower_raw = max(float(np.nanmin(workload_plot_vals_temp) * 0.8), 1e-3)
+workload_upper_raw = max(5.0 + PE_BASE_SHIFT, float(np.nanmax(workload_plot_vals_temp) * 1.2))
+
+# Make ylim consistent by using the same ratio
+consistent_lower = min(latency_lower, workload_lower_raw)
+consistent_upper = max(latency_upper, workload_upper_raw)
+
+ax.set_ylim(consistent_lower, consistent_upper)
 
 n = len(norm_latencies)
-axis_bottom = ax.get_ylim()[0]
 for i, val in enumerate(norm_latencies):
-    # group_idx = i // GROUP_SIZE
-    if i >= 1:
-        y_pos = axis_bottom * BAR_GROUP_BASE_SHIFT
-        va = "bottom"
-    else:
-        y_pos = val * 1.05
-        if i >= n - GROUP_SIZE:
-            y_pos = val / 1.2
-            va = "top"
-        else:
-            va = "bottom"
-
     ax.text(
         i,
-        y_pos,
-        f"x{val:.1f}",
+        val,
+        f"x{val:.0f}",
         ha="center",
-        va=va,
+        va="bottom",
         fontsize=ANNOT_FONTSIZE,
-        rotation=90,
+        rotation=0,
     )
 
 # === Right axis: PE utilization ===
@@ -119,8 +120,8 @@ ax2.set_ylabel(PE_YLABEL, fontsize=plt.rcParams["axes.labelsize"])
 
 pe_plot_vals = pe_utils_pct + PE_BASE_SHIFT
 if len(pe_plot_vals) > 0:
-    ymax = float(np.nanmax(pe_plot_vals) * 1.2)
-    ax2.set_ylim(0, max(5.0 + PE_BASE_SHIFT, ymax))
+    ymax = float(np.nanmax(pe_plot_vals) * 1.1)
+    ax2.set_ylim(bottom=10,top=ymax)
 
 for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
     end = start + GROUP_SIZE
@@ -135,21 +136,21 @@ for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
         label="PE utilization" if group_idx == 0 else "_nolegend_",
     )
 
-for i, val in enumerate(pe_utils_pct):
-    y_pos = val + PE_BASE_SHIFT
-    if i < len(pe_utils_pct) - 2:
-        y_pos -= 8
-    else:
-        y_pos += 3
-    ax2.text(
-        i,
-        y_pos,
-        f"x{val:.1f}",
-        ha="center",
-        va="bottom",
-        fontsize=ANNOT_FONTSIZE,
-        color=PE_LINE_COLOR,
-    )
+# for i, val in enumerate(pe_utils_pct):
+#     y_pos = val + PE_BASE_SHIFT
+#     if i < len(pe_utils_pct) - 2:
+#         y_pos -= 8
+#     else:
+#         y_pos += 3
+#     ax2.text(
+#         i,
+#         y_pos,
+#         f"x{val:.0f}",
+#         ha="center",
+#         va="bottom",
+#         fontsize=ANNOT_FONTSIZE,
+#         color=PE_LINE_COLOR,
+#     )
 
 ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIFT, 0):.0f}"))
 ax2.spines['right'].set_color(PE_LINE_COLOR)
@@ -159,52 +160,91 @@ ax2.tick_params(axis='y', labelcolor=PE_LINE_COLOR, labelsize=plt.rcParams["ytic
 
 # === Third axis: normalized workload capacity ===
 ax3 = ax.twinx()
-ax3.spines['right'].set_position(('outward', 45))
+ax3.spines['right'].set_position(('outward', 35))
 ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=plt.rcParams["axes.labelsize"], color=WORKLOAD_COLOR)
 
 workload_plot_vals = workloads_normalized + PE_BASE_SHIFT
+
+unique_workloads = np.unique(workloads_normalized)
+
 ax3.set_yscale("log")
 workload_lower = max(float(np.nanmin(workload_plot_vals) * 0.8), 1e-3)
 workload_upper = max(5.0 + PE_BASE_SHIFT, float(np.nanmax(workload_plot_vals) * 1.2))
-ax3.set_ylim(workload_lower, workload_upper)
 
-for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
-    end = start + GROUP_SIZE
-    ax3.plot(
-        x[start:end],
-        workload_plot_vals[start:end],
-        linestyle=PE_LINE_LS,
-        linewidth=PE_LINE_LW,
-        marker=PE_MARKER,
-        markersize=PE_MARKERSIZE,
-        color=WORKLOAD_COLOR,
-        label="Normalized workload size" if group_idx == 0 else "_nolegend_",
-    )
+# Use consistent ylim for ax3
+ax3.set_ylim(consistent_lower, consistent_upper)
 
-for i, val in enumerate(workloads_normalized):
-    y_pos = workload_plot_vals[i]
-    if i < GROUP_SIZE + 2:  # keep early points readable
-        y_pos += 10
-    elif i == len(workloads_normalized) - 1:
-        y_pos = val * 0.8
-    elif i == len(workloads_normalized) -2:
-        y_pos = val * 0.6
-        # y_pos = val - 200
+# for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
+#     end = start + GROUP_SIZE
+#     ax3.plot(
+#         x[start:end],
+#         workload_plot_vals[start:end],
+#         linestyle=PE_LINE_LS,
+#         linewidth=PE_LINE_LW,
+#         marker=PE_MARKER,
+#         markersize=PE_MARKERSIZE,
+#         color=WORKLOAD_COLOR,
+#         label="Normalized workload size" if group_idx == 0 else "_nolegend_",
+#     )
+
+
+# for i, val in enumerate(workloads_normalized):
+#     y_pos = workload_plot_vals[i]
+#     if i < GROUP_SIZE + 2:  # keep early points readable
+#         y_pos += 10
+#     elif i == len(workloads_normalized) - 1:
+#         y_pos = val * 0.8
+#     elif i == len(workloads_normalized) -2:
+#         y_pos = val * 0.6
+#         # y_pos = val - 200
         
-    ax3.text(
-        i,
-        y_pos,
-        f"x{int(val)}",
-        ha="center",
-        va="bottom",
-        fontsize=ANNOT_FONTSIZE,
-        color=WORKLOAD_COLOR,
-    )
+#     ax3.text(
+#         i,
+#         y_pos,
+#         f"x{int(val)}",
+#         ha="center",
+#         va="bottom",
+#         fontsize=ANNOT_FONTSIZE,
+#         color=WORKLOAD_COLOR,
+#     )
 
 ax3.spines['right'].set_color(WORKLOAD_COLOR)
 ax3.spines['right'].set_linewidth(SPINE_LINEWIDTH)
 ax3.yaxis.label.set_color(WORKLOAD_COLOR)
 ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=plt.rcParams["ytick.labelsize"])
+
+# === Add horizontal dashed lines for unique workload values ===
+unique_workloads_sorted = np.sort(unique_workloads)
+for unique_val in unique_workloads_sorted:
+    # The actual y-position on ax3 includes the PE_BASE_SHIFT offset
+    y_pos = unique_val + PE_BASE_SHIFT
+    x_base_pos = -0.15
+    ax3.axhline(y=y_pos, color=WORKLOAD_COLOR, linestyle="--", linewidth=0.5, alpha=0.7)
+    
+    # Add label on the left side of the axis
+    if unique_val == 1024:
+        y_pos = unique_val + 200
+        x_pos = x_base_pos + 0.25
+    elif unique_val == 4096:
+        y_pos = unique_val - 800
+    elif unique_val == 256:
+        x_pos = x_base_pos + 0.22
+        y_pos = unique_val - 45
+    elif unique_val == 64:
+        y_pos = unique_val - 30
+        x_pos = x_base_pos + 0.21
+    
+    if unique_val > 256:
+        ax3.text(
+            x_pos,
+            y_pos,
+            f"x{int(unique_val)}",
+            ha="right",
+            va="center",
+            fontsize=ANNOT_FONTSIZE,
+            color=WORKLOAD_COLOR,
+            transform=ax3.get_yaxis_transform(),
+        )
 
 # === Shared aesthetics ===
 ax.set_xticks(x)
@@ -212,10 +252,10 @@ ax.set_xticklabels(workloads, rotation=30, ha="right", fontsize=plt.rcParams["xt
 ax.set_ylabel(LATENCY_YLABEL, fontsize=plt.rcParams["axes.labelsize"])
 # ax.set_xlabel("Workload (MxKxN)", fontsize=COMMON_FONT_SIZE)
 ax.tick_params(axis="both", labelsize=plt.rcParams["ytick.labelsize"])
-ax.axhline(1.0, color=BASELINE_COLOR, linestyle=BASELINE_LS, linewidth=BASELINE_LW)
+# ax.axhline(1.0, color=BASELINE_COLOR, linestyle=BASELINE_LS, linewidth=BASELINE_LW)
 
 fig.tight_layout(pad=0.2)
-ax.grid(True, axis='y', alpha=0.6, linestyle='--', linewidth=0.5, color="#37322F")
+# ax.grid(True, axis='y', alpha=0.6, linestyle='--', linewidth=0.5, color="#37322F")
 
 legend_elements = [
     Line2D([0], [0], color=PE_LINE_COLOR, linestyle=PE_LINE_LS, linewidth=PE_LINE_LW,
@@ -225,9 +265,9 @@ legend_elements = [
 ]
 # ax.legend(handles=legend_elements, fontsize=plt.rcParams["legend.fontsize"], loc='upper left')
 ax.legend(handles=legend_elements, fontsize=plt.rcParams["legend.fontsize"], loc='upper center', 
-          bbox_to_anchor=(0.5, 1.08), frameon=False, ncol=2, columnspacing=0.8)
+          bbox_to_anchor=(0.5, 1.15), frameon=False, ncol=2, columnspacing=0.8)
 
 # === Save ===
-plt.savefig("sensitivity_gemm_size.png", dpi=600, bbox_inches="tight")
+plt.savefig("sensitivity_gemm_size.pdf", dpi=600, bbox_inches="tight", pad_inches=0.05)
 
 plt.show()

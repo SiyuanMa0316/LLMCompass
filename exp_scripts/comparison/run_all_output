@@ -1,6 +1,7 @@
 Using config: configs/x16_base_config.json
 Running GEMM tests...
 Test 1: M=1024, K=12288, N=12288
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -97,6 +98,7 @@ roofline_model_simdram: compute_bound_time=0.0004497407999999999, memory_bound_t
 GEMM roofline latency: 0.0004497407999999999ms
 Results written to test_gemm_x16_base_config.json_1024_12288_12288_simdram_ddr5_operandocality.csv
 Test 2: M=2048, K=24576, N=24576
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -193,6 +195,7 @@ roofline_model_simdram: compute_bound_time=0.0035979263999999993, memory_bound_t
 GEMM roofline latency: 0.0035979263999999993ms
 Results written to test_gemm_x16_base_config.json_2048_24576_24576_simdram_ddr5_operandocality.csv
 Test 3: M=1, K=12288, N=12288
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -289,6 +292,7 @@ roofline_model_simdram: compute_bound_time=4.391999999999999e-07, memory_bound_t
 GEMM roofline latency: 4.391999999999999e-07ms
 Results written to test_gemm_x16_base_config.json_1_12288_12288_simdram_ddr5_operandocality.csv
 Test 4: M=1, K=24576, N=24576
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -387,6 +391,7 @@ Results written to test_gemm_x16_base_config.json_1_24576_24576_simdram_ddr5_ope
 Running LLM tests...
 Testing GPT-3 175B model prefill
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -426,6 +431,7 @@ gpt3-175B 96 layers prefill latency: 0.42047577599999997
 simulated latency: gpt3-175B_prefill 0.42047577599999997
 Testing GPT-3 175B model decode
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -466,6 +472,7 @@ gpt3-175B decode total latency for 2048 tokens: 2.1342895980000005
 simulated latency: gpt3-175B_decode 2.1342895980000005
 Testing GPT-3 6.7B model prefill
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -505,6 +512,7 @@ gpt3-6.7B 32 layers prefill latency: 0.016107135999999998
 simulated latency: gpt3-6.7B_prefill 0.016107135999999998
 Testing GPT-3 6.7B model decode
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -545,6 +553,7 @@ gpt3-6.7B decode total latency for 2048 tokens: 0.31957373800000005
 simulated latency: gpt3-6.7B_decode 0.31957373800000005
 Testing LLaMA 3.1 70B model prefill
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -589,6 +598,7 @@ Llama-3.1-70B 80 layers prefill latency: 0.12105632
 simulated latency: Llama-3.1-70B_prefill 0.12105632
 Testing LLaMA 3.1 70B model decode
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -633,6 +643,7 @@ Llama-3.1-70B decode total latency for 2048 tokens: 1.0690757850000001
 simulated latency: Llama-3.1-70B_decode 1.0690757850000001
 Testing LLaMA 3.1 8B model prefill
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
@@ -677,6 +688,7 @@ Llama-3.1-8B 32 layers prefill latency: 0.013166207999999999
 simulated latency: Llama-3.1-8B_prefill 0.013166207999999999
 Testing LLaMA 3.1 8B model decode
 Simulate Running on DRAM PIM
+simdram area breakdown: bank_broadcast:3.383552mm^2, rank_broadcast:0.21476288000000002mm^2, array_broadcast:218.99837440000002mm^2, popcount:3620.732928mm^2, pe:4496.293888mm^2, sram:337.691803648mm^2
 compute module:
 simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
 simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True

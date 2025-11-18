@@ -20,8 +20,8 @@ plt.rcParams.update({
     "figure.dpi": 300,
 })
 
-FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 3.5)
+FIG_WIDTH = 4.5
+FIGSIZE = (FIG_WIDTH, 2.3)
 ANNOT_FONTSIZE = BASE_FONT - 2
 SPINE_LINEWIDTH = 0.8
 EDGE_LINEWIDTH = 0.3
@@ -30,7 +30,7 @@ AXHLINE_WIDTH = 0.3
 EDGE_COLOR = "black"
 BASELINE_COLOR = "gray"
 BASELINE_LS = "--"
-BASELINE_LW = 0.6
+BASELINE_LW = 0.75
 
 # Existing palette (unchanged)
 colors = ['#fff7bc', '#fec44f', "#dd7e3e"]
@@ -41,13 +41,17 @@ PE_LINE_LS = "--"
 PE_LINE_LW = 0.8
 PE_MARKER = "o"
 PE_MARKERSIZE = 2
-PE_BASE_SHIFT = 7.5
+# PE_BASE_SHIFT = 7.5
+PE_BASE_SHIFT = 0
+
 
 LATENCY_YLABEL = "Normalized latency"
 PE_YLABEL = "PE utilization (%)"
-WORKLOAD_YLABEL = "Normalized workload capacity"
+WORKLOAD_YLABEL = "Normalized num. of MACs"
 WORKLOAD_COLOR = "#0A7C3A"
 GROUP_SIZE = 3
+BAR_WIDTH = 0.7  # wider bars (default is ~0.6)
+BAR_GROUP_BASE_SHIFT = 1
 
 # === Input CSV ===
 csv_file = "latencies_run_gemv_output.csv"  # replace with your filename
@@ -78,7 +82,6 @@ for spine in ax.spines.values():
 x = np.arange(len(workloads))
 
 # Make bars wider
-BAR_WIDTH = 0.75  # wider bars (default is ~0.6)
 bars = ax.bar(
     x,
     norm_latencies,
@@ -88,12 +91,13 @@ bars = ax.bar(
     width=BAR_WIDTH,
 )
 
-# === (Optional) Log scale ===
+# === Log scale (matching gemm_size) ===
 # ax.set_yscale("log")
 
 # === Annotation placement logic (inside bars) ===
-ylim_top = max(norm_latencies) * 1.2
-ax.set_ylim(0, ylim_top)
+ylim_lower = 0
+ylim_upper = max(norm_latencies) * 1.2
+ax.set_ylim(ylim_lower, ylim_upper)
 
 # for i, val in enumerate(norm_latencies):
 #     # Place text **inside** the bar (middle)
@@ -111,30 +115,29 @@ ax.set_ylim(0, ylim_top)
 #         # rotation=90,
 #         color="black",
 #     )
-BAR_GROUP_BASE_SHIFT = 1
 axis_bottom = ax.get_ylim()[0]
 n = len(norm_latencies)
 for i, val in enumerate(norm_latencies):
     # group_idx = i // GROUP_SIZE
-    if i >= 1:
-        y_pos = axis_bottom * BAR_GROUP_BASE_SHIFT
-        va = "bottom"
-    else:
-        y_pos = val * 1.05
-        if i >= n - GROUP_SIZE:
-            y_pos = val / 1.2
-            va = "top"
-        else:
-            va = "bottom"
+    # if i >= 1:
+    #     y_pos = axis_bottom * BAR_GROUP_BASE_SHIFT
+    #     va = "bottom"
+    # else:
+    #     y_pos = val * 1.05
+    #     if i >= n - GROUP_SIZE:
+    #         y_pos = val / 1.2
+    #         va = "top"
+    #     else:
+    #         va = "bottom"
 
     ax.text(
         i,
-        y_pos,
-        f"x{val:.1f}",
+        val,
+        f"x{val:.0f}",
         ha="center",
-        va=va,
+        va="bottom",
         fontsize=ANNOT_FONTSIZE,
-        rotation=90,
+        rotation=0,
     )
 
 
@@ -145,10 +148,10 @@ ax2.set_ylabel(PE_YLABEL, fontsize=plt.rcParams["axes.labelsize"])
 # Plot shifted data so the curve sits higher, but format ticks to show true values
 pe_plot_vals = pe_utils_pct + PE_BASE_SHIFT
 
-# Reasonable y-limits for the shifted data
+# Reasonable y-limits for the shifted data - matching gemm_size consistency
 if len(pe_plot_vals) > 0:
-    ymax = float(np.nanmax(pe_plot_vals) * 1.2)
-    ax2.set_ylim(0, max(5.0 + PE_BASE_SHIFT, ymax))
+    ymax = float(np.nanmax(pe_plot_vals) * 1.1)
+    ax2.set_ylim(0, ymax)
 
 # Plot the line (shifted)
 for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
@@ -163,19 +166,19 @@ for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
         color=PE_LINE_COLOR,
         label="PE utilization" if group_idx == 0 else "_nolegend_",
     )
-for i, val in enumerate(pe_utils_pct):
-    # Place text **inside** the bar (middle)
-    y_pos = val + 8
-    ax2.text(
-        i-0.3,
-        y_pos,
-        f"{val:.0f}",
-        ha="center",
-        va="bottom",
-        fontsize=ANNOT_FONTSIZE,
-        # rotation=90,
-        color=PE_LINE_COLOR,
-    )
+# for i, val in enumerate(pe_utils_pct):
+#     # Place text **inside** the bar (middle)
+#     y_pos = val + 8
+#     ax2.text(
+#         i-0.3,
+#         y_pos,
+#         f"{val:.0f}",
+#         ha="center",
+#         va="bottom",
+#         fontsize=ANNOT_FONTSIZE,
+#         # rotation=90,
+#         color=PE_LINE_COLOR,
+#     )
 
 # Show true % values by subtracting the shift in the formatter
 ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIFT, 0):.0f}"))
@@ -200,42 +203,76 @@ ax3.spines['right'].set_position(('outward', 35))
 ax3.set_ylabel(WORKLOAD_YLABEL, fontsize=plt.rcParams["axes.labelsize"], color=WORKLOAD_COLOR)
 
 workload_plot_vals = workloads_normalized + PE_BASE_SHIFT
-ax3.set_ylim(0, max(5.0 + PE_BASE_SHIFT, float(np.nanmax(workload_plot_vals) * 1.2)))
+ax3.set_yscale('log')
+# ax3.set_ylim(0, max(5.0 + PE_BASE_SHIFT, float(np.nanmax(workload_plot_vals) * 1.2)))
 
-for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
-    end = start + GROUP_SIZE
-    ax3.plot(
-        x[start:end],
-        workload_plot_vals[start:end],
-        linestyle=PE_LINE_LS,
-        linewidth=PE_LINE_LW,
-        marker=PE_MARKER,
-        markersize=PE_MARKERSIZE,
-        color=WORKLOAD_COLOR,
-        label="Normalized workload size" if group_idx == 0 else "_nolegend_",
-    )
-
-for i, val in enumerate(workloads_normalized):
-    # Place text **inside** the bar (middle)
-    y_pos = val
-    if i < 5:
-        y_pos += 20
-    if i == 6:
-        y_pos += 10
+# for group_idx, start in enumerate(range(0, len(x), GROUP_SIZE)):
+#     end = start + GROUP_SIZE
+#     ax3.plot(
+#         x[start:end],
+#         workload_plot_vals[start:end],
+#         linestyle=PE_LINE_LS,
+#         linewidth=PE_LINE_LW,
+#         marker=PE_MARKER,
+#         markersize=PE_MARKERSIZE,
+#         color=WORKLOAD_COLOR,
+#         label="Normalized workload size" if group_idx == 0 else "_nolegend_",
+#     )
+unique_workloads = np.unique(workloads_normalized)
+unique_workloads_sorted = np.sort(unique_workloads)
+for unique_val in unique_workloads_sorted:
+    # The actual y-position on ax3 includes the PE_BASE_SHIFT offset
+    y_pos = unique_val
+    ax3.axhline(y=y_pos, color=WORKLOAD_COLOR, linestyle="--", linewidth=0.5, alpha=0.7)
+    if unique_val <= 4:
+        x_pos = 1.05
+    elif unique_val < 64:
+        x_pos = 1.06
+    elif unique_val == 256:
+        x_pos = 0.1
+        y_pos = unique_val - 40
     else:
-        y_pos -= 10
-    if i == 8:
-        i += +0.3
-    ax3.text(
-        i,
-        y_pos,
-        f"x{int(val)}",
-        ha="center",
-        va="bottom",
-        fontsize=ANNOT_FONTSIZE,
-        # rotation=90,
-        color=WORKLOAD_COLOR,
-    )
+        x_pos = 0.08
+        y_pos = unique_val + 13
+    # if unique_val == 4:
+    #     y_pos = unique_val + 0.5
+    # elif unique_val == 16:
+    #     y_pos = unique_val - 4
+    # elif unique_val == 64:
+    #     y_pos = unique_val - 4
+    if unique_val >= 64:
+        ax3.text(
+            x_pos,
+            y_pos,
+            f"x{int(unique_val)}",
+            ha="right",
+            va="center",
+            fontsize=ANNOT_FONTSIZE,
+            color=WORKLOAD_COLOR,
+            transform=ax3.get_yaxis_transform(),
+        )
+
+# for i, val in enumerate(workloads_normalized):
+#     # Place text **inside** the bar (middle)
+#     y_pos = val
+#     if i < 5:
+#         y_pos += 20
+#     if i == 6:
+#         y_pos += 10
+#     else:
+#         y_pos -= 10
+#     if i == 8:
+#         i += +0.3
+#     ax3.text(
+#         i,
+#         y_pos,
+#         f"x{int(val)}",
+#         ha="center",
+#         va="bottom",
+#         fontsize=ANNOT_FONTSIZE,
+#         # rotation=90,
+#         color=WORKLOAD_COLOR,
+#     )
 
 
 # ax3.yaxis.set_major_formatter(FuncFormatter(lambda y, _: f"{max(y - PE_BASE_SHIFT, 0):.0f}"))
@@ -246,7 +283,7 @@ ax3.tick_params(axis='y', labelcolor=WORKLOAD_COLOR, labelsize=plt.rcParams["yti
 
 # ax.axhline(1.0, color=BASELINE_COLOR, linestyle=BASELINE_LS, linewidth=BASELINE_LW)
 fig.tight_layout(pad=0.2)
-ax.grid(True, axis='y', alpha=0.6, linestyle='--', linewidth=0.5, color="#37322F")
+# ax.grid(True, axis='y', alpha=0.6, linestyle='--', linewidth=0.5, color="#37322F")
 # === Legends (keep only PE line as in your latest version) ===
 legend_elements = [
     # Patch(facecolor=colors[0], edgecolor=EDGE_COLOR, linewidth=EDGE_LINEWIDTH,
@@ -257,10 +294,10 @@ legend_elements = [
         marker=PE_MARKER, markersize=PE_MARKERSIZE, label=WORKLOAD_YLABEL),
 ]
 ax.legend(handles=legend_elements, fontsize=plt.rcParams["legend.fontsize"], loc='upper center', 
-          bbox_to_anchor=(0.5, 1.08), frameon=False, ncol=2, columnspacing=0.8)
+          bbox_to_anchor=(0.5, 1.15), frameon=False, ncol=2, columnspacing=0.8)
 
 # === Save ===
 # plt.savefig("gemm_latency_bar_log_shades_adaptive.pdf", bbox_inches="tight")
-plt.savefig("sensitivity_gemv_size.png", dpi=600, bbox_inches="tight")
+plt.savefig("sensitivity_gemv_size.pdf", dpi=600, bbox_inches="tight", pad_inches=0.05)
 
 plt.show()

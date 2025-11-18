@@ -41,6 +41,6 @@ plt.axhline(1.0, color="gray", linestyle="--", linewidth=0.7)
 
 # === Save ===
 plt.savefig("top30_mapping_latency.pdf", bbox_inches="tight")
-plt.savefig("top30_mapping_latency.png", dpi=600, bbox_inches="tight")
+plt.savefig("top30_mapping_latency.pdf", dpi=600, bbox_inches="tight")
 
 plt.show()

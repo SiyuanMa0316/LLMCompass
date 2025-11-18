@@ -100,5 +100,5 @@ legend = ax.legend(
 plt.tight_layout(pad=0.5)
 plt.subplots_adjust(top=0.78)  # leave ample space for title + legend
 
-plt.savefig("ablation.png", bbox_inches='tight')
+plt.savefig("ablation.pdf", bbox_inches='tight')
 plt.show()

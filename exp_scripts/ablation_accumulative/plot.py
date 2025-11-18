@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import sys
 import csv
 
-BASE_FONT = 8
+BASE_FONT = 7
 plt.rcParams.update({
     "font.size": BASE_FONT,
     "axes.labelsize": BASE_FONT + 1,
@@ -15,7 +15,7 @@ plt.rcParams.update({
 })
 
 FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 3.2)
+FIGSIZE = (FIG_WIDTH, 3.2 * 0.75)
 BAR_LINEWIDTH = 0.3
 BAR_WIDTH = 0.25
 AXHLINE_WIDTH = 0.3
@@ -106,8 +106,8 @@ for i, (name, values) in enumerate(zip(series_names, series_values)):
 
 # Labels and grid
 ax.set_xticks(x)
-ax.set_xticklabels(labels, rotation=30, ha='right')
-ax.set_ylabel("Normalized performance")
+ax.set_xticklabels(labels, rotation=20, ha='right')
+ax.set_ylabel("Normalized throughput")
 # ax.set_title("Ablation Study of Added Peripheral Components", pad=22)
 ax.grid(True, axis='y', linestyle='--', linewidth=0.3, alpha=0.7, color="#272329")
 ax.axhline(1.0, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
@@ -115,9 +115,9 @@ for spine in ax.spines.values():
     spine.set_linewidth(SPINE_LINEWIDTH)
 ax.tick_params(axis='x', labelsize=plt.rcParams['xtick.labelsize'])
 ax.tick_params(axis='y', labelsize=plt.rcParams['ytick.labelsize'])
-ymin = (ax.get_ylim()[0])
-ymax = (ax.get_ylim()[1])*5
-ax.set_ylim(ymin, ymax)
+# ymin = (ax.get_ylim()[0])
+# ymax = (ax.get_ylim()[1])*5
+# ax.set_ylim(ymin, ymax)
 # Legend: placed below title, above the plot, with extra spacing
 legend = ax.legend(
     frameon=False,
@@ -132,5 +132,5 @@ caption = r"$\mathbf{PR}$ Popcount Reduction    $\mathbf{BU}$ Broadcasting Unit 
 fig.text(0.52, 0.74, caption, ha='center', va='top', fontsize=BASE_FONT-1)
 
 plt.tight_layout(pad=0.35)
-plt.savefig("ablation_accumulative.png", bbox_inches="tight", pad_inches=0.02)
+plt.savefig("ablation_accumulative.pdf", bbox_inches="tight", pad_inches=0.02)
 plt.show()

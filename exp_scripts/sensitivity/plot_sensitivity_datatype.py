@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import sys
 import csv
 
-BASE_FONT = 8
+BASE_FONT = 7
 plt.rcParams.update({
     "font.size": BASE_FONT,
     "axes.labelsize": BASE_FONT + 1,
@@ -15,7 +15,7 @@ plt.rcParams.update({
 })
 
 FIG_WIDTH = 4
-FIGSIZE = (FIG_WIDTH, 2.3)
+FIGSIZE = (FIG_WIDTH, 2.3 * 0.85)
 BAR_LINEWIDTH = 0.3
 BAR_WIDTH = 0.2
 AXHLINE_WIDTH = 0.3
@@ -118,7 +118,7 @@ ax.axhline(y=8/8, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=
 ax.axhline(y=8/4, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
 ax.axhline(y=8/2, color="black", linestyle="--", linewidth=AXHLINE_WIDTH, alpha=0.7)
 ymin = (ax.get_ylim()[0])
-# ymax = (ax.get_ylim()[1])
+ymax = (ax.get_ylim()[1])
 ymax = 4.5
 ax.set_ylim(ymin, ymax)
 
@@ -132,5 +132,5 @@ legend = ax.legend(
 )
 
 plt.tight_layout(pad=0.35)
-plt.savefig("sensitivity_precision.png", bbox_inches="tight", pad_inches=0.02)
+plt.savefig("sensitivity_precision.pdf", bbox_inches="tight", pad_inches=0.02)
 plt.show()

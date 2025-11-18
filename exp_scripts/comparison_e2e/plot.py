@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Configuration
-BASE_FONT = 8
+BASE_FONT = 7
 plt.rcParams.update(
 	{
 		"font.size": BASE_FONT,
@@ -18,7 +18,7 @@ plt.rcParams.update(
 	}
 )
 
-FIG_WIDTH = 4
+FIG_WIDTH = 2.7
 FIGSIZE = (FIG_WIDTH, 2)
 BAR_LINEWIDTH = 0.3
 BAR_WIDTH = 0.2
@@ -30,13 +30,13 @@ ANNOT_FONTSIZE = BASE_FONT - 1
 # Scenario-specific color combinations
 SCENARIO_COLORS = {
 	"large_read": ["#CC9892", "#F7BDA9", "#ED7249"],       # Teal, Gold, Rose
-	"regular_chat": ["#7EA6D9", "#90CED7", "#7ECA86"],     # Sky blue, Orange, Mint
+	# "regular_chat": ["#7EA6D9", "#90CED7", "#7ECA86"],     # Sky blue, Orange, Mint
 	"long_generation": ["#5BB5AC", "#D8B365", "#DE526C"],  # Apricot, Taupe, Brown
 }
 
 SCENARIOS_INPUT_OUTPUT_TOKENS = [
 	("large_read",      8192,  256),   # long prompt, short answer
-	("regular_chat",    1024,  128),   # typical chat
+	# ("regular_chat",    1024,  128),   # typical chat
 	("long_generation", 1024,  4096),  # long answer/story
 ]
 
@@ -118,8 +118,9 @@ for scenario in SCENARIOS:
 		)
 	
 	ax.set_xticks(x)
-	ax.set_xticklabels(labels_with_geomean, rotation=0, ha="center", fontsize=plt.rcParams["xtick.labelsize"])
-	ax.set_ylabel("Normalized throughput")
+	ax.set_xticklabels(labels_with_geomean, rotation=10, ha="center", fontsize=plt.rcParams["xtick.labelsize"])
+	if scenario != "large_read":
+		ax.set_ylabel("Normalized throughput")
 	ax.set_yscale("log")
 	
 	# Get scenario details for annotation
@@ -171,7 +172,7 @@ for scenario in SCENARIOS:
 	
 	# Save figure
 	OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-	fig_path = OUTPUT_DIR / f"{scenario}_normalized_throughput.png"
+	fig_path = OUTPUT_DIR / f"{scenario}_normalized_throughput.pdf"
 	fig.savefig(fig_path, bbox_inches="tight", pad_inches=0.02)
 	print(f"Saved figure -> {fig_path}")
 	
