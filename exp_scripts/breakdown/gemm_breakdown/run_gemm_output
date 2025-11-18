@@ -1,0 +1,93 @@
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 687.5908196721313Tops
+memory capacity: 1024.0GB
+peripheral area: 830.6070382046778mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+Running mapping search...
+find_simdram_mapping: Best mapping: Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: True
+  Tile Mapping:  M: RB  N: A  K: CDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+Running simulation...
+--- Input Matmul Size --- M:1024, K:49152, N:12288
+Maximum Array Tile Size: {'M': 2, 'K': 768, 'N': 1536}
+get_arr_tile_stats: arr_latency=0.000418048, capacity_utilization=0.1875
+get_tile_stats: K_reduction_latency: 6.144e-05 = 805306368 / 13107200000000.0
+RB CDS ['A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+16777216 = 1024 * 16384 * 1
+get_tile_io_latency: data_volume=16777216, dup=['A'], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=1.28e-06 = 16777216 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 1024, 'K': 16384, 'N': 12288}, arr_tile_size: {'M': 2, 'K': 256, 'N': 1536}, MK_dup: 1, KN_dup:1, MN_dup:256, M_K_io_latency: 1.28e-06, K_N_io_latency: 0, M_N_io_latency: 9.6e-07, tile_compute_latency:0.00047948800000000003 = 0.000418048(arr_latency) + 6.144e-05(K_reduction_latency)
+================ Strategy Summary ================
+Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: AB
+  Array Multicast: False
+  Column Popcount: True
+  Tile Mapping:  M: RB  N: A  K: CDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+
+---------------- Tile Sizes ----------------------
+| Tile_M      | Tile_N      | Tile_K      |
+|-------------|-------------|-------------|
+| 1024        | 12288       | 16384       |
+
+| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
+|-------------|-------------|-------------|
+| 2           | 1536        | 256         |
+
+--------------- Utilization ----------------------
+| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
+|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| 0.1875      | 1.0         | 1           | 1           | 1           | 1           | 1           |
+
+------------------ Latency -----------------------
+| Total Latency        | 0.001444224            cycles|
+| Total Compute Latency | 0.001438464            cycles|
+| Total Array Latency  | 0.001254144            cycles|
+| Total Reduction Latency| 0.00018431999999999997 cycles|
+| IO Latency           | 5.76e-06               cycles|
+
+----------- Hardware Requirements ---------------
+| col_multicast        | False                 |
+| col_broadcast        | False                 |
+| broadcast            | {'C': False, 'R': False, 'B': False, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': True, 'R': False, 'B': False, 'A': False, 'S': True, 'D': True}|
+==================================================
+
+---------------- Debug Info -----------------------
+| Remaining Tiles       |                         |
+|-----------------------|-------------------------|
+| M_remain              | 0                      |
+| N_remain              | 0                      |
+| K_remain              | 0                      |
+
+| Fully Partitioned #Tiles |                       |
+|-------------------------|-----------------------|
+| M_t                   | 1                      |
+| N_t                   | 1                      |
+| K_t                   | 3                      |
+
+|------------------------|------------------------|
+==================================================
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 1.0
+Capacity utilization: 0.1875
+GEMM 1024x49152x12288 latency: 0.001444224s
+simulated latency: GEMM_1024x49152x12288 0.001444224
+Results written to test_gemm_x16_base_config.json_1024_49152_12288_simdram_ddr5_operandocality.csv
+/home/siyuan/LLMCompass/exp_scripts/breakdown/gemm_breakdown

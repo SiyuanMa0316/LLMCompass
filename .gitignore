@@ -12,4 +12,5 @@ cost_model/
 *.png
 *.pdf
 *.csv
+*legacy*
 *.DS_Store

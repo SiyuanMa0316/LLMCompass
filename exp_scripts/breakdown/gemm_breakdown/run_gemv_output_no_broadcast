@@ -1,0 +1,84 @@
+compute module:
+simdram config: 8channels x 32ranks x 16banks x 16arrays x 1subarrays x 16384subarr_rows x 1024cols x 8devices, with_PE: True
+simdram logical config: 8channels x 32ranks x 16banks x 8arrays x 1subarrays x 131072subarr_rows x 256cols x 8devices, with_PE: True
+simdram bw: 13107.2GB/s
+simdram internal bw: 4739326.553672316GB/s
+simdram ops: 687.5908196721313Tops
+memory capacity: 1024.0GB
+peripheral area: 830.6070382046778mm^2
+dram area: 33792.0mm^2
+
+memory module: N/A
+io module: N/A
+Using strategy from exp_scripts/breakdown/gemm_breakdown/gemv_strategy.json
+Running simulation...
+--- Input Matmul Size --- M:1, K:49152, N:12288
+Maximum Array Tile Size: {'M': 1, 'K': 192, 'N': 12}
+get_arr_tile_stats: arr_latency=1.888e-06, capacity_utilization=0.000732421875
+get_tile_stats: K_reduction_latency: 2.4e-07 = 3145728 / 13107200000000.0
+ RDS ['C', 'B', 'A'] {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+49152 = 1 * 49152 * 1
+get_tile_io_latency: data_volume=50331648, dup=[], simd_utilization={'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+get_tile_io_latency: latency=3.84e-06 = 50331648 / 13107200000000.0
+get_tile_stats: tile_size: {'M': 1, 'K': 49152, 'N': 12288}, arr_tile_size: {'M': 1, 'K': 192, 'N': 12}, MK_dup: 1, KN_dup:1, MN_dup:192, M_K_io_latency: 3.84e-06, K_N_io_latency: 0, M_N_io_latency: 9.375e-10, tile_compute_latency:2.1279999999999998e-06 = 1.888e-06(arr_latency) + 2.4e-07(K_reduction_latency)
+================ Strategy Summary ================
+Strategy(
+  Loop Order: mkn  PE Enabled: True  Broadcast: 
+  Array Multicast: False
+  Column Popcount: True
+  Tile Mapping:  M:   N: CBA  K: RDS  Array Mapping:  R: MN  C: K
+  Weight Resident: True
+  Input Resident: False
+  Output Resident: False
+)
+
+---------------- Tile Sizes ----------------------
+| Tile_M      | Tile_N      | Tile_K      |
+|-------------|-------------|-------------|
+| 1           | 12288       | 49152       |
+
+| Arr_Tile_M  | Arr_Tile_N  | Arr_Tile_K  |
+|-------------|-------------|-------------|
+| 1           | 12          | 192         |
+
+--------------- Utilization ----------------------
+| Row         | Col         | Array       | Bank        | Device      | Rank        | Channel     |
+|-------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| 0.000732421875 | 0.75        | 1           | 1           | 1           | 1           | 1           |
+
+------------------ Latency -----------------------
+| Total Latency        | 5.969875e-06           cycles|
+| Total Compute Latency | 2.1279999999999998e-06 cycles|
+| Total Array Latency  | 1.888e-06              cycles|
+| Total Reduction Latency| 2.4e-07                cycles|
+| IO Latency           | 3.841875e-06           cycles|
+
+----------- Hardware Requirements ---------------
+| col_multicast        | False                 |
+| col_broadcast        | False                 |
+| broadcast            | {'C': True, 'R': False, 'B': True, 'A': True, 'S': False, 'D': False}|
+| reduction            | {'C': False, 'R': True, 'B': False, 'A': False, 'S': True, 'D': True}|
+==================================================
+
+---------------- Debug Info -----------------------
+| Remaining Tiles       |                         |
+|-----------------------|-------------------------|
+| M_remain              | 0                      |
+| N_remain              | 0                      |
+| K_remain              | 0                      |
+
+| Fully Partitioned #Tiles |                       |
+|-------------------------|-----------------------|
+| M_t                   | 1                      |
+| N_t                   | 1                      |
+| K_t                   | 1                      |
+
+|------------------------|------------------------|
+==================================================
+Tiling utilization: {'C': 1, 'R': 1, 'B': 1, 'A': 1, 'S': 1, 'D': 1}
+Column utilization: 0.75
+Capacity utilization: 0.000732421875
+GEMM 1x49152x12288 latency: 5.969875e-06s
+simulated latency: GEMM_1x49152x12288 5.969875e-06
+Results written to test_gemm_x16_base_config.json_1_49152_12288_simdram_ddr5_operandocality.csv
+/home/siyuan/LLMCompass/exp_scripts/breakdown/gemm_breakdown

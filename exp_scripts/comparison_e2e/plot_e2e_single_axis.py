@@ -39,20 +39,20 @@ ax = plt.gca()
 # --- Bars: decode throughput speedups ---
 ax.bar(x - width, np.ones_like(baseline_thr), width, label="H100",
        color="#b8b0b0", edgecolor=None)
-ax.bar(x, thr_speedup_proteus, width, label="Token TP(Proteus)",
+ax.bar(x, thr_speedup_proteus, width, label="Decode(Proteus)",
        color="#ef7b7b", edgecolor=None)
-bars_new = ax.bar(x + width, thr_speedup_new, width, label="Token TP(DREAM)",
+bars_new = ax.bar(x + width, thr_speedup_new, width, label="Decode(DREAM)",
                   color="#82b4e7", edgecolor=None)
 
 ax.set_yscale("log")
-ax.set_ylabel("Speedup vs H100", fontsize=7)
+ax.set_ylabel("Normalized Performance", fontsize=7)
 ax.axhline(1, color="black", linestyle="--", linewidth=0.6)
 
 # --- Line plot: prefill speedups (on same y-axis) ---
 ax.plot(x, prefill_speedup_proteus, color="#c75d5d", marker="o", markersize=4.0,
-        linewidth=1.3, label="Prefill TP(Proteus)")
+        linewidth=1.3, label="Prefill(Proteus)")
 ax.plot(x + width, prefill_speedup_new, color="#3f7ec5", marker="s", markersize=4.0,
-        linewidth=1.3, label="Prefill TP(DREAM)")
+        linewidth=1.3, label="Prefill(DREAM)")
 
 ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1] * 8)
 

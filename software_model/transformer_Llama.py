@@ -250,7 +250,7 @@ class TransformerBlock(Operator):
             + launch_overhead
         )
         logs = dump_log(logs, 'q_proj', q_proj_latency, self.Q_proj.stats, launch_overhead)
-        print(f"q_proj latency: {q_proj_latency}, compute latency: {self.Q_proj.stats.compute_latency}, io overhead: {self.Q_proj.stats.io_latency}")
+        print(f"q_proj latency: {q_proj_latency}, compute latency: {self.Q_proj.stats.compute_latency}, array latency: {self.Q_proj.stats.total_array_latency}, reduction latency:{self.Q_proj.stats.total_reduction_latency}, io overhead: {self.Q_proj.stats.io_latency}")
 
         print(f"simulating k_proj: Matmul M={self.K_proj.M}, K={self.K_proj.K}, N={self.K_proj.N}")
         k_proj_latency = (
@@ -258,14 +258,14 @@ class TransformerBlock(Operator):
             + launch_overhead
         )
         logs = dump_log(logs, 'k_proj', k_proj_latency, self.K_proj.stats, launch_overhead)
-        print(f"k_proj latency: {k_proj_latency}, compute latency: {self.K_proj.stats.compute_latency}, io overhead: {self.K_proj.stats.io_latency}")
+        print(f"k_proj latency: {k_proj_latency}, compute latency: {self.K_proj.stats.compute_latency}, array latency: {self.K_proj.stats.total_array_latency}, reduction latency:{self.K_proj.stats.total_reduction_latency}, io overhead: {self.K_proj.stats.io_latency}")
 
         print(f"simulating v_proj: Matmul M={self.V_proj.M}, K={self.V_proj.K}, N={self.V_proj.N}")
         print(f"skipping v_proj simulation, using k_proj")
         v_proj_latency = k_proj_latency
         self.V_proj.stats = self.K_proj.stats
         logs = dump_log(logs, 'v_proj', v_proj_latency, self.V_proj.stats, launch_overhead)
-        print(f"v_proj latency: {v_proj_latency}, compute latency: {self.V_proj.stats.compute_latency}, io overhead: {self.V_proj.stats.io_latency}")
+        print(f"v_proj latency: {v_proj_latency}, compute latency: {self.V_proj.stats.compute_latency}, array latency: {self.V_proj.stats.total_array_latency}, reduction latency:{self.V_proj.stats.total_reduction_latency}, io overhead: {self.V_proj.stats.io_latency}")
 
         print(f"simulating q_mul_k: Batched_Matmul BS={self.Q_mul_K.bs} M={self.Q_mul_K.M}, K={self.Q_mul_K.K}, N={self.Q_mul_K.N}")
         q_mul_k_latency = (
@@ -273,7 +273,7 @@ class TransformerBlock(Operator):
             + launch_overhead
         )
         logs = dump_log(logs, 'q_mul_k', q_mul_k_latency, self.Q_mul_K.stats, launch_overhead)
-        print(f"q_mul_k latency: {q_mul_k_latency}, compute latency: {self.Q_mul_K.stats.compute_latency}, io overhead: {self.Q_mul_K.stats.io_latency}")
+        print(f"q_mul_k latency: {q_mul_k_latency}, compute latency: {self.Q_mul_K.stats.compute_latency}, array latency: {self.Q_mul_K.stats.total_array_latency}, reduction latency:{self.Q_mul_K.stats.total_reduction_latency}, io overhead: {self.Q_mul_K.stats.io_latency}")
 
         print(f"simulating a_mul_v: Batched_Matmul BS={self.A_mul_V.bs} M={self.A_mul_V.M}, K={self.A_mul_V.K}, N={self.A_mul_V.N}")
         a_mul_v_latency = (
@@ -281,7 +281,7 @@ class TransformerBlock(Operator):
             + launch_overhead
         )
         logs = dump_log(logs, 'a_mul_v', a_mul_v_latency, self.A_mul_V.stats, launch_overhead)
-        print(f"a_mul_v latency: {a_mul_v_latency}, compute latency: {self.A_mul_V.stats.compute_latency}, io overhead: {self.A_mul_V.stats.io_latency}")
+        print(f"a_mul_v latency: {a_mul_v_latency}, compute latency: {self.A_mul_V.stats.compute_latency}, array latency: {self.A_mul_V.stats.total_array_latency}, reduction latency:{self.A_mul_V.stats.total_reduction_latency}, io overhead: {self.A_mul_V.stats.io_latency}")
 
         print(f"simulating h_matmul0: Matmul M={self.H_matmul0.M}, K={self.H_matmul0.K}, N={self.H_matmul0.N}")
         h_matmul0_latency = (
@@ -289,7 +289,7 @@ class TransformerBlock(Operator):
             + launch_overhead
         )
         logs = dump_log(logs, 'h_matmul0', h_matmul0_latency, self.H_matmul0.stats, launch_overhead)
-        print(f"h_matmul0 latency: {h_matmul0_latency}, compute latency: {self.H_matmul0.stats.compute_latency}, io overhead: {self.H_matmul0.stats.io_latency}")
+        print(f"h_matmul0 latency: {h_matmul0_latency}, compute latency: {self.H_matmul0.stats.compute_latency}, array latency: {self.H_matmul0.stats.total_array_latency}, reduction latency:{self.H_matmul0.stats.total_reduction_latency}, io overhead: {self.H_matmul0.stats.io_latency}")
 
         print(f"simulating h1_matmul1: Matmul M={self.H_matmul1.M}, K={self.H_matmul1.K}, N={self.H_matmul1.N}")
         h1_matmul1_latency = (
@@ -297,7 +297,7 @@ class TransformerBlock(Operator):
             + launch_overhead
         )
         logs = dump_log(logs, 'h1_matmul1', h1_matmul1_latency, self.H_matmul1.stats, launch_overhead)
-        print(f"h1_matmul1 latency: {h1_matmul1_latency}, compute latency: {self.H_matmul1.stats.compute_latency}, io overhead: {self.H_matmul1.stats.io_latency}")
+        print(f"h1_matmul1 latency: {h1_matmul1_latency}, compute latency: {self.H_matmul1.stats.compute_latency}, array latency: {self.H_matmul1.stats.total_array_latency}, reduction latency:{self.H_matmul1.stats.total_reduction_latency}, io overhead: {self.H_matmul1.stats.io_latency}")
 
         print(f"simulating h2_matmul2: Matmul M={self.H_matmul2.M}, K={self.H_matmul2.K}, N={self.H_matmul2.N}")
         h2_matmul2_latency = (
@@ -305,7 +305,7 @@ class TransformerBlock(Operator):
             + launch_overhead
         )
         logs = dump_log(logs, 'h2_matmul2', h2_matmul2_latency, self.H_matmul2.stats, launch_overhead)
-        print(f"h2_matmul2 latency: {h2_matmul2_latency}, compute latency: {self.H_matmul2.stats.compute_latency}, io overhead: {self.H_matmul2.stats.io_latency}")
+        print(f"h2_matmul2 latency: {h2_matmul2_latency}, compute latency: {self.H_matmul2.stats.compute_latency}, array latency: {self.H_matmul2.stats.total_array_latency}, reduction latency:{self.H_matmul2.stats.total_reduction_latency}, io overhead: {self.H_matmul2.stats.io_latency}")
         print("finish matmul simulation")
 
         matmul_total_latency = (

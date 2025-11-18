@@ -104,7 +104,7 @@ class ComputeModuleSIMDRAM:
         if bit_parallel:
             self.gops = channel_count * rank_count * bank_count * bank.logical_arr_count * bank.subarr_count * bank.logical_arr_cols / 8 *2 / (14.16*6)
         else:
-            self.gops = channel_count * rank_count * bank_count * bank.logical_arr_count * bank.subarr_count * bank.device_count * bank.logical_arr_cols *2 / (16*12.2)
+            self.gops = channel_count * rank_count * bank_count * bank.logical_arr_count * bank.subarr_count * bank.device_count * bank.logical_arr_cols *2 / (8*(8*2+1))
         self.parallelisms = {}
         self.parallelisms['C'] = self.channel_count
         self.parallelisms['R'] = self.rank_count
